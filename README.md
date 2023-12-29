@@ -1,6 +1,8 @@
 # hal_md
 
-Personal relationship management using plain-text Markdown files.
+Personal relationship management of your ego social network using plain-text Markdown files. Think of it like a Personal CRM on steroids.
+
+At this point, mostly a collection of templates but over tine could evolved. Relies heavily on a Personal Knowledge Management (PKM) like tool but also
 
 ## Context
 
@@ -8,12 +10,12 @@ Getting here has been a decades-long journey which you can read about in [The Lo
 
 ## Navigating your social network
 
-You can use any editor but preferably one that supports wikilinks, YAML frontmatter, and queries.
+You can use any text editor but preferably one that supports wikilinks, YAML frontmatter, and queries.
 
 1. [Obsidian](https://obsidian.md/) by fellow Canadians [Erica Xu](https://github.com/ericaxu) and [Shida Li](https://github.com/lishid)
 2. [Silver Bullet](https://github.com/silverbulletmd) which is Open-Source by Polish [Zef Hemel](https://github.com/zefhemel)
 
-Obsidian has a graph view (aka Map of Content aka MoC) which is fun to visualize your social network.
+Obsidian has a graph view (aka Map of Content aka MoC) which is fun to visualize your social network. Visual Studio Code is handy as well.
 
 ## Helper tools
 
