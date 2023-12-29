@@ -2,7 +2,7 @@
 
 Personal relationship management of your ego social network using plain-text Markdown files. Think of it like a Personal CRM on steroids.
 
-At this point, mostly a collection of templates but over tine could evolved. Relies heavily on a Personal Knowledge Management (PKM) like tool but also
+At this point, mostly a collection of templates but over tine could evolve. Relies heavily on a Personal Knowledge Management (PKM) like tool but also
 
 ## Context
 
