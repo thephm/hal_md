@@ -24,3 +24,17 @@ I've written some Python tools to convert exports from various messaging apps to
 ## How it works
 
 There is no real software (yet?), mostly Obsidian templates and some instructions.
+
+## Templates
+
+There are a set of templates I use to track my social network. Each contain a set of metadata at the top also known as YAML frontmatter.
+
+File | For what | Notes
+---|---|---
+[Call.md](templates/Call.md) | phone calls | Do people still make these?
+[Chat.md](templates/Chat.md) | instant messaging chat | e.g. LinkedIn, Signal
+[Organization.md](templates/Organization.md) | for schools and companies | Where a `Person` studie, volunteers, or works
+[Place.md](templates/Place.md) | a physical place | may link to People in form of `[personA, personB]`
+[Post.md](templates/Post.md) | a social media  | Material post by a `Person` 
+[Product.md](templates/Product.md)| products | List of product slugs in `[]` worked on by a `Person` and/or `Organization`
+[Video.md](templates/Video.md) |  videos | e.g. YouTube video by `People`
