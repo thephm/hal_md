@@ -6,9 +6,17 @@ A bit of context on how I got here. More of the story in the post [Goodbye socia
 
 I worked as an Engineering Manager at a startup full of Linux folks and they created a home-grown recruitment system using flat files for interview notes and folders containing resumes. This stuck in my head for a long time, such a simple solution with permissions controlled by Linux file system and Web auth.
 
+## 2002
+
+I came up with the idea to visualize and manage our social networks like we do with computer networks. This lead me to find and learn about social network science.  
+
 ## 2003
 
-After my failed social networking software startup. I started developing a tool for myself based on the same concept and nicknamed it HAL. It was built with PHP, MySQL, and Javascript and I continued tweaking it over the years while sipping in my network data. 
+With some friends we started a company to build out my vision. We failed to get funding and it fizzled away.
+
+## 2007
+
+After my failed social networking software startup. I started developing a tool for myself based on the same concept and nicknamed it HAL. It was built with PHP, MySQL, and Javascript and I continued tweaking it over the years while sipping in my network data.
 
 ## 2021
 
