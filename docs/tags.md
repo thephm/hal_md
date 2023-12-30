@@ -31,7 +31,7 @@ I do add tags for special projects we worked on together, to be able to search o
 | **Business** |  |
 | `#employee` | Reported to me, add `#ex` if in the past? |
 | `#my-manager` | My manager |
-| `#peer` | Was a peer of mine at an organization |
+| `#colleague` | Was a peer of mine at an organization |
 | `#neighbour` | A neighbour, add `#ex` if in the past? |
 | `#interviewee` | Someone I interviewed for a job |
 | `#interviewer` | Someone who interviewed me for a job |
