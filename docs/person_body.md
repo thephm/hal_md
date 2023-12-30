@@ -1,4 +1,4 @@
-# Person body
+# The Person's body
 
 Here are some of the sections in the body of a person note:
 
