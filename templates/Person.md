@@ -18,7 +18,7 @@ instagram-id:
 linkedin-id: 
 hometown: 
 city: 
-province: 
+state: 
 country:
 ---
 
