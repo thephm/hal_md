@@ -70,14 +70,14 @@ These are a set of templates to track your social network. Each contain a set of
 
 File | For what | Notes
 ---|---|---
-[Call.md](templates/Call.md) | phone calls | Do people still make these?
-[Chat.md](templates/Chat.md) | instant messaging chat | e.g. LinkedIn, Signal
-[Organization.md](templates/Organization.md) | for schools and companies | Where a `Person` studie, volunteers, or works
-[Person.md](templates/Person.md) | for schools and companies | The actual person!
-[Place.md](templates/Place.md) | a physical place | may link to People in form of `[personA, personB]`
-[Post.md](templates/Post.md) | a social media  | Material post by a `Person` 
-[Product.md](templates/Product.md)| products | List of product slugs in `[]` worked on by a `Person` and/or `Organization`
-[Video.md](templates/Video.md) |  videos | e.g. YouTube video by `People`
+[Call.md](templates/Call.md) | A phone call | Do people still make these?
+[Chat.md](templates/Chat.md) | Instant messaging chat | e.g. LinkedIn, Signal, SMS
+[Organization.md](templates/Organization.md) | Schools and companies | Where a `Person` studie, volunteers, or works
+[Person.md](templates/Person.md) | A person | The actual person!
+[Place.md](templates/Place.md) | A physical place | Places people including you have been (e.g vacations, recommendations)
+[Post.md](templates/Post.md) | Social media or blog post  | Material post by a `Person` 
+[Product.md](templates/Product.md)| Product | A product worked on by a `Person` and/or `Organization`
+[Video.md](templates/Video.md) |  Videos | e.g. YouTube video by `People`
 
 ## Frontmatter matters
 
@@ -87,7 +87,7 @@ A big part of this working well will be maintaining the frontmatter, you can sip
 
 ## List of birthdays and anniversaries
 
-With standard Obsidian (no additional plugins), create a file for each month of the year and include embedded queries to show the birthdays and anniveraries that month. Here's what the queries look like:
+With standard Obsidian (no additional plugins), create a file for each month of the year and include embedded queries to show the birthdays and anniveraries that month. The sample query files are [here](queries) and here's what they look like:
 
 ![](media/anniversary_and_birthday_query.png)
 
@@ -106,5 +106,3 @@ So far, I've created:
 - [sms_backup_md](https://github.com/thephm/sms_backup_md) for SMS messages
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
-
-
