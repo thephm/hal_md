@@ -18,7 +18,7 @@ With some friends we started a company to build out my vision. We failed to get 
 
 After my failed social networking software startup. I started developing a tool for myself based on the same concept and nicknamed it HAL. It was built with PHP, MySQL, and Javascript and I continued tweaking it over the years while sipping in my network data.
 
-![](../media/HAL Home.jpg)
+![](../media/HALHome.jpg)
 
 ## 2021
 
