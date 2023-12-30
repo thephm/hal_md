@@ -4,7 +4,7 @@ At the top of the [Person.md](../templates/Person.md) is what's called the the f
 
 ### Why
 
-Having some structured metadata -- data about the data which, in this case, is data about the person -- is helpful to be able to query across all of your notes and to be able to answer questions like "Who in my network knows Java?"
+Having structured metadata -- data about the data which, in this case, is data about the person -- is helpful to be able to query across all of your notes and to be able to answer questions like "Who in my network knows Java?"
 
 ### What
 
