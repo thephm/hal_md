@@ -29,7 +29,7 @@ Obsidian has a graph view (aka Map of Content aka MoC) which is fun to visualize
 
 ## How it works
 
-Simply use Obsidian and start creating files for each `Person`, `Organization`, and optionally `Place` using the [templates](templates). Include wikilinks (`[[name]]`) to "connect" the people, places, and organizations together as you go. 
+Simply use Obsidian and start creating files for each `Person`, `Organization`, and optionally `Place` using the [templates](templates). Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
 
 1. Creating a file for a person in your network using [Person.md](templates/Person.md) template
 2. Name the file `FirstName Lastname.md`
@@ -50,15 +50,17 @@ For each person under `## People` add [tags](docs/tags.md) like `#friend` or `#s
 
 Organize your notes as you wish. I like to have folders.
 
-- `attachments` - for any files, images, photos
-- `organizations` - put all the company profiles in here
-- `people` - put all the people in here. Subfolder with their `slug` and then dated files for each interaction
-- `personal` - my personal notes
-- `templates` - the files from [templates](templates)
+- `Attachments` - for any files, images, photos
+- `Organizations` - put all the company profiles in here
+- `People` - put all the people in here. Subfolder with their `slug` and then dated files for each interaction
+- `Personal` - my personal notes
+- `Templates` - the files from [templates](templates)
 
-For `people` I create a folder for each person I communicate with.
+For most people, I create a folder for them and a sub-folder `media` for a photo of them and any images or files we shared with each other. 
 
-![](media/obsidian filters.png)
+My [Helper Tools](#helper-tools) put images and files I've shared into those `media` subfolders. For people that I haven't communicated with, I stuff those in `People\others` 
+
+![](media/obsidian_folders.png)
 
 ## Templates
 
@@ -87,6 +89,14 @@ Which results in this (a bit ugly as you see the regex):
 
 ## Helper tools
 
-I've written some Python tools to convert the exports from various messaging apps to Markdown. So far, I've created [linkedin_md](https://github.com/thephm/linkedin_md), [signal_md](https://github.com/thephm/signal_md), and [sms_backup_md](https://github.com/thephm/sms_backup_md). Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
+I've written some Python tools to convert the exports from various messaging apps to Markdown. 
+
+So far, I've created:
+
+- [linkedin_md](https://github.com/thephm/linkedin_md) for Linkedin chats
+- [signal_md](https://github.com/thephm/signal_md) for Signal messages
+- [sms_backup_md](https://github.com/thephm/sms_backup_md) for SMS messages
+
+Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
 
 
