@@ -16,9 +16,13 @@ With some friends we started a company to build out my vision. We failed to get 
 
 ## 2007
 
-After my failed social networking software startup. I started developing a tool for myself based on the same concept and nicknamed it HAL. It was built with PHP, MySQL, and Javascript and I continued tweaking it over the years while sipping in my network data.
+After our failed social networking software startup, I began developing a tool for my own use based on the same concept and nicknamed it HAL. I built it with PHP, MySQL, and Javascript and I continued tweaking it over the years while sipping in my network data. It was slow but I lived with it. This was the top page, originally to mimic the Google homepage which is ironic as years later I tried to go Google-free! 
 
-![](../media/HAL Home.jpg)
+![](../media/HALHome.jpg)
+
+This was the profile page for a person.
+
+![](../media/EricaXu.png)
 
 ## 2021
 
@@ -30,4 +34,6 @@ After two decades of building and using HAL, I got the idea to start using Markd
 
 ## 2023
 
-I spent a lot of time writing an exporter for my large ego network of 3,640 people from my custom MySQL DB to Markdown. I stopped using HAL as my main tool and now only use [Obsidian](https://obsidian.md/). It's slow to load on Android (about 30 seconds) but fast once loaded. On Windows, loads in about 9 seconds. 37,638 files.
+I spent a lot of time writing an exporter for my large ego network of 3,640 people from my custom MySQL DB to Markdown. I stopped using HAL as my main tool and now only use [Obsidian](https://obsidian.md/). It's slow to load on Android (about 30 seconds) but fast once loaded. On Windows, loads in about 9 seconds. 37,638 files. Now I can do things I dreamed of 20 years prior like this...
+
+![](../media/mynetwork.png)
