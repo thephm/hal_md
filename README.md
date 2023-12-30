@@ -82,9 +82,29 @@ File | For what | Notes
 
 ## Frontmatter matters
 
-A big part of this working well will be maintaining the frontmatter, you can sip things in over time like a new skill for a person or a new interest. You don't have to do it all at once. Just start. In this example, you can see if you click in the skills field, Obsidian shows a list of skills other people have which makes it easy to be consistent across all people with that skill.
+A big part of this working well will be maintaining the frontmatter, you can sip things in over time like a new skill for a person or a new interest. You don't have to do it all at once. Just start.
+
+In this example, you can see if you click in the skills field, Obsidian shows a list of skills other people have which makes it easy to be consistent across all people with that skill.
 
 ![](media/SpongeBob_frontmatter.png)
+
+## What's a slug?
+
+Each key template has a `slug` field which is a one-word or hyphenated word that uniquely identifies the Person, Place, Organization from others. It needs to be unique within each of the categories.
+
+For example, [Organization.md](templates/Organization.md) has `people: []` in the frontmatter which could contain a comma separated list of Person slugs from individual [Person.md](templates/Person.md) files.
+
+The [Chat.md](templates/Chat.md) template also has a `people` field to list the people that were part of the conversation. 
+
+The [Place.md](templates/Place.md) template has a `people` field which you could use to list people that recommended the place. You won't need to put people that live or work there in this field since that information is already in their [Person.md](templates/Person.md) template.
+
+## The Person
+
+This is the most important template of the collectoin and there are two pages describing the file:
+
+- [The Person's head](docs/person_frontmatter.md) describes each of the fields in the [Person.md](templates/Person.md) template.
+
+- [The Person's body](docs/person_body.md) describes the sections of the body of the [Person.md](templates/Person.md) template.
 
 ## List of birthdays and anniversaries
 
