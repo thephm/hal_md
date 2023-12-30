@@ -14,7 +14,7 @@ This will take a long time to build out and require some attention to detail.
 
 Here's the visualization of my social network in Obsidian. This is a filter of the Markdown files that have `tags: [person]` in their frontmatter – the meta-data at the top of my note files. The colors represent which category I have the person in such as the bright green for my "A-listers" where I have the tags `person` and `alist` 😂.
 
-![images](mynetwork.png)
+![](media/mynetwork.png)
 
 ## Navigating your social network
 
