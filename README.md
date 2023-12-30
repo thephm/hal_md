@@ -31,7 +31,7 @@ Obsidian has a graph view (aka Map of Content aka MoC) which is fun to visualize
 
 Simply use Obsidian and start creating files for each `Person`, `Organization`, and optionally `Place` using the [templates](templates). Include wikilinks (`[[name]]`) to "connect" the people, places, and organizations together as you go. 
 
-1. Start by creating a file for a person in your network using [Person.md](templates/Person.md) template
+1. Creating a file for a person in your network using [Person.md](templates/Person.md) template
 2. Name the file `FirstName Lastname.md`
 3. Fill in as little or as much of the metadata on the person
 4. List the people they're connected to under `## People` using `[[FirstName LastName]]` 
@@ -73,6 +73,16 @@ File | For what | Notes
 [Post.md](templates/Post.md) | a social media  | Material post by a `Person` 
 [Product.md](templates/Product.md)| products | List of product slugs in `[]` worked on by a `Person` and/or `Organization`
 [Video.md](templates/Video.md) |  videos | e.g. YouTube video by `People`
+
+## List of birthdays and anniversaries
+
+With standard Obsidian (no additional plugins), I can create a file for each month of the year and include embedded queries to show the birthdays and anniveraries that month. Here's what the queries look like:
+
+![](media/anniversary_and_birthday_query.png)
+
+Which results in this (a bit ugly as you see the regex):
+
+![](media/inline_query.png)
 
 ## Helper tools
 
