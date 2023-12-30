@@ -56,7 +56,7 @@ Organize your notes as you wish. I like to have folders.
 - `Organizations` - put all the company profiles in here
 - `People` - put all the people in here. Subfolder with their `slug` and then dated files for each interaction
 - `Personal` - my personal notes
-- `Templates` - the files from [templates](templates)
+- `Templates` - the files from [Templates](#templates) 
 
 For most people, I create a folder for them and a sub-folder `media` for a photo of them and any images or files we shared with each other. 
 
