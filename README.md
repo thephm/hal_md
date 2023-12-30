@@ -33,14 +33,15 @@ As shown in the above image, Obsidian has a graph view (aka Map of Content aka M
 
 Simply use Obsidian and start creating files for each `Person` and optionally `Organization` and `Place` using the [Templates](#templates)  provided. Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
 
-1. Create a file for a person in your network using [Person.md](templates/Person.md) template
-2. Name the file `FirstName Lastname.md`
-3. Fill in as little or as much of the metadata on the person
-4. List the people they're connected to under `## People` using `[[FirstName LastName]]` 
-5. List their positions under `## Positions` using `Title, [[Organization Name]]` 
-6. Click on each person under `## People`
-7. Have a sip of your favorite drink
-8. Go to Step 1
+1. Create a file for a person in your network
+2. Use the [Person.md](templates/Person.md) template
+3. Name the file `FirstName Lastname.md`
+4. Fill in as little or as much of the metadata on the person
+5. List the people they're connected to under `## People` using `[[FirstName LastName]]` 
+6. List their positions under `## Positions` using `Title, [[Organization Name]]` 
+7. Click on each person under `## People`
+8. Have a sip of your favorite drink
+9. Go to Step 2
 
 ### Bonus points
 
