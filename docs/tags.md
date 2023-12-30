@@ -13,12 +13,12 @@ I do add tags for special projects we worked on together, to be able to search o
 | `#deceased` | No longer on this planet |
 | `#never-met` | I never met them |
 | **Strength** |  |
-| `#alist` | strong connection, would refer without hesitation |
-| `#blist` | good connection, would help out, would refer |
+| `#alist` | Strong connection, would refer without hesitation |
+| `#blist` | Good connection, would help out, would refer |
 | `#clist` | OK connection, would contact, may refer |
-| `#dlist` | some connection, previous work colleague or met once |
-| `#elist` | no direction connection, opportunity to connect through someone else |
-| `#flist` | don't want to connect or bad connection, would not refer |
+| `#dlist` | Some connection, previous work colleague or met once |
+| `#elist` | No direction connection, opportunity to connect through someone else |
+| `#flist` | Don't want to connect or bad connection, would not refer |
 | **Personal** |  |
 | `#classmate` | Classmate of mine |
 | `#family` | In my family |
@@ -26,7 +26,7 @@ I do add tags for special projects we worked on together, to be able to search o
 | `#foaf` | Friend of a friend, friend a sibling, or sibling of a friend, family friend |
 | `#koaf` | Kid of a friend |
 | `#poaf` | Partner of a friend |
-| `#sibling` | One of the 9 |
+| `#sibling` | Brother or sister |
 | `#in-law` | In laws |
 | **Business** |  |
 | `#employee` | Reported to me, add `#ex` if in the past? |
