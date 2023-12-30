@@ -29,11 +29,10 @@ I do add tags for special projects we worked on together, to be able to search o
 | `#sibling` | One of the 9 |
 | `#in-law` | In laws |
 | **Business** |  |
-| `#employee` | Reported to me, ==add `#ex` if in the past??== |
+| `#employee` | Reported to me, add `#ex` if in the past? |
 | `#my-manager` | My manager |
 | `#peer` | Was a peer of mine at an organization |
-| `#neighbour` | A neighbout, add `#ex` if in the past |
-| `#network` | Someone in my network - ==isn't this everyone?== |
+| `#neighbour` | A neighbour, add `#ex` if in the past? |
 | `#interviewee` | Someone I interviewed for a job |
 | `#interviewer` | Someone who interviewed me for a job |
 | **Profession** |  |
