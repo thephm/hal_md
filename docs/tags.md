@@ -31,7 +31,7 @@ I do add tags for special projects we worked on together, to be able to search o
 | **Business** |  |
 | `#employee` | Reported to me, add `#ex` if in the past? |
 | `#my-manager` | My manager |
-| `#peer` | Was a peer of mine at an organization |
+| `#colleague` | Was a peer of mine at an organization |
 | `#neighbour` | A neighbour, add `#ex` if in the past? |
 | `#interviewee` | Someone I interviewed for a job |
 | `#interviewer` | Someone who interviewed me for a job |
@@ -39,10 +39,12 @@ I do add tags for special projects we worked on together, to be able to search o
 | `#agile` | Agile - may move this to `skills`  |
 | `#architect` | Architect, another tag will provide specificity on the area |
 | `#developer` | Software Developer |
+| `#engineer` | Engineer |
 | `#entrepreneur` | Entrepreneur(ial) |
 | `#exec` | They're an executive |
 | `#hr` | Human Resources person |
 | `#recruiter` | Recruiter, internal or external |
+| `#software-developer` | Software Developer |
 | `#service-provider` | They provide service to us, like Lawyer, Accountant etc. |
 | **Personality** |  |
 | `#nice` | Nice person |
