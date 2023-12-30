@@ -90,7 +90,7 @@ In this example, you can see if you click in the skills field, Obsidian shows a 
 
 ## What's a slug?
 
-Each key templates has a `slug` field which is a one-word or hyphenated word that uniquely identifies the Person, Place, Organization from others. It needs to be unique within each of the categories.
+Each key template has a `slug` field which is a one-word or hyphenated word that uniquely identifies the Person, Place, Organization from others. It needs to be unique within each of the categories.
 
 For example, [Organization.md](templates/Organization.md) has `people: []` in the frontmatter which could contain a comma separated list of Person slugs from individual [Person.md](templates/Person.md) files.
 
