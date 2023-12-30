@@ -10,7 +10,7 @@ Getting here has been a decades-long journey which you can read about in [The Lo
 
 ## Start with the end in mind
 
-This will take a long time to build out and require some attention to detail.
+This will take a long time to build out and require some attention to detail. 
 
 Here's the visualization of my social network in Obsidian. This is using a filter of the Markdown files that have `tags: [person]` in their frontmatter – the meta-data at the top of my note files. The colors represent which category I have the person in such as the bright green for my "A-listers" where I have the tags `person` and `alist`. Red is for `flist`, people I don't want to keep in touch with for various reasons.
 
@@ -44,20 +44,21 @@ Simply use Obsidian and start creating files for each `Person`, `Organization`, 
 
 For each Organization under `## Organization` fill in as little or as much information on the organization.
 
-For each person under `## People` I also add tags like
-
-- `#friend`, `#family`, `#business` to qualify the relationship
-- `#weak`, `#strong`, `#very-strong` to track the strength of the ties between them 
+For each person under `## People` add [tags](docs/tags.md) like `#friend` or `#strong` to track the strength of the ties between them.
 
 ## Folders, or no Folders, it's up to you
 
-In my `notes` folder, I use the following folder structure:
+Organize your notes as you wish. I like to have folders.
 
 - `attachments` - for any files, images, photos
 - `organizations` - put all the company profiles in here
 - `people` - put all the people in here. Subfolder with their `slug` and then dated files for each interaction
 - `personal` - my personal notes
 - `templates` - the files from [templates](templates)
+
+For `people` I create a folder for each person I communicate with.
+
+![](media/obsidian filters.png)
 
 ## Templates
 
