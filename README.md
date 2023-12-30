@@ -1,8 +1,8 @@
 # hal_md
 
-Personal relationship management of your ego social network using plain-text Markdown files. Think of it like a Personal CRM on steroids.
+Personal relationship management of your ego social network using plain-text Markdown files. Think of it like a Personal CRM on steroids. You'll need steroids and patience to create the Markdown files but they'll be yours forever.
 
-At this point, this is a collection of templates with instructions and over time it will evolve. The approach relies heavily on a Personal Knowledge Management (PKM) tool like [Obsidian](https://obsidian.md/) but could work with any text editor.
+This is a collection of templates with instructions and over time it will evolve. The approach relies heavily on a Personal Knowledge Management (PKM) tool like [Obsidian](https://obsidian.md/) but could work with any text editor.
 
 ## Context
 
@@ -12,7 +12,7 @@ Getting here has been a decades-long journey which you can read about in [The Lo
 
 This will take a long time to build out and require some attention to detail. 
 
-Here's the visualization of my social network in Obsidian. This is using a filter of the Markdown files that have `tags: [person]` in their frontmatter – the meta-data at the top of my note files. The colors represent which category I have the person in such as the bright green for my "A-listers" where I have the tags `person` and `alist`. Red is for `flist`, people I don't want to keep in touch with for various reasons.
+Here's the visualization of my social network in Obsidian. This is using a filter of the Markdown files that have `tags: [person]` in their frontmatter – the meta-data at the top of my note files. The colors represent which category I have the person in such as the bright green for my "A-listers" where I have the tags `person` and `alist`. Red is for `flist`, i.e., the people that I don't want to keep in touch with for various reasons.
 
 ![](media/mynetwork.png)
 
@@ -25,13 +25,15 @@ You can use any text editor but preferably one that supports wikilinks, YAML fro
 
 I haven't checked if [GitJournal](https://github.com/GitJournal/GitJournal) by [Vishesh Handa](https://www.linkedin.com/in/visheshhanda/) supports YAML frontmatter but it does support wikilinks so you'll still be able to navigate your notes.
 
-Obsidian has a graph view (aka Map of Content aka MoC) which is fun to visualize your social network. [Visual Studio](https://visualstudio.microsoft.com/) is handy as well.
+As shown in the above image, Obsidian has a graph view (aka Map of Content aka MoC) which is a really fun way to visualize and navigate your social network. The local graph view is much more useful at an individual person level. 
+
+[Visual Studio](https://visualstudio.microsoft.com/) is also handy for bulk changes.
 
 ## How it works
 
-Simply use Obsidian and start creating files for each `Person`, `Organization`, and optionally `Place` using the [templates](templates). Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
+Simply use Obsidian and start creating files for each `Person` and optionally `Organization` and `Place` using the [templates](templates) provided. Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
 
-1. Creating a file for a person in your network using [Person.md](templates/Person.md) template
+1. Create a file for a person in your network using [Person.md](templates/Person.md) template
 2. Name the file `FirstName Lastname.md`
 3. Fill in as little or as much of the metadata on the person
 4. List the people they're connected to under `## People` using `[[FirstName LastName]]` 
@@ -64,7 +66,7 @@ My [Helper Tools](#helper-tools) put images and files I've shared into those `me
 
 ## Templates
 
-There are a set of templates I use to track my social network. Each contain a set of metadata at the top also known as YAML frontmatter.
+These are a set of templates to track your social network. Each contain a set of metadata at the top of the files also known as YAML frontmatter. If you're not technical, don't worry as Obsidian makes it easy to edit that information.
 
 File | For what | Notes
 ---|---|---
@@ -77,9 +79,15 @@ File | For what | Notes
 [Product.md](templates/Product.md)| products | List of product slugs in `[]` worked on by a `Person` and/or `Organization`
 [Video.md](templates/Video.md) |  videos | e.g. YouTube video by `People`
 
+## Frontmatter matters
+
+A big part of this working well will be maintaining the front-matter, you can sip things in over time like a new skill for a person or a new interest. You don't have to do it all at once. Just start.
+
+![](media/SpongeBob frontmatter.png)
+
 ## List of birthdays and anniversaries
 
-With standard Obsidian (no additional plugins), I can create a file for each month of the year and include embedded queries to show the birthdays and anniveraries that month. Here's what the queries look like:
+With standard Obsidian (no additional plugins), create a file for each month of the year and include embedded queries to show the birthdays and anniveraries that month. Here's what the queries look like:
 
 ![](media/anniversary_and_birthday_query.png)
 
