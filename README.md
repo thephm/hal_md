@@ -81,9 +81,9 @@ File | For what | Notes
 
 ## Frontmatter matters
 
-A big part of this working well will be maintaining the front-matter, you can sip things in over time like a new skill for a person or a new interest. You don't have to do it all at once. Just start.
+A big part of this working well will be maintaining the frontmatter, you can sip things in over time like a new skill for a person or a new interest. You don't have to do it all at once. Just start. In this example, you can see if you click in the skills field, Obsidian shows a list of skills other people have which makes it easy to be consistent across all people with that skill.
 
-![](media/SpongeBob frontmatter.png)
+![](media/SpongeBob_frontmatter.png)
 
 ## List of birthdays and anniversaries
 
