@@ -31,7 +31,7 @@ As shown in the above image, Obsidian has a graph view (aka Map of Content aka M
 
 ## How it works
 
-Simply use Obsidian and start creating files for each `Person` and optionally `Organization` and `Place` using the [templates](templates) provided. Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
+Simply use Obsidian and start creating files for each `Person` and optionally `Organization` and `Place` using the [Templates](#templates)  provided. Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
 
 1. Create a file for a person in your network using [Person.md](templates/Person.md) template
 2. Name the file `FirstName Lastname.md`
