@@ -31,7 +31,7 @@ As shown in the above image, Obsidian has a graph view (aka Map of Content aka M
 
 ## How it works
 
-Simply use Obsidian and start creating files for each `Person` and optionally `Organization` and `Place` using the [templates](templates) provided. Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
+Simply use Obsidian and start creating files for each `Person` and optionally `Organization` and `Place` using the [Templates](#templates)  provided. Include wikilinks in the form of `[[name]]` to "connect" the people, places, and organizations together as you go. 
 
 1. Create a file for a person in your network using [Person.md](templates/Person.md) template
 2. Name the file `FirstName Lastname.md`
@@ -56,7 +56,7 @@ Organize your notes as you wish. I like to have folders.
 - `Organizations` - put all the company profiles in here
 - `People` - put all the people in here. Subfolder with their `slug` and then dated files for each interaction
 - `Personal` - my personal notes
-- `Templates` - the files from [templates](templates)
+- `Templates` - the files from [Templates](#templates) 
 
 For most people, I create a folder for them and a sub-folder `media` for a photo of them and any images or files we shared with each other. 
 
@@ -81,9 +81,9 @@ File | For what | Notes
 
 ## Frontmatter matters
 
-A big part of this working well will be maintaining the front-matter, you can sip things in over time like a new skill for a person or a new interest. You don't have to do it all at once. Just start.
+A big part of this working well will be maintaining the frontmatter, you can sip things in over time like a new skill for a person or a new interest. You don't have to do it all at once. Just start. In this example, you can see if you click in the skills field, Obsidian shows a list of skills other people have which makes it easy to be consistent across all people with that skill.
 
-![](media/SpongeBob frontmatter.png)
+![](media/SpongeBob_frontmatter.png)
 
 ## List of birthdays and anniversaries
 
