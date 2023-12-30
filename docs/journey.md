@@ -18,6 +18,8 @@ With some friends we started a company to build out my vision. We failed to get 
 
 After my failed social networking software startup. I started developing a tool for myself based on the same concept and nicknamed it HAL. It was built with PHP, MySQL, and Javascript and I continued tweaking it over the years while sipping in my network data.
 
+![](../media/HAL Home.jpg)
+
 ## 2021
 
 I started a new [hobby](https://www.noteapps.ca/why/) looking for the best Android note-taking app. I tested apps and posted one review a week. As of Dec 2023 I've posted 108 app reviews. Early on one of my [key requirements](https://www.noteapps.ca/my-note-app-l/) was the ability to use Markdown support for input and output. At this point I use [Drafting](https://www.noteapps.ca/drafting/) for quick capture and [Obsidian](https://www.noteapps.ca/obsidian-v1-0-5-scores-7-10/) for pretty much everything. 
