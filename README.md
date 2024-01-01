@@ -123,7 +123,8 @@ I've written some Python tools to convert the exports from various messaging app
 So far, I've created:
 
 - [linkedin_md](https://github.com/thephm/linkedin_md) for Linkedin chats
-- [signal_md](https://github.com/thephm/signal_md) for Signal messages
+- [signal_md](https://github.com/thephm/signal_md) for Signal messages using `signald` 
+- [signal_sqlite_md](https://github.com/thephm/signal_sqlite_md) for Signal messages from it's SQLite DB 
 - [sms_backup_md](https://github.com/thephm/sms_backup_md) for SMS messages
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
