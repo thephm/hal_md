@@ -21,7 +21,7 @@ Here's the visualization of my social network in Obsidian. This is using a filte
 You can use any text editor but preferably one that supports wikilinks, YAML frontmatter, and queries. 
 
 1. [Obsidian](https://obsidian.md/) by fellow Canadians [Erica Xu](https://github.com/ericaxu) and [Shida Li](https://github.com/lishid)
-2. [Silver Bullet](https://github.com/silverbulletmd) which is Open-Source by Polish [Zef Hemel](https://github.com/zefhemel)
+2. [Silver Bullet](https://github.com/silverbulletmd) which is Open-Source by Dutch [Zef Hemel](https://github.com/zefhemel)
 
 I haven't checked if [GitJournal](https://github.com/GitJournal/GitJournal) by [Vishesh Handa](https://www.linkedin.com/in/visheshhanda/) supports YAML frontmatter but it does support wikilinks so you'll still be able to navigate your notes.
 
