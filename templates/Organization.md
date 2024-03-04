@@ -5,8 +5,8 @@ aliases: [null]
 url: null
 email: null
 phone: null
-linkedin-id: null
-x-id: null
+linkedin_id: null
+x_id: null
 city: null
 province: null
 country: null

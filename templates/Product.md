@@ -9,8 +9,8 @@ integrations:
 url: 
 email: 
 phone: 
-linkedin-id: 
-x-id:
+linkedin_id: 
+x_id:
 ---
 
 # Product

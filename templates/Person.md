@@ -1,8 +1,8 @@
 ---
 tags:
   - person
-first-name: 
-last-name: 
+first_name: 
+last_name: 
 aliases: 
 slug: 
 birthday: 
@@ -13,9 +13,9 @@ url:
 email: 
 mobile: 
 phone: 
-x-id: 
-instagram-id: 
-linkedin-id: 
+x_id: 
+instagram_id: 
+linkedin_id: 
 hometown: 
 city: 
 state: 
