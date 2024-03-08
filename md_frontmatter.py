@@ -70,6 +70,27 @@ class FrontMatter:
 
     def getDate(self):
         return getattr(self, FIELD_DATE)
+    
+    # -----------------------------------------------------------------------------
+    #
+    # See which fields are missing in the doc or extra, i.e. not a self.<field>
+    #
+    # -----------------------------------------------------------------------------
+    def checkFields(self, docFields):
+        missingFields = []
+        extraFields = []
+        
+        # Check for missing fields in self.fields
+        for fieldName in docFields:
+            if not hasattr(self, fieldName):
+                missingFields.append(fieldName)
+        
+        # Check for extra fields in self.fields
+        for fieldName in self.fields:
+            if fieldName not in docFields:
+                extraFields.append(fieldName)
+        
+        return missingFields, extraFields
 
     # -----------------------------------------------------------------------------
     #
@@ -135,6 +156,9 @@ class FrontMatter:
 
             for doc in yamlData:
                 if isinstance(doc, dict):
+#                    missing, extra = self.checkFields(doc.keys())
+#                    print("missing: " + str(missing) + ", extra: " + str(extra))
+                    
                     for field in self.fields:
                         default = [] if field in ArrayFields else ""
                         self.getField(doc, field, default, fields)

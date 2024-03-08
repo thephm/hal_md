@@ -1,3 +1,5 @@
+# Updates the "last_contact" frontmatter field based on atomic dated files.     
+
 import os
 import glob
 from argparse import ArgumentParser
