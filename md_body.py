@@ -23,7 +23,7 @@ class Body:
 
         # read the frontmatter, even if it was already read, so that we know 
         # we're at the right spot in the file
-        self.parent.frontMatter.read()
+        self.parent.frontmatter.read()
 
         # grab the handle to the file from the parent object
         file = self.parent.file

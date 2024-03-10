@@ -23,7 +23,7 @@ FIELD_TIME = "time"
 
 Fields = [FIELD_PEOPLE, FIELD_TOPIC, FIELD_DATE, FIELD_TIME, FIELD_SERVICE]
 
-class CommunicationFrontMatter(md_frontmatter.FrontMatter):
+class CommunicationFrontmatter(md_frontmatter.Frontmatter):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
@@ -40,6 +40,6 @@ class CommunicationBody(md_body.Body):
 class CommunicationFile(md_file.File):
     def __init__(self):
         super().__init__()
-        self.frontMatter = CommunicationFrontMatter(self)
-        self.frontMatter.initFields()
+        self.frontmatter = CommunicationFrontmatter(self)
+        self.frontmatter.init_fields()
         self.body = CommunicationBody(self)

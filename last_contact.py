@@ -1,16 +1,18 @@
 # Updates the "last_contact" frontmatter field based on atomic dated files.     
 
 import os
-import glob
 from argparse import ArgumentParser
 
 import sys
+sys.path.insert(1, '../hal/')
+import person
+
 sys.path.insert(1, './') 
-import person_file
-import interaction
+import md_person
+import md_interactions
 
 # Parse the command line arguments
-def getArguments():
+def get_arguments():
 
     parser = ArgumentParser()
 
@@ -23,7 +25,7 @@ def getArguments():
     parser.add_argument("-t", "--template", dest="template", default=0,
                         help="Markdown template file")
     
-    parser.add_argument("-x", "--max", dest="max", default=0,
+    parser.add_argument("-x", "--max", type=int, dest="max", default=0,
                         help="Maximum number of people to process")
     
     args = parser.parse_args()
@@ -32,7 +34,45 @@ def getArguments():
 
 # -----------------------------------------------------------------------------
 #
-# Given a folder name, find all of the interactions with that person based on
+# Given a set of interactions, update each Person's `last_contact` field
+#
+# Parameters:
+# 
+#   - folder - folder containing sub-folders for each person
+#   - the_interactions - collection of Interaction
+#
+# Returns:
+#
+#   - True if success, False otherwise
+#
+# Notes:
+# 
+#   - #todo maybe use `Message` `from message_md` instead of `Interaction`
+#   - as go through the files, e.g. exclude "tags: note" 
+#
+# -----------------------------------------------------------------------------
+def update_last_contact(folder, the_interactions):
+
+    result = False
+    theDate = ""
+
+    # for each person find the most recent communication
+    if the_interactions:
+
+        # take the first (most recent) interaction
+        most_recent_interaction = the_interactions[0]
+        slug = most_recent_interaction.slug
+        the_date = most_recent_interaction.date
+
+        # update their profile
+        if theDate:
+            result = md_person.update(slug, folder, person.FIELD_LAST_CONTACT, str(the_date))
+
+    return result
+
+# -----------------------------------------------------------------------------
+#
+# Given a folder name, load all of the interactions with that person based on
 # the existence of dated Markdown files for each date where an interaction 
 # occured.
 #
@@ -47,111 +87,49 @@ def getArguments():
 #
 # Notes:
 # 
+#   - populates `theInteractions` with all of the interactions e.g. chats
+#     this person had and sorts them from most recent to oldest
 #   - #todo maybe use `Message` `from message_md` instead of `Interaction`
-#   - as go through the files, e.g. exclude "tags: note" 
 #
 # -----------------------------------------------------------------------------
-def parsePeople(folder, interactions):
-
-    # get list of people `slug`s from the folder names
-    slugs = person_file.getSlugs(folder)
+def load_interactions(folder, the_interactions):
 
     count = 0
 
+    # get list of people `slug`s from the folder names
+    slugs = md_person.get_slugs(folder)
+
     # for each person find the most recent communication
     for slug in slugs:
-        interactions = []
-        theDate = ""
+        the_interactions = []
 
-        # get the `last_contact` date for the person
-        theDate = interaction.getInteractions(slug, os.path.join(folder, slug), interactions)
+        # get all of the interactions with the person
+        the_date = md_interactions.get_interactions(slug, os.path.join(folder, slug), the_interactions)
 
-        # sort the interactions by reverse date and take the first one
-        interactions.sort(key=lambda x: x.date, reverse=True)
+        # update the `last_contact` field for the person
+        update_last_contact(folder, the_interactions)
 
-        # find their profile and update it
-        if theDate:
-            update(slug, folder, person_file.FIELD_LAST_CONTACT, str(theDate))
-
-        if args.debug:
-            print(slug + ": " + str(theDate))
-        else:
-            print(slug + ": " + str(theDate) + " "*20,  end="\r")
-
+        # stop if we've reached the limit of the passed in `max` argument
         if args.max and count >= int(args.max): 
             return count
         
+        if args.debug:
+            print(slug + ": " + str(the_date))
+
         count += 1
     
     return count
 
-# -----------------------------------------------------------------------------
-#
-# Update a Person's profile with the `last_contact` date.
-#
-# Parameters:
-#
-#   slug - the person slug, e.g. 'spongebob'
-#   path - the path to the file
-#   field - the frontmatter field to update, e.g. 'last_contact'
-#   file - the filename without '.md' extension, e.g. "Spongebob Squarepants"
-#   value - what to set the field to
-#
-# Returns:
-#
-#   A populated Markdown file object.
-#
-# Notes:
-#
-#   Checks for a file that has a tags value `person` and updates the last 
-#   contact date unless it's already set to a more recent value.
-#
-# -----------------------------------------------------------------------------
-def update(slug, path, field, value):
-
-    lastContact = None
-
-    # get a list of files with ".md" extension
-    files = glob.glob(os.path.join(path, slug + "/*.md"))
-
-    for file in files:
-        personFile = person_file.PersonFile()
-        personFile.path = file
-        personFile.frontMatter.read()
-        yaml = personFile.frontMatter
-        
-        # @todo: check if yaml.slug == slug to make sure it's
-        # the right person. Not everyone has that field yet.
-
-        # if this is a person profile and the right person 
-        if yaml.tags and person_file.TAG_PERSON in yaml.tags:
-            if field == person_file.FIELD_LAST_CONTACT:
-                try:
-                    lastContact = getattr(yaml, field)
-                except:
-                    pass  # it's ok not to have the field as it was added 
-
-                if value > str(lastContact):
-                    setattr(yaml, field, value)
-                    
-                    # read the body of the file
-                    personFile.body.read()
-
-                    # write the file with the updated 'last_contact' value
-                    personFile.save()
-                    break
-
-    return personFile
-
 # main
 
-args = getArguments()
-interactions = []
+args = get_arguments()
+folder = args.folder
+the_interactions = []
 
-if args.folder and not os.path.exists(args.folder):
+if folder and not os.path.exists(folder):
     print('The folder "' + args.folder + '" could not be found.')
 
-elif args.folder:
-    count = parsePeople(args.folder, interactions)
+elif folder:
+    count = load_interactions(folder, the_interactions)
 
     print(str(count) + " people checked" + " "*20)

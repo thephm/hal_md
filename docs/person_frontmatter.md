@@ -13,8 +13,8 @@ Frontmatter is a collection of fields at the top of a note delineated by three d
 ```
 ---
 tags: [person, friend, ex-colleague, blist]
-first-name: SpongeBob
-last-name: SquarePants
+first_name: SpongeBob
+last_name: SquarePants
 ---
 ```
 
@@ -37,14 +37,14 @@ Field | Description | Example
 `hometown` | Where they are originally from | `Bikini Bottom, Marshall Islands`
 `city` | City where they live | `Bikini Bottom`
 `state` | Province or State where they live | `Marshall Islands`
-`x-id` | The last portion of their X (Twitter) social network URL. Could be redundant if also in `## References` so may be removed | `spongebob`
-`linkedin-id` | The last portion of their LinkedIn social network URL. Could be redundant if also in `## References` so may be removed | `spongebobrocks`
+`x_id` | The last portion of their X (Twitter) social network URL. Could be redundant if also in `## References` so may be removed | `spongebob`
+`linkedin_id` | The last portion of their LinkedIn social network URL. Could be redundant if also in `## References` so may be removed | `spongebobrocks`
 
 For some people I add fields:
 
 - `anniversary` for their wedding anniversary. See `birthday` for the format
 - `address` for their street address
 - `zip` for the postal/ZIP code
-- `github-id`, `threads-id`, `reddit-id` etc. 
+- `github_id`, `threads_id`, `reddit_id` etc. 
 
 See [The Body](person_body.md) to learn about the structure of the rest of the `person.md` template.

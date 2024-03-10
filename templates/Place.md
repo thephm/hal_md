@@ -6,7 +6,7 @@ people:
 url: 
 phone: 
 email: 
-recommended-by: 
+recommended_by: 
 rating: 
 city: 
 province: 

@@ -1,4 +1,4 @@
-# Class to create and modify a Markdown file's FrontMatter
+# Class to create and modify a Markdown file's Frontmatter
 
 # What's cool is it uses Pyhton's built in "setattr()" function to dynamically
 # set the attributes of the object based on the set of "fields" that are
@@ -45,7 +45,7 @@ CommunicationFields = [FIELD_TAGS, FIELD_PEOPLE, FIELD_TOPIC, FIELD_DATE, FIELD_
 # keep a list of fields that are of type array
 ArrayFields = [FIELD_TAGS]
     
-class FrontMatter:
+class Frontmatter:
     def __init__(self, parent):
         self.parent = parent # file containing this frontmatter
         self.fields = []     # list of fields, dynamically set
@@ -61,14 +61,14 @@ class FrontMatter:
         return output
     
     # initialize each field to [] if it's an array field or "" otherwise
-    def initFields(self):
+    def init_fields(self):
         for field in self.fields:
             if field in ArrayFields:
                 setattr(self, field, [])
             else:
                 setattr(self, field, "")
 
-    def getDate(self):
+    def get_date(self):
         return getattr(self, FIELD_DATE)
     
     # -----------------------------------------------------------------------------
@@ -76,21 +76,21 @@ class FrontMatter:
     # See which fields are missing in the doc or extra, i.e. not a self.<field>
     #
     # -----------------------------------------------------------------------------
-    def checkFields(self, docFields):
-        missingFields = []
-        extraFields = []
+    def check_fields(self, docFields):
+        missing_fields = []
+        extra_fields = []
         
         # Check for missing fields in self.fields
-        for fieldName in docFields:
-            if not hasattr(self, fieldName):
-                missingFields.append(fieldName)
+        for field_name in docFields:
+            if not hasattr(self, field_name):
+                missing_fields.append(field_name)
         
         # Check for extra fields in self.fields
-        for fieldName in self.fields:
-            if fieldName not in docFields:
-                extraFields.append(fieldName)
+        for field_name in self.fields:
+            if field_name not in docFields:
+                extra_fields.append(field_name)
         
-        return missingFields, extraFields
+        return missing_fields, extra_fields
 
     # -----------------------------------------------------------------------------
     #
@@ -100,18 +100,24 @@ class FrontMatter:
     #
     #   doc - the JSON text to be parsed
     #   field - the name of the field to obtain
-    #   default - if not found, set it to this value
     #   fields - add the field to this collection 
     #
+    # Returns:
+    #
+    #   value - the value of the field
+    #
     # -----------------------------------------------------------------------------
-    def getField(self, doc, field, default, fields):
+    def get_field(self, doc, field, fields):
 
         value = None
 
         try:
             if field in doc:
                 if field == 'date':
-                    value = datetime.datetime.strptime(str(doc[field]), '%Y-%m-%d').date()
+                    try:
+                        value = datetime.datetime.strptime(str(doc[field]), '%Y-%m-%d').date()
+                    except Exception as e:
+                        pass
                 
                 elif field == 'time':
                     value = doc[field]
@@ -158,10 +164,8 @@ class FrontMatter:
                 if isinstance(doc, dict):
 #                    missing, extra = self.checkFields(doc.keys())
 #                    print("missing: " + str(missing) + ", extra: " + str(extra))
-                    
                     for field in self.fields:
-                        default = [] if field in ArrayFields else ""
-                        self.getField(doc, field, default, fields)
+                        self.get_field(doc, field, fields)
                     result = True
         
         except Exception as e:
@@ -220,9 +224,9 @@ class FrontMatter:
             self.open('w+')
 
         file = self.parent.file
-        file.write(self.getYAML())
+        file.write(self.get_yaml())
 
-    def getYAML(self):
+    def get_yaml(self):
         result = FRONTMATTER_SEPARATOR + NEW_LINE
         
         for field in self.fields:
