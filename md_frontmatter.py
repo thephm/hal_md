@@ -199,19 +199,22 @@ class Frontmatter:
 
         if file:
             # read the first line of the file
-            firstLine = file.readline().strip()
+            try:
+                firstLine = file.readline().strip()
 
-            if firstLine == FRONTMATTER_SEPARATOR:
-                self.raw += firstLine + NEW_LINE
+                if firstLine == FRONTMATTER_SEPARATOR:
+                    self.raw += firstLine + NEW_LINE
 
-                # read lines until the second '---' is found or the end of the file is reached
-                for line in file:
-                    line = line.strip()
-                    self.raw += line + NEW_LINE
-                    if line == FRONTMATTER_SEPARATOR:
-                        result = True
-                        break
-
+                    # read lines until the second '---' is found or the end of the file is reached
+                    for line in file:
+                        line = line.strip()
+                        self.raw += line + NEW_LINE
+                        if line == FRONTMATTER_SEPARATOR:
+                            result = True
+                            break
+            except:
+                pass
+            
             if result:
                 result = self.parse()
 

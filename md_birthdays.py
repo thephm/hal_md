@@ -50,22 +50,28 @@ def extract_year(dateString):
     if "-" in dateString:
         if len(dateString) == 10:  # YYYY-MM-DD format
             return dateString[0:4]
-        elif len(dateString) == 7:  # MM-DD format
+        elif len(dateString) == 5: # MM-DD format
             return ""
+        else:
+            print("Invalid date: '" + dateString + "'")
 
 def extract_month(dateString):
     if "-" in dateString:
         if len(dateString) == 10:  # YYYY-MM-DD format
             return dateString[5:7]
-        elif len(dateString) == 7:  # MM-DD format
+        elif len(dateString) == 5:  # MM-DD format
             return dateString[0:2]
+        else:
+            print("Invalid date: '" + dateString + "'")
         
 def extract_day(dateString):
     if "-" in dateString:
         if len(dateString) == 10:  # YYYY-MM-DD format
             return dateString[8:10]
-        elif len(dateString) == 7:  # MM-DD format
+        elif len(dateString) == 5:  # MM-DD format
             return dateString[3:5]
+        else:
+            print("Invalid date: '" + dateString + "'")
 
 # -----------------------------------------------------------------------------
 #
@@ -108,14 +114,14 @@ def calculate_age(birthday, deathday):
     if "-" in birthday:
         if len(birthday) == 10:  # YYYY-MM-DD format
             birth_date = datetime.datetime.strptime(birthday, "%Y-%m-%d")
-        elif len(birthday) == 7:  # MM-DD format
+        elif len(birthday) == 5:  # MM-DD format
             birth_date = datetime.datetime.strptime(birthday, "%m-%d")
 
     if "-" in deathday:
         # calculate the age at death
         if len(deathday) == 10:  # YYYY-MM-DD format
             death_date = datetime.datetime.strptime(deathday, "%Y-%m-%d")
-        elif len(deathday) == 7:  # MM-DD format
+        elif len(deathday) == 5:  # MM-DD format
             death_date = datetime.datetime.strptime(deathday, "%m-%d")
         age = death_date.year - birth_date.year - ((death_date.month, death_date.day) < (birth_date.month, birth_date.day))
     else:
@@ -171,10 +177,13 @@ def make_calendar(birthdays):
                 except:
                     deathdayStr = ""
 
-                age = str(calculate_age(birthdayStr, deathdayStr))
-
+                year=""
+                age=""
                 day = birthdayStr[-2:]
-                year = birthdayStr[:4]
+                
+                if len(birthdayStr) == 10:  # YYYY-MM-DD format
+                    age = str(calculate_age(birthdayStr, deathdayStr))
+                    year = birthdayStr[:4]
 
                 output += day + TABLE_SEPARATOR + name + TABLE_SEPARATOR + year + TABLE_SEPARATOR + age + NEW_LINE
 
