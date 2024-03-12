@@ -126,5 +126,7 @@ So far, I've created:
 - [signal_md](https://github.com/thephm/signal_md) for Signal messages using `signald` 
 - [signal_sqlite_md](https://github.com/thephm/signal_sqlite_md) for Signal messages from it's SQLite DB 
 - [sms_backup_md](https://github.com/thephm/sms_backup_md) for SMS messages
+- 2024-03-10: [last_contact](last_contact.py) to see when I last contacted the person
+- 2024-03-10: [md_birthdays](md_birthdays.py) outputs a month-by-month calendar of birthdays
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
