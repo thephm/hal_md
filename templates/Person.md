@@ -6,6 +6,7 @@ last_name:
 aliases: 
 slug: 
 birthday: 
+deathday: 
 title: 
 skills: 
 organizations: 
