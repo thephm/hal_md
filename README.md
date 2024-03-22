@@ -128,5 +128,6 @@ So far, I've created:
 - [sms_backup_md](https://github.com/thephm/sms_backup_md) for SMS messages
 - 2024-03-10: [last_contact](last_contact.py) to see when I last contacted the person
 - 2024-03-10: [md_birthdays](md_birthdays.py) outputs a month-by-month calendar of birthdays
+- 2024-03-10: [sample](https://github.com/thephm/sample) a sample collection of famous computer science folk
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
