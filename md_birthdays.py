@@ -3,6 +3,7 @@
 import os
 from argparse import ArgumentParser
 import datetime
+import calendar
 
 import sys
 sys.path.insert(1, '../hal/')
@@ -25,8 +26,6 @@ PAIR_NAME = 0
 PAIR_SLUG = 1
 PAIR_BIRTHDAY = 2
 PAIR_DEATHDAY = 3
-MONTH_NUMBER_DEC = "12"
-MONTH_DECEMBER = "December"
 
 # Parse the command line arguments
 def get_arguments():
@@ -38,6 +37,9 @@ def get_arguments():
     
     parser.add_argument("-d", "--debug", dest="debug", action="store_true", default=False,
                         help="Print extra info as the files processed")
+    
+    parser.add_argument("-u", "--upcoming", type=int, dest="upcoming", default=None,
+                        help="Show the birthdays upcoming in the next number of days")
     
     parser.add_argument("-x", "--max", type=int, dest="max", default=99999,
                         help="Maximum number of people to process")
@@ -100,7 +102,7 @@ def sort_birthdays(birthdays):
 
     return sorted_birthdays
 
-# parse a date string of format `YYYY-MM-DD` or `MM-DDinto a datetime object
+# parse a date string of format `YYYY-MM-DD` or `MM-DD` into a datetime object
 def get_date(dateStr):
 
     the_date = None
@@ -121,23 +123,64 @@ def get_date(dateStr):
 
 def calculate_age(birthday, deathday):
 
-    # parse the birthday string into a datetime object
+    # parse the birthday and deathday strings into datetime objects
     birth_date = get_date(birthday)
     death_date = get_date(deathday)
 
     if death_date:
         age = death_date.year - birth_date.year - ((death_date.month, death_date.day) < (birth_date.month, birth_date.day))
     elif deathday:
-           print("invalid deathday: '" + str(deathday) + "'")
+           print("Invalid deathday: '" + str(deathday) + "'")
     else:
         try:
             # calculate the current age
             current_date = datetime.datetime.now()
             age = current_date.year - birth_date.year - ((current_date.month, current_date.day) < (birth_date.month, birth_date.day))
         except:
-           print("invalid birthday: '" + str(birthday) + "'")
+           print("Invalid birthday: '" + str(birthday) + "'")
 
     return age
+
+# -----------------------------------------------------------------------------
+#
+# Display the birthdays coming up in the next `num_days` days
+#
+# Parameters:
+#
+#   birthdays - collection of {slug, name, birthday, deathday}
+#   num_days - the number of days (including today) forward to look
+#
+# -----------------------------------------------------------------------------
+def upcoming(birthdays, num_days):
+
+    output = ""
+
+    # calculate the current age
+    current_date = datetime.datetime.now()
+    current_month = current_date.month
+    current_day = current_date.day
+
+    # calculate the date `num_days` from now
+    end_date = datetime.datetime.now() + datetime.timedelta(days=num_days)
+
+    for birthday in birthdays:
+
+        # parse the birthday string
+        the_month = int(extract_month(birthday[PAIR_BIRTHDAY]))
+        the_day = int(extract_day(birthday[PAIR_BIRTHDAY]))
+    
+        if 1 <= the_month <= 12 and 1 <= the_day <= 31:
+            # calculate the birthday's date for the current year
+            birthday_date = datetime.datetime(datetime.datetime.now().year, the_month, the_day)
+
+            # if the birthday falls within the next num_days, include it
+            if datetime.datetime.now() <= birthday_date <= end_date:
+                output += birthday[PAIR_NAME] + " on " + calendar.month_abbr[the_month] + " " + str(the_day) + NEW_LINE
+
+        else:
+            print("Invalid birthday: " + str(birthday))
+
+    return output
 
 # -----------------------------------------------------------------------------
 #
@@ -145,19 +188,12 @@ def calculate_age(birthday, deathday):
 #
 # Parameters:
 #
-#   birthdays - collection of {slug, birthday, deathday}
+#   birthdays - collection of {slug, name, birthday, deathday}
 #
 # -----------------------------------------------------------------------------
 def make_calendar(birthdays):
 
     output = ""
-
-    # dictionary mapping numeric month values to full month names
-    month_names = {
-        "01": "January", "02": "February", "03": "March", "04": "April", "05": "May", "06": "June",
-        "07": "July", "08": "August", "09": "September", "10": "October", "11": "November", 
-        MONTH_NUMBER_DEC: MONTH_DECEMBER
-    }
 
     # group birthdays by month
     grouped_birthdays = {}
@@ -169,15 +205,20 @@ def make_calendar(birthdays):
             grouped_birthdays[month] = [birthday]
 
     # print birthdays by month
-    for month_num, month_name in month_names.items():
-        output += HEADING_2 + " " + month_name + NEW_LINE + NEW_LINE
-        if month_num in grouped_birthdays:
+    for month_num in range(1, 13):
+        output += HEADING_2 + " " + calendar.month_name[month_num] + NEW_LINE + NEW_LINE
+
+        month_num_str = str(month_num).zfill(2)
+
+        if month_num_str in grouped_birthdays:
 
             output+= BIRTHDAY_TABLE_HEADING
 
             # sort birthdays within the month
-            sorted_birthdays = sorted(grouped_birthdays[month_num], key=lambda x: extract_day(x[PAIR_BIRTHDAY]))
+            sorted_birthdays = sorted(grouped_birthdays[month_num_str], key=lambda x: extract_day(x[PAIR_BIRTHDAY]))
+            
             for birthday in sorted_birthdays:
+                
                 name = WIKILINK_OPEN + birthday[PAIR_NAME] + WIKILINK_CLOSE
                 birthdayStr = birthday[PAIR_BIRTHDAY]
                 try:
@@ -195,7 +236,7 @@ def make_calendar(birthdays):
 
                 output += day + TABLE_SEPARATOR + name + TABLE_SEPARATOR + year + TABLE_SEPARATOR + age + NEW_LINE
 
-        if month_num != MONTH_NUMBER_DEC:
+        if month_num != 12:
             output += NEW_LINE + NEW_LINE
 
     return output
@@ -205,13 +246,17 @@ def make_calendar(birthdays):
 args = get_arguments()
 folder = args.folder
 
-interactions = []
+the_calendar = ""
 
 if folder and not os.path.exists(folder):
     print('The folder "' + folder + '" could not be found.')
 
 elif folder:
-    birthdays = md_lookup.get_values(folder, [life_events.FIELD_BIRTHDAY, life_events.FIELD_DEATHDAY], args.max)
+    birthdays = md_lookup.get_values(folder, [life_events.FIELD_BIRTHDAY, life_events.FIELD_DEATHDAY], args)
     sorted_birthdays = sort_birthdays(birthdays)
-    calendar = make_calendar(sorted_birthdays)
-    print(calendar)
+
+    if args.upcoming:
+        print(upcoming(sorted_birthdays, args.upcoming))
+    else:
+        the_calendar = make_calendar(sorted_birthdays)
+        print(the_calendar)

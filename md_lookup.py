@@ -34,7 +34,10 @@ FIELD_VALUES = "values"
 # Notes:
 #
 # -----------------------------------------------------------------------------
-def get_values(folder, fields, max):
+def get_values(folder, fields, args):
+
+    if args.debug:
+        print("get_values('" + folder + "', " + "'" + str(fields) + "', " + str(args) + ")")
 
     values = []
 
@@ -46,10 +49,17 @@ def get_values(folder, fields, max):
     # for each person get the values for the fields
     for slug in slugs:
         person_values = get_person_values(folder, slug, fields)
-        if person_values:
+
+        # check if at least one of the fields requested is non-empty
+        has_non_empty_field = any(person_values.get(field) for field in fields)
+
+        # only add those people where there was a value found
+        if has_non_empty_field:
+            if args.debug:
+                print(str(person_values))
             values.append(person_values)
-        count += 1
-        if count >= max:
+            count += 1
+        if count >= args.max:
             break
 
     return values
@@ -96,11 +106,13 @@ def get_person_values(folder, slug, fields):
             result[person.FIELD_SLUG] = slug
             result[identity.FIELD_NAME] = md_file.get_prefix(file)
             for field in fields:
+                result[field] = ""
                 try:
                     # get the value of the field
-                    result[field] = str(getattr(yaml, field))
+                    value = getattr(yaml, field)
+                    if value is not None:
+                        result[field] = str(value)
                 except:
-                    result[field] = None
                     pass  # it's ok not to have the field
 
     return result
