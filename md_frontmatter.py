@@ -60,7 +60,14 @@ class Frontmatter:
                 output += field + ": " + str(value) + NEW_LINE
         return output
     
-    # initialize each field to [] if it's an array field or "" otherwise
+    def get_date(self):
+        return getattr(self, FIELD_DATE)
+    
+    # -------------------------------------------------------------------------
+    #
+    # Initialize each field to [] if it's an array field or "" otherwise.
+    #
+    # -------------------------------------------------------------------------
     def init_fields(self):
         for field in self.fields:
             if field in ArrayFields:
@@ -68,31 +75,28 @@ class Frontmatter:
             else:
                 setattr(self, field, "")
 
-    def get_date(self):
-        return getattr(self, FIELD_DATE)
-    
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     #
     # See which fields are missing in the doc or extra, i.e. not a self.<field>
     #
-    # -----------------------------------------------------------------------------
-    def check_fields(self, docFields):
+    # -------------------------------------------------------------------------
+    def check_fields(self, doc_fields):
         missing_fields = []
         extra_fields = []
         
         # Check for missing fields in self.fields
-        for field_name in docFields:
+        for field_name in doc_fields:
             if not hasattr(self, field_name):
                 missing_fields.append(field_name)
         
         # Check for extra fields in self.fields
         for field_name in self.fields:
-            if field_name not in docFields:
+            if field_name not in doc_fields:
                 extra_fields.append(field_name)
         
         return missing_fields, extra_fields
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     #
     # Read a specific field from the doc, 
     #
@@ -106,7 +110,7 @@ class Frontmatter:
     #
     #   value - the value of the field
     #
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def get_field(self, doc, field, fields):
 
         value = None
@@ -141,7 +145,7 @@ class Frontmatter:
 
         return value
 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     #
     # Parse the YAML frontmatter into fields.
     # 
@@ -150,7 +154,7 @@ class Frontmatter:
     #   - True if valid YAML
     #   - False if not
     #
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def parse(self):
         
         result = False
@@ -173,7 +177,7 @@ class Frontmatter:
 
         return result
         
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     #
     # Read the YAML frontmatter, parse it, and return True if it's valid.
     # 
@@ -184,13 +188,14 @@ class Frontmatter:
     #
     # Notes:
     # 
-    # - if the file starts with "---" followed by one or more line(s), followed
-    #   by "---", the parse the YAML into the `frontmatter` fields
+    #   - If the file starts with "---" followed by one or more line(s), 
+    #     followed by "---", the parse the YAML into the `frontmatter` fields.
     # 
-    # -----------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     def read(self):
 
         result = False
+        line = ""
 
         if not self.parent.file:
             self.parent.open('r')

@@ -54,7 +54,7 @@ def get_arguments():
 def update_last_contact(folder, the_interactions):
 
     result = False
-    theDate = ""
+    the_date = ""
 
     # for each person find the most recent communication
     if the_interactions:
@@ -65,16 +65,15 @@ def update_last_contact(folder, the_interactions):
         the_date = most_recent_interaction.date
 
         # update their profile
-        if theDate:
-            result = md_person.update(slug, folder, person.FIELD_LAST_CONTACT, str(the_date))
+        if the_date:
+            result = md_person.update_field(slug, folder, person.FIELD_LAST_CONTACT, str(the_date))
 
     return result
 
 # -----------------------------------------------------------------------------
 #
-# Given a folder name, load all of the interactions with that person based on
-# the existence of dated Markdown files for each date where an interaction 
-# occured.
+# Given a folder name, load all of the interactions with that person and
+# update the `last_contact` field with the date of the most recent interaction.
 #
 # Parameters:
 # 

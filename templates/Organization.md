@@ -1,15 +1,15 @@
 ---
 tags: [organization]
-slug: null
-aliases: [null]
-url: null
-email: null
-phone: null
-linkedin_id: null
-x_id: null
-city: null
-province: null
-country: null
+slug: 
+aliases: []
+url: 
+email: 
+phone: 
+linkedin_id: 
+x_id: 
+city: 
+province: 
+country: 
 ---
 
 # Organization

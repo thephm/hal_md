@@ -19,6 +19,7 @@ import md_body
 import md_file
 
 # sections of the body
+SECTION_H1 = "# "
 SECTION_BIO = "## Bio"
 SECTION_QUOTES = "## Quotes"
 SECTION_LIFE_EVENTS = "## Life Events"
@@ -28,9 +29,9 @@ SECTION_FAVORITES = "## Favorites"
 SECTION_POSITIONS = "## Positions"
 SECTION_NOTES = "## Notes"
 
-Sections = [SECTION_BIO, SECTION_QUOTES, SECTION_LIFE_EVENTS, 
-            SECTION_REFERENCES, SECTION_PEOPLE, 
-            SECTION_FAVORITES, SECTION_NOTES]
+PersonSections = [SECTION_BIO, SECTION_QUOTES, SECTION_LIFE_EVENTS, 
+                  SECTION_REFERENCES, SECTION_PEOPLE, SECTION_FAVORITES, 
+                  SECTION_NOTES]
 
 class PersonFrontmatter(md_frontmatter.Frontmatter):
     def __init__(self, parent):
@@ -38,13 +39,14 @@ class PersonFrontmatter(md_frontmatter.Frontmatter):
         self.parent = parent
         self.tags.extend(person.Tags)
         self.fields.extend(person.Fields)
+        self.section_headings = PersonSections
         self.raw = ""
 
 class PersonBody(md_body.Body):
     def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
-        self.sections.extend(Sections)
+        self.sections = PersonSections
         self.raw = ""
 
 class PersonFile(md_file.File):
@@ -57,8 +59,16 @@ class PersonFile(md_file.File):
 
 # -----------------------------------------------------------------------------
 #
-# Get the list of people slugs based on all of the folder names in `path` but
-# not recursively. Each top-level folder contains all of the files for person.
+# Get a list of people slugs based on the folder names under `path`.
+#
+# Parameters:
+#
+#   path - the path to the file
+#
+# Notes:
+#
+#   - Each top-level folder contains all of the files for person
+#   - Does not recursively
 #
 # -----------------------------------------------------------------------------
 def get_slugs(path):
@@ -76,7 +86,67 @@ def get_slugs(path):
 
 # -----------------------------------------------------------------------------
 #
-# Update the value of a Person's profile metadata field.
+# Get a list of a person's Markdown files that don't have filenames `YYYY-MM-DD`
+# 
+# Parameters:
+#
+#   slug - the person slug, e.g. 'spongebob'
+#   path - the path to the file
+#
+# Returns:
+#
+#   A list of files.
+#
+# -----------------------------------------------------------------------------
+def get_non_dated_files(slug, path):
+
+    # get a list of files with ".md" extension
+    all_files = glob.glob(os.path.join(path, slug + "/*.md"))
+
+    # pattern for matching YYYY-MM-DD filenames
+    date_pattern = re.compile(r'\d{4}-\d{2}-\d{2}')
+
+    # filter out files with filename format of "YYYY-MM-DD" and those starting with "."
+    files = [file for file in all_files if not date_pattern.match(md_file.get_prefix(file))]
+
+    return files
+
+# -----------------------------------------------------------------------------
+#
+# Figure out which file from a list of filenames is the Person's profile.
+# 
+# Parameters:
+#
+#   slug - the person slug, e.g. 'spongebob'
+#   path - the path to the file
+#
+# Returns:
+#
+#   The first file found with `tags: [person]` in it or None.
+#
+# -----------------------------------------------------------------------------
+def read_person_frontmatter(slug, path):
+    
+    # get list of files that aren't interactions or notes e.g. `2024-03-22.md`
+    files = get_non_dated_files(slug, path)
+
+    for file in files:
+        # load the file assuming it's a Person file
+        person_file = PersonFile()
+        person_file.path = file
+        person_file.frontmatter.read()
+        
+        yaml = person_file.frontmatter
+
+        # check if it actually is this person's profile 
+        if yaml.tags and person.TAG_PERSON in yaml.tags:
+            return person_file
+
+    return None
+
+# -----------------------------------------------------------------------------
+#
+# Update the value of a Person's specific profile metadata field.
 #
 # Parameters:
 #
@@ -87,55 +157,78 @@ def get_slugs(path):
 #
 # Returns:
 #
-#   A populated Markdown file object.
+#   True if successful, False otherwise.
 #
 # Notes:
 #
-#   - Looks for a file that has a tags value `person` and updates the field 
 #   - In the case of `last_contact`, it only updates it if it's a more recent
 #     date than the current value
 #   - @todo: check if yaml.slug == slug to make sure it's the right person
 #
 # -----------------------------------------------------------------------------
-def update(slug, path, field, value):
+def update_field(slug, path, field, value):
 
     result = False
 
-    # get a list of files with ".md" extension
-    all_files = glob.glob(os.path.join(path, slug + "/*.md"))
+    # get the Person's profile file
+    person_file = read_person_frontmatter(slug, path)
 
-    # pattern for matching YYYY-MM-DD filenames
-    date_pattern = re.compile(r'\d{4}-\d{2}-\d{2}')
+    if person_file is not None:
 
-    # Filter out files with filename format of "YYYY-MM-DD" and those starting with "."
-    files = [file for file in all_files if not date_pattern.match(md_file.getPrefix(file))]
-
-    for file in files:
-        # load the Person's profile 
-        person_file = PersonFile()
-        person_file.path = file
-        person_file.frontmatter.read()
         yaml = person_file.frontmatter
 
-        # if this is a person's profile file (sounds funny!)
-        if yaml.tags and person.TAG_PERSON in yaml.tags:
-            try:
-                # get the current value of the field
-                current_value = getattr(yaml, field)
-            except:
-                pass  
+        try:
+            # get the current value of the field
+            current_value = getattr(yaml, field)
+        except:
+            pass  
 
-            # set the `last_contact` if the new value is a more recent date
-            if field == person.FIELD_LAST_CONTACT:
-                if value > str(current_value):
-                    setattr(yaml, field, value)
-                    
-            # read the body of the file
-            person_file.body.read()
+        # set the `last_contact` if the new value is a more recent date
+        if field == person.FIELD_LAST_CONTACT:
+            if value > str(current_value):
+                setattr(yaml, field, value)
 
-            # write the file with the updated 'last_contact' value
-            result = person_file.save()
+        # read the body of the file
+        person_file.body.read()
 
-            break
+        # write the file with the updated 'last_contact' value
+        result = person_file.save()
+
+    return result
+
+# -----------------------------------------------------------------------------
+#
+# Update a specific section within a Person's profile Markdown file body.
+#
+# Parameters:
+#
+#   slug - the person slug, e.g. 'spongebob'
+#   path - the path to the file
+#   section - the body section to update e.g. SECTION_NOTES
+#   value - what to set the field to
+#
+# Returns:
+#
+#   True if successful, False otherwise.
+#
+# Notes:
+#
+#   - The section header should have a blank line before and after it
+#
+# -----------------------------------------------------------------------------
+def update_section(slug, path, section, value):
+
+    result = False
+
+    # get the Person's profile file
+    person_file = read_person_frontmatter(slug, path)
+
+    if person_file is not None:
+
+        # read the body of the file, also parses it
+        person_file.body.read()
+
+        # write the file with the updated 'last_contact' value
+        result = person_file.save()
 
     return result

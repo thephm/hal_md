@@ -13,6 +13,8 @@ import life_events
 
 sys.path.insert(1, './') 
 import md_lookup
+import md_date
+import md_body
 
 NEW_LINE = "\n"
 HEADING_2 = "##"
@@ -48,27 +50,6 @@ def get_arguments():
 
     return args
 
-def extract_year(dateString):
-    if "-" in dateString:
-        if len(dateString) == 10:  # YYYY-MM-DD format
-            return dateString[0:4]
-        elif len(dateString) == 5: # MM-DD format
-            return ""
-
-def extract_month(dateString):
-    if "-" in dateString:
-        if len(dateString) == 10:  # YYYY-MM-DD format
-            return dateString[5:7]
-        elif len(dateString) == 5:  # MM-DD format
-            return dateString[0:2]
-        
-def extract_day(dateString):
-    if "-" in dateString:
-        if len(dateString) == 10:  # YYYY-MM-DD format
-            return dateString[8:10]
-        elif len(dateString) == 5:  # MM-DD format
-            return dateString[3:5]
-
 # -----------------------------------------------------------------------------
 #
 # Sort a collection of birthdays in chronological order from Jan to Dec 
@@ -92,40 +73,21 @@ def sort_birthdays(birthdays):
         name = birthday[identity.FIELD_NAME]
         date = birthday[life_events.FIELD_BIRTHDAY]
         deathday = birthday[life_events.FIELD_DEATHDAY]
-        if date and extract_month(date) and extract_day(date):
+        if date and md_date.extract_month(date) and md_date.extract_day(date):
             valid_birthdays.append((name, slug, date, deathday))
         elif date and date != None and date != "None":
            print("Invalid birthday: '" + str(birthday) + "'")
 
     # sort valid birthdays by birthday
-    sorted_birthdays = sorted(valid_birthdays, key=lambda x: (int(extract_month(x[PAIR_BIRTHDAY]) or 0), int(extract_day(x[PAIR_BIRTHDAY]) or 0)))
+    sorted_birthdays = sorted(valid_birthdays, key=lambda x: (int(md_date.extract_month(x[PAIR_BIRTHDAY]) or 0), int(md_date.extract_day(x[PAIR_BIRTHDAY]) or 0)))
 
     return sorted_birthdays
-
-# parse a date string of format `YYYY-MM-DD` or `MM-DD` into a datetime object
-def get_date(dateStr):
-
-    the_date = None
-    
-    if "-" in dateStr:
-        if len(dateStr) == 10:  # YYYY-MM-DD format
-            try:
-                the_date = datetime.datetime.strptime(dateStr, "%Y-%m-%d")
-            except:
-                print("invalid date: '" + str(dateStr) + "'")
-        elif len(dateStr) == 5:  # MM-DD format
-            try:
-                the_date = datetime.datetime.strptime(dateStr, "%m-%d")
-            except:
-                print("invalid date: '" + str(dateStr) + "'")
-
-    return the_date
 
 def calculate_age(birthday, deathday):
 
     # parse the birthday and deathday strings into datetime objects
-    birth_date = get_date(birthday)
-    death_date = get_date(deathday)
+    birth_date = md_date.get_date(birthday)
+    death_date = md_date.get_date(deathday)
 
     if death_date:
         age = death_date.year - birth_date.year - ((death_date.month, death_date.day) < (birth_date.month, birth_date.day))
@@ -166,8 +128,8 @@ def upcoming(birthdays, num_days):
     for birthday in birthdays:
 
         # parse the birthday string
-        the_month = int(extract_month(birthday[PAIR_BIRTHDAY]))
-        the_day = int(extract_day(birthday[PAIR_BIRTHDAY]))
+        the_month = int(md_date.extract_month(birthday[PAIR_BIRTHDAY]))
+        the_day = int(md_date.extract_day(birthday[PAIR_BIRTHDAY]))
     
         if 1 <= the_month <= 12 and 1 <= the_day <= 31:
             # calculate the birthday's date for the current year
@@ -198,7 +160,7 @@ def make_calendar(birthdays):
     # group birthdays by month
     grouped_birthdays = {}
     for birthday in birthdays:
-        month = extract_month(birthday[PAIR_BIRTHDAY])
+        month = md_date.extract_month(birthday[PAIR_BIRTHDAY])
         if month in grouped_birthdays:
             grouped_birthdays[month].append(birthday)
         else:
@@ -215,7 +177,7 @@ def make_calendar(birthdays):
             output+= BIRTHDAY_TABLE_HEADING
 
             # sort birthdays within the month
-            sorted_birthdays = sorted(grouped_birthdays[month_num_str], key=lambda x: extract_day(x[PAIR_BIRTHDAY]))
+            sorted_birthdays = sorted(grouped_birthdays[month_num_str], key=lambda x: md_date.extract_day(x[PAIR_BIRTHDAY]))
             
             for birthday in sorted_birthdays:
                 

@@ -20,7 +20,7 @@ linkedin_id:
 hometown: 
 city: 
 state: 
-country:
+country: 
 ---
 
 # Person

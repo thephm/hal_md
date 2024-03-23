@@ -10,7 +10,7 @@ url:
 email: 
 phone: 
 linkedin_id: 
-x_id:
+x_id: 
 ---
 
 # Product

@@ -4,7 +4,7 @@ tags:
 url: 
 people: 
 date: 
-duration:
+duration: 
 ---
 
 # Video
