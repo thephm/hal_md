@@ -6,7 +6,7 @@ import datetime
 import glob
 import re
 
-sys.path.insert(1, './hal') 
+sys.path.insert(1, './hal')
 import interaction
 
 sys.path.insert(1, './') 
@@ -14,7 +14,21 @@ import communication_file
 
 NEW_LINE = "\n"
 
-# Get the most recent interaction file date within a specific Person's folder
+# -----------------------------------------------------------------------------
+#
+# Get the interaction file dates within a specific Person's folder.
+#
+# Parameters:
+#   
+#   - slug - person's slug e.g. 'spongebob
+#   - path - path to where the files are
+#   - this_interactions - the collection of interactions
+#
+# Returns:
+#
+#   - the date of the most recent interaction
+#
+# -----------------------------------------------------------------------------
 def get_interactions(slug, path, this_interactions):
 
     result = None
@@ -43,10 +57,10 @@ def get_interactions(slug, path, this_interactions):
                 markdown_file.frontmatter.read()
 
                 # get the date from the frontmatter if it's a communication
-                thisDate = get_date(markdown_file)
+                this_date = get_date(markdown_file)
 
-                if thisDate and (result is None or thisDate > result):
-                    result = thisDate
+                if this_date and (result is None or this_date > result):
+                    result = this_date
 
             except:
                 pass
@@ -63,7 +77,7 @@ def get_interactions(slug, path, this_interactions):
 #
 # -----------------------------------------------------------------------------
 def get_date(file):
-    theDate = ""
+    the_date = ""
 
     for tag in file.frontmatter.tags:
         if tag in communication_file.Tags:

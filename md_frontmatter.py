@@ -102,13 +102,13 @@ class Frontmatter:
     #
     # Parameters:
     #
-    #   doc - the JSON text to be parsed
-    #   field - the name of the field to obtain
-    #   fields - add the field to this collection 
+    #   - doc - the JSON text to be parsed
+    #   - field - the name of the field to obtain
+    #   - fields - add the field to this collection 
     #
     # Returns:
     #
-    #   value - the value of the field
+    #   - value - the value of the field
     #
     # -------------------------------------------------------------------------
     def get_field(self, doc, field, fields):

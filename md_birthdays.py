@@ -14,7 +14,6 @@ import life_events
 sys.path.insert(1, './') 
 import md_lookup
 import md_date
-import md_body
 
 NEW_LINE = "\n"
 HEADING_2 = "##"

@@ -32,7 +32,7 @@ class Body:
             self.parent.open('r')
 
         # read the frontmatter, even if it was already read, so we know
-        # we're at the right spot in the file
+        # that we're at the right spot in the file
         self.parent.frontmatter.read()
 
         # grab the handle to the file from the parent object
@@ -65,6 +65,7 @@ class Body:
     #
     # -------------------------------------------------------------------------
     def parse(self):
+
         self.sections = []  # Initialize sections list
     
         lines = self.raw.splitlines()  # Split the string into lines
@@ -113,3 +114,10 @@ class Body:
             file.write(section[SECTION_CONTENT])
 
         return True  
+    
+    # get the content from a specific section of the file
+    def get_content(self, section_heading):
+
+        for section in self.sections:
+            if section['heading'] == section_heading:
+                return section['content']
