@@ -33,7 +33,7 @@ class File:
         self.file = open(self.path, mode)
     
     def save(self):
-        # if not already open, open the file in read-write mode
+        # open the file in read-write mode
         self.open('w+')
         self.frontmatter.write()
         self.body.write()

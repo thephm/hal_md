@@ -129,5 +129,33 @@ So far, I've created:
 - 2024-03-10: [last_contact](last_contact.py) to see when I last contacted the person
 - 2024-03-10: [md_birthdays](md_birthdays.py) outputs a month-by-month calendar of birthdays
 - 2024-03-10: [sample](https://github.com/thephm/sample) a sample collection of famous computer science folk
+- 2024-09-22: [comms](comms.py) to show the most recent communications with a person
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
+
+### Comms
+
+This tool is meant to be used on the command line to lookup the most recent communications with a person.
+
+By default the contents of last 3 dated message files are shown e.g. `2024-09-12.md`.
+
+The Markdown is converted to plain text.
+
+For this tool you need to install a few libraries:
+
+```bash
+ pip install markdown
+ pip install rich
+ pip install html2text
+ ```
+
+#### Command line options
+
+- `-f` or `--folder` - The folder where each Person has a subfolder named with their slug
+- `-s` or `--slug` - The slug of the person e.g. 'sponge-bob'
+- `-d` or `--debug` - Debug messages
+- `-n` or `--name` - The first name of the person -- NOT IMPLEMENTED
+- `-x` or `--max` - The maximum number of interaction files to dump
+- `-m` or `--markdown` - To display the Markdown instead of plain text
+- `-t` or `--time` - Show the time e.g. SpongeBob at 23:31"
+- `-c` or `--color` - Use ANSI colors, otherwise just black/white text

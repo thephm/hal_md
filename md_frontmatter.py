@@ -98,7 +98,7 @@ class Frontmatter:
 
     # -------------------------------------------------------------------------
     #
-    # Read a specific field from the doc, 
+    # Read a specific field from the doc and return it's value.
     #
     # Parameters:
     #
@@ -117,16 +117,16 @@ class Frontmatter:
 
         try:
             if field in doc:
-                if field == 'date':
+                if field == FIELD_DATE:
                     try:
                         value = datetime.datetime.strptime(str(doc[field]), '%Y-%m-%d').date()
                     except Exception as e:
                         pass
                 
-                elif field == 'time':
+                elif field == FIELD_TIME:
                     value = doc[field]
 
-                    # there are cases where the yaml parser sees the 
+                    # there are cases where the YAML parser sees the 
                     # frontmatter "time" value as an integer, e.g. 862
                     if isinstance(value, int):
                         # convert integer to hours and minutes
@@ -166,8 +166,6 @@ class Frontmatter:
 
             for doc in yamlData:
                 if isinstance(doc, dict):
-#                    missing, extra = self.checkFields(doc.keys())
-#                    print("missing: " + str(missing) + ", extra: " + str(extra))
                     for field in self.fields:
                         self.get_field(doc, field, fields)
                     result = True

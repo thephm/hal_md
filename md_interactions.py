@@ -29,7 +29,7 @@ NEW_LINE = "\n"
 #   - the date of the most recent interaction
 #
 # -----------------------------------------------------------------------------
-def get_interactions(slug, path, this_interactions):
+def get_interactions(slug, path, the_interactions):
 
     result = None
     markdown_file = communication_file.CommunicationFile()
@@ -47,7 +47,7 @@ def get_interactions(slug, path, this_interactions):
             this_interaction.slug = slug
             try: 
                 this_interaction.date = datetime.datetime.strptime(file, "%Y-%m-%d").date()
-                this_interactions.append(this_interaction)
+                the_interactions.append(this_interaction)
 
                 # get the full pathname for the file
                 full_path = os.path.join(path, file + ".md")
@@ -66,7 +66,7 @@ def get_interactions(slug, path, this_interactions):
                 pass
 
         # sort the interactions by reverse date
-        this_interactions.sort(key=lambda x: x.date, reverse=True)
+        the_interactions.sort(key=lambda x: x.date, reverse=True)
 
     return result
 

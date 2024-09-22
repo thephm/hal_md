@@ -221,7 +221,7 @@ def get_non_dated_files(slug, path):
 # -------------------------------------------------------------------------
 def read_person_frontmatter(slug, path):
     
-    # get list of files that aren't interactions or notes e.g. `2024-03-22.md`
+    # get list of files that aren't interactions or notes e.g. ! `2024-03-22.md`
     files = get_non_dated_files(slug, path)
 
     for file in files:
