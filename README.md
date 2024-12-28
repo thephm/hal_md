@@ -159,3 +159,17 @@ For this tool you need to install a few libraries:
 - `-m` or `--markdown` - To display the Markdown instead of plain text
 - `-t` or `--time` - Show the time e.g. SpongeBob at 23:31"
 - `-c` or `--color` - Use ANSI colors, otherwise just black/white text
+
+### Most contacted
+
+The `most_contacted.py` script goes through every file dated `YYYY-MM-DD.md` and then shows you who you communicated with the most number of days, over how long, and when was the last contact. Kind of a fun leaderboard that I shared with my siblings. 
+
+By default, the results are displayed on the command line or you can use the `-o` option to generate a CSV file and then play with it in Excel.
+
+DISCLAIMER: this script was entirely crafted by ChatGPT based on about 40 prompts I gave it. Not sure who owns the code now but alas my duty to disclose be done.
+
+#### Command line options
+
+- `-m` or `--my-slug` - the short code you use for yourself e.g. `sponge-bob`
+- `-n` or `--top-n` - Show the `n` people you communicate with the most number of days
+- `-o` or `--output-csv` - Generate to a CSV file instead of displaying the results
