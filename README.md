@@ -173,3 +173,7 @@ DISCLAIMER: this script was entirely crafted by ChatGPT based on about 40 prompt
 - `-m` or `--my-slug` - the short code you use for yourself e.g. `sponge-bob`
 - `-n` or `--top-n` - Show the `n` people you communicate with the most number of days
 - `-o` or `--output-csv` - Generate to a CSV file instead of displaying the results
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
