@@ -1,0 +1,47 @@
+[tools]
+python = "3.13.3"
+uv = "0.6.14"
+
+[env]
+_.python.venv = { path = ".venv", create = true, uv_create_args = ['--seed'] }
+
+[tasks.install]
+description = "Install dependencies"
+alias = "i"
+run = "uv pip install -r requirements.txt"
+
+[tasks.comms]
+description = "Process comms"
+depends = ["install"]
+run = "python comms.py"
+
+[tasks.dedup]
+description = "Deduplicate files (POTENTIALLY DESTRUCTIVE, BACKUP FIRST)"
+depends = ["install"]
+run = "python dedup.py"
+
+[tasks.embed_notes]
+description = "Embed notes"
+depends = ["install"]
+run = "python dedup.py"
+
+[tasks.last_contact]
+description = "Last contact with someone"
+depends = ["install"]
+run = "python last_contact.py"
+
+[tasks.md_birthdays]
+description = "Generate a MD calendar of birthdays"
+depends = ["install"]
+run = "python md_birthdays.py"
+
+[tasks.md_body]
+description = "Generate a MD calendar of birthdays"
+depends = ["install"]
+run = "python md_birthdays.py"
+
+[tasks.most_contacted]
+description = "Most contacted people"
+depends = ["install"]
+run = "python most_contacted.py"
+
