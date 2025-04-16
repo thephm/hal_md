@@ -1,0 +1,7 @@
+html2text==2025.4.15
+markdown==3.8
+markdown-it-py==3.0.0
+mdurl==0.1.2
+pip==25.0.1
+pygments==2.19.1
+rich==14.0.0
