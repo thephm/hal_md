@@ -88,7 +88,7 @@ def generate_markdown(slug, the_interactions):
         markdown += slug + "/" + date_str + MD_SUFFIX # e.g. "spongebob/2024-03-24.md'
         markdown += WIKILINK_CLOSE + NEW_LINE + NEW_LINE 
 
-    return markdown
+    return markdown.strip()  # Remove trailing blank lines [#21]
 
 # -----------------------------------------------------------------------------
 #
@@ -125,7 +125,6 @@ def generate_markdown(slug, the_interactions):
 def update_interactions(folder):
 
     count = 0
-    new_markdown = ""
     notes_section = md_person.SECTION_NOTES
 
     # get list of people `slug`s from the folder names
@@ -151,13 +150,12 @@ def update_interactions(folder):
 
         if person_file is not None:
 
-            new_markdown = ""
-
             # get the part of the section before the embedded notes
             top = person_file.section_top(notes_section, EMBEDDED_WIKILINK)
+            top = top.rstrip() # remove trailing whitespace [#21]
 
             # add the new content after the top, effectively replacing what's after top
-            new_markdown = top + NEW_LINE + interactions_markdown
+            new_markdown = top + NEW_LINE + NEW_LINE + interactions_markdown
             
             # update what's in the Person's Notes section of their profile
             person_file.update_section(slug, notes_section, new_markdown)
