@@ -75,20 +75,18 @@ def get_arguments():
 #
 # -----------------------------------------------------------------------------
 def generate_markdown(slug, the_interactions):
-
     markdown = ""
 
-    # sort the interactions chronologically from old to new
+    # Sort the interactions chronologically from old to new
     sorted_interactions = sorted(the_interactions, key=lambda x: x.date)
 
-    # make a Wikilink to each interaction file so it can be embedded
+    # Make a Wikilink to each interaction file so it can be embedded
     for interaction in sorted_interactions:
-        date_str = interaction.date.strftime('%Y-%m-%d')
-        markdown += EMBEDDED_WIKILINK 
-        markdown += slug + "/" + date_str + MD_SUFFIX # e.g. "spongebob/2024-03-24.md'
-        markdown += WIKILINK_CLOSE + NEW_LINE + NEW_LINE 
+        markdown += EMBEDDED_WIKILINK
+        markdown += slug + "/" + interaction.filename  # Use the filename from the Interaction object
+        markdown += WIKILINK_CLOSE + NEW_LINE + NEW_LINE
 
-    return markdown.strip()  # Remove trailing blank lines [#21]
+    return markdown.strip()  # Remove trailing blank lines
 
 # -----------------------------------------------------------------------------
 #

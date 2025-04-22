@@ -198,7 +198,7 @@ def get_non_dated_files(slug, path):
     all_files = glob.glob(os.path.join(path, slug + "/*.md"))
 
     # pattern for matching filenames starting with YYYY-MM-DD [#12]
-    date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}')
+    date_pattern = re.compile(r'^\d{4}-\d{2}-\d{2}.*')
 
     # filter out files with filename format of "YYYY-MM-DD" and those starting with "."
     files = [file for file in all_files if not date_pattern.match(md_file.get_prefix(file))]
