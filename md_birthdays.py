@@ -68,10 +68,10 @@ def sort_birthdays(birthdays):
 
     # filter out birthdays with missing or invalid dates
     for birthday in birthdays:
-        slug = birthday[person.FIELD_SLUG]
-        name = birthday[identity.FIELD_NAME]
-        date = birthday[life_events.FIELD_BIRTHDAY]
-        deathday = birthday[life_events.FIELD_DEATHDAY]
+        slug = birthday[person.slug]
+        name = birthday[identity.name]
+        date = birthday[life_events.birthday]
+        deathday = birthday[life_events.deathday]
         if date and md_date.extract_month(date) and md_date.extract_day(date):
             valid_birthdays.append((name, slug, date, deathday))
         elif date and date != None and date != "None":
@@ -213,7 +213,7 @@ if folder and not os.path.exists(folder):
     print('The folder "' + folder + '" could not be found.')
 
 elif folder:
-    birthdays = md_lookup.get_values(folder, [life_events.FIELD_BIRTHDAY, life_events.FIELD_DEATHDAY], args)
+    birthdays = md_lookup.get_values(folder, [life_events.birthday, life_events.deathday], args)
     sorted_birthdays = sort_birthdays(birthdays)
 
     if args.upcoming:

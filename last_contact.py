@@ -66,7 +66,7 @@ def update_last_contact(folder, the_interactions):
 
         # update their profile
         if the_date:
-            result = md_person.update_field(slug, folder, person.FIELD_LAST_CONTACT, str(the_date))
+            result = md_person.update_field(slug, folder, person.last_contact, str(the_date))
 
     return result
 

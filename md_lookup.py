@@ -101,10 +101,10 @@ def get_person_values(folder, slug, fields):
         yaml = theFile.frontmatter
         
         # if this is a person profile and the right person 
-        if yaml.tags and person.TAG_PERSON in yaml.tags:
+        if yaml.tags and person.tag in yaml.tags:
             # for each of the fields being requested
-            result[person.FIELD_SLUG] = slug
-            result[identity.FIELD_NAME] = md_file.get_prefix(file)
+            result[person.slug] = slug
+            result[identity.name] = md_file.get_prefix(file)
             for field in fields:
                 result[field] = ""
                 try:

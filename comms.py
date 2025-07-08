@@ -128,8 +128,8 @@ def get_interactions(folder, slug, max, color):
 
             the_file.frontmatter.read()
 
-            file_date = getattr(the_file.frontmatter, md_frontmatter.FIELD_DATE)
-            the_service = getattr(the_file.frontmatter, md_frontmatter.FIELD_SERVICE)
+            file_date = getattr(the_file.frontmatter, md_frontmatter.date)
+            the_service = getattr(the_file.frontmatter, md_frontmatter.service)
             if color:
                 the_markdown += ansi_colors.BG_BLUE
             the_markdown += str(file_date)

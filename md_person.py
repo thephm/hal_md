@@ -278,7 +278,7 @@ def update_field(slug, path, field, value):
             pass  
 
         # set the `last_contact` if the new value is a more recent date
-        if field == person.FIELD_LAST_CONTACT:
+        if field == person.last_contact:
             if value > str(current_value):
                 setattr(yaml, field, value)
 

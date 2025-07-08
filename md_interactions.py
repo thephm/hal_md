@@ -6,7 +6,7 @@ import datetime
 import glob
 import re
 
-sys.path.insert(1, './hal')
+sys.path.insert(1, '../hal')
 import interaction
 
 sys.path.insert(1, './') 
