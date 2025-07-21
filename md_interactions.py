@@ -14,22 +14,18 @@ import communication_file
 
 NEW_LINE = "\n"
 
-# -----------------------------------------------------------------------------
-#
-# Get the interaction file dates within a specific Person's folder.
-#
-# Parameters:
-#   
-#   - slug - person's slug e.g. 'spongebob
-#   - path - path to where the files are
-#   - this_interactions - the collection of interactions
-#
-# Returns:
-#
-#   - the date of the most recent interaction
-#
-# -----------------------------------------------------------------------------
-def get_interactions(slug, path, the_interactions):
+def get_interactions(slug, path, interactions):
+    """
+    Get the interaction file dates within a specific Person's folder.
+
+    Parameters:
+    slug (str): Person's slug e.g. 'spongebob
+    path (str): Path to where the files are
+    interactions (list): The collection of interactions
+
+    Returns:
+    str: The date of the most recent interaction
+    """
     result = None
     markdown_file = communication_file.CommunicationFile()
 
@@ -59,7 +55,7 @@ def get_interactions(slug, path, the_interactions):
                     this_interaction.filename = file + ".md"
 
                     # add the interaction to the list
-                    the_interactions.append(this_interaction)
+                    interactions.append(this_interaction)
 
                 # get the full pathname for the file
                 full_path = os.path.join(path, file + ".md")
@@ -79,18 +75,20 @@ def get_interactions(slug, path, the_interactions):
                 pass
 
         # Sort the interactions by reverse date
-        the_interactions.sort(key=lambda x: x.date, reverse=True)
+        interactions.sort(key=lambda x: x.date, reverse=True)
 
     return result
 
-# -----------------------------------------------------------------------------
-#
-# If the file is a communication e.g. the `tags` frontmatter field contains 
-# "email", then return the frontmatter's `date` value. If not, return blank.
-#
-# -----------------------------------------------------------------------------
 def get_date(file):
-    the_date = ""
+    """
+    If the file is a communication e.g. the `tags` frontmatter field contains 
+    "email", then return the frontmatter's `date` value. If not, return blank.
+    
+    Parameters:
+    file (PersonFile): the file to get the date for.
+    """
+
+    date = ""
 
     for tag in file.frontmatter.tags:
         if tag in communication_file.Tags:

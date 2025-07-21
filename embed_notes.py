@@ -27,9 +27,10 @@ MD_EMBED = "!"
 MD_SUFFIX = ".md"
 EMBEDDED_WIKILINK = MD_EMBED + WIKILINK_OPEN
 
-# Parse the command line arguments
 def get_arguments():
-
+    """
+    Parse the command line arguments.
+    """
     parser = ArgumentParser()
 
     parser.add_argument("-f", "--folder", dest="folder", default=".",
@@ -45,36 +46,29 @@ def get_arguments():
 
     return args
 
-# -----------------------------------------------------------------------------
-#
-# Create a set of lines in Markdown with [[Wikilinks]] to each interaction.
-#
-# Parameters:
-# 
-#   - slug - person's slug e.g. 'spongebob'
-#   - interactions - collection of Interaction
-#
-# Returns:
-#
-#   - Markdown text
-#
-# Notes:
-#
-#   - Generates a set of lines with embedded link to each communication file,
-#     separated by a blank line
-#
-# Example:
-#
-#   - If there are two files `2023-02-01.md` and `2024-03-24.md`
-#
-#     ```
-#     ![[spongebob/2023-02-01.md]]
-#
-#     ![[spongebob/2024-03-24.md]]
-#     ```
-#
-# -----------------------------------------------------------------------------
 def generate_markdown(slug, the_interactions):
+    """
+    Create a set of lines in Markdown with [[Wikilinks]] to each interaction.
+    
+    Parameters:
+    slug (str): Person's slug e.g. 'spongebob'
+    interactions (list): Collection of Interaction.
+
+    Returns:
+    str: Markdown text
+
+    Notes:
+    Generates a set of lines with embedded link to each communication file,
+    separated by a blank line
+
+    If there are two files `2023-02-01.md` and `2024-03-24.md`
+
+    ```
+    ![[spongebob/2023-02-01.md]]
+
+    ![[spongebob/2024-03-24.md]]
+    ```
+    """
     markdown = ""
 
     # Sort the interactions chronologically from old to new
@@ -88,39 +82,34 @@ def generate_markdown(slug, the_interactions):
 
     return markdown.strip()  # Remove trailing blank lines
 
-# -----------------------------------------------------------------------------
-#
-# Given a folder name, load all of the interactions with that person based on
-# the existence of dated Markdown files for each date where an interaction 
-# occured.
-#
-# Parameters:
-# 
-#   - folder - folder containing sub-folders for each person
-#
-# Returns:
-#
-#   - The number of people processed.
-#
-# Notes:
-# 
-#   1. Go through each folder `folder-name` under `People`
-#   2. Find all files with names `YYYY-MM-DD`
-#   3. Create a list of them like this, ordered oldest to newest
-#
-#   ```
-#   ![[spongebob/2017-08-13.md]]
-#
-#   ![[spongebob/2022-12-06.md]]
-#   ```
-#
-#   4. Open the corresponding person file where `slug` = `folder-name`
-#   5. Find the section `## Notes`
-#   6. After any bulleted list items (individual notes), replace what is there
-#      with the new list of embedded files.
-#
-# -----------------------------------------------------------------------------
 def update_interactions(folder):
+    """
+    Given a folder name, load all of the interactions with that person based 
+    on the existence of dated Markdown files for each date where an interaction 
+    occured.
+
+    Parameters:
+    folder (str): Folder containing sub-folders for each person.
+
+    Returns:
+    int: The number of people processed.
+
+    Notes:
+    1. Go through each folder `folder-name` under `People`
+    2. Find all files with names `YYYY-MM-DD`
+    3. Create a list of them like this, ordered oldest to newest
+    
+    ```
+    ![[spongebob/2017-08-13.md]]
+    
+    ![[spongebob/2022-12-06.md]]
+    ```
+   
+    4. Open the corresponding person file where `slug` = `folder-name`
+    5. Find the section `## Notes`
+    6. After any bulleted list items (individual notes), replace what is 
+        there with the new list of embedded files.
+    """
 
     count = 0
     notes_section = md_person.SECTION_NOTES

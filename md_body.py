@@ -47,24 +47,22 @@ class Body:
 
         return True
     
-    # -------------------------------------------------------------------------
-    #
-    # Parse the body of a Markdown file into H1 and H2 sections.
-    #
-    # Notes:
-    # 
-    #   - Creates a collection of sections for the content of the Markdown file
-    #   - Each section is like this:
-    #
-    #       {'heading': '# Spongebob Squarpants", 'contents': 'Ocean dweller'},
-    #       {'heading': '## Bio", 'contents': 'Fictitious animated character'},
-    #       {'heading': '## Life Events", 'contents': '- 2020:  Born'},
-    #
-    #   - Any content at the H3 or lower levels is kept in the `content` of the 
-    #     H2 section that contains it.
-    #
-    # -------------------------------------------------------------------------
     def parse(self):
+        """
+        Parse the body of a Markdown file into H1 and H2 sections.
+        
+        Notes:
+        - Creates a collection of sections for the content of the Markdown file
+
+       - Each section is like this:
+
+            {'heading': '# Spongebob Squarpants", 'contents': 'Ocean dweller'},
+            {'heading': '## Bio", 'contents': 'Fictitious animated character'},
+            {'heading': '## Life Events", 'contents': '- 2020:  Born'},
+
+        - Any content at the H3 or lower levels is kept in the `content` of the 
+          H2 section that contains it.
+        """
 
         self.sections = []  # Initialize sections list
     
@@ -91,16 +89,13 @@ class Body:
         if current_section is not None:
             self.sections.append(current_section)
 
-    # -------------------------------------------------------------------------
-    #
-    # Writes the body of a Markdown file.
-    #
-    # Notes:
-    #
-    #   - Takes the parent file and writes each section heading and content
-    # 
-    # -------------------------------------------------------------------------
     def write(self):
+        """
+        Writes the body of a Markdown file.
+
+        Notes:
+        Takes the parent file and writes each section heading and content.
+        """
 
         if not self.parent.file:
             self.parent.open('w+')

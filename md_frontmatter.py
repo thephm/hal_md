@@ -16,6 +16,8 @@
 import yaml
 import datetime
 
+import md_person
+
 FRONTMATTER_SEPARATOR = "---"
 
 NEW_LINE = "\n"
@@ -59,28 +61,25 @@ class Frontmatter:
             if value:
                 output += field + ": " + str(value) + NEW_LINE
         return output
-    
+
     def get_date(self):
         return getattr(self, FIELD_DATE)
     
-    # -------------------------------------------------------------------------
-    #
-    # Initialize each field to [] if it's an array field or "" otherwise.
-    #
-    # -------------------------------------------------------------------------
     def init_fields(self):
+        """
+        Initialize each field to [] if it's an array field or "" otherwise.
+        """
+        
         for field in self.fields:
             if field in ArrayFields:
                 setattr(self, field, [])
             else:
                 setattr(self, field, "")
 
-    # -------------------------------------------------------------------------
-    #
-    # See which fields are missing in the doc or extra, i.e. not a self.<field>
-    #
-    # -------------------------------------------------------------------------
     def check_fields(self, doc_fields):
+        """
+        See which fields are missing in the doc or extra, i.e. not a self.<field>
+        """
         missing_fields = []
         extra_fields = []
         
@@ -96,22 +95,18 @@ class Frontmatter:
         
         return missing_fields, extra_fields
 
-    # -------------------------------------------------------------------------
-    #
-    # Read a specific field from the doc and return it's value.
-    #
-    # Parameters:
-    #
-    #   - doc - the JSON text to be parsed
-    #   - field - the name of the field to obtain
-    #   - fields - add the field to this collection 
-    #
-    # Returns:
-    #
-    #   - value - the value of the field
-    #
-    # -------------------------------------------------------------------------
     def get_field(self, doc, field, fields):
+        """
+        Read a specific field from the doc and return it's value.
+
+        Parameters:
+        doc (dict): The JSON text to be parsed
+        field (str): The name of the field to obtain
+        fields (list): Add the field to this collection
+
+        Returns:
+        str: The value of the field.
+        """
 
         value = None
 
@@ -145,65 +140,66 @@ class Frontmatter:
 
         return value
 
-    # -------------------------------------------------------------------------
-    #
-    # Parse the YAML frontmatter into fields.
-    # 
-    # Returns:
-    #
-    #   - True if valid YAML
-    #   - False if not
-    #
-    # -------------------------------------------------------------------------
     def parse(self):
-        
-        result = False
-        fields = []
+        """
+        Parse the YAML frontmatter into fields.
 
-        # take the YAML data from the "raw" field
+        Returns:
+        bool: True if valid YAML, False if not
+        """
+            
+        result = False
+
         try:
             yamlData = yaml.safe_load_all(self.raw)
-
             for doc in yamlData:
                 if isinstance(doc, dict):
-                    for field in self.fields:
-                        self.get_field(doc, field, fields)
+                    for key in doc.keys():
+                        if key not in self.fields:
+                            self.fields.append(key)
+                    for key, value in doc.items():
+                        setattr(self, key, value)
                     result = True
-        
         except Exception as e:
             print(e)
 
         return result
         
-    # -------------------------------------------------------------------------
-    #
-    # Read the YAML frontmatter, parse it, and return True if it's valid.
-    # 
-    # Returns:
-    #
-    #   - True if valid YAML
-    #   - False if not
-    #
-    # Notes:
-    # 
-    #   - If the file starts with "---" followed by one or more line(s), 
-    #     followed by "---", the parse the YAML into the `frontmatter` fields.
-    # 
-    # -------------------------------------------------------------------------
     def read(self):
+        """
+        Read the YAML frontmatter, parse it, and return True if it's valid.
+
+        Parameters:
+        None
+
+        Returns:
+        bool: True if valid YAML, False if not.
+
+        Notes:
+        If the file starts with "---" followed by one or more line(s), 
+        followed by "---", the parse the YAML into the `frontmatter` fields.
+        """
 
         result = False
         line = ""
 
         if not self.parent.file:
             self.parent.open('r')
+        else:
+            self.parent.file.seek(0)  # Reset pointer to start
 
         file = self.parent.file
 
         if file:
-            # read the first line of the file
             try:
-                firstLine = file.readline().strip()
+                # Skip leading blank lines
+                while True:
+                    firstLine = file.readline()
+                    if not firstLine:
+                        break  # EOF
+                    firstLine = firstLine.strip()
+                    if firstLine:  # Found a non-blank line
+                        break
 
                 if firstLine == FRONTMATTER_SEPARATOR:
                     self.raw += firstLine + NEW_LINE
@@ -215,31 +211,30 @@ class Frontmatter:
                         if line == FRONTMATTER_SEPARATOR:
                             result = True
                             break
-            except:
-                pass
-            
+            except Exception as e:
+                print(e)
+
             if result:
                 result = self.parse()
 
-        return result  # YAML format is correct
+        return result
     
     def write(self):
-
         # if not already open, open the file in read-write mode
         if not self.parent.file:
             self.open('w+')
 
         file = self.parent.file
         file.write(self.get_yaml())
-
-    def get_yaml(self):
-        result = FRONTMATTER_SEPARATOR + NEW_LINE
         
+    def get_yaml(self): 
+        result = FRONTMATTER_SEPARATOR + NEW_LINE
+
         for field in self.fields:
-            if getattr(self, field):
-                result += field + ": " + str(getattr(self, field)) + NEW_LINE
+            value = getattr(self, field, None)
+            # Only write if value is not None, not empty string, not empty list
+            if value not in (None, "", []):
+                result += f"{field}: {value}\n"
 
         result += FRONTMATTER_SEPARATOR + NEW_LINE
-
         return result
-        

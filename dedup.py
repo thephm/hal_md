@@ -7,18 +7,24 @@ import difflib
 from collections import defaultdict
 
 def get_backup_path(original_path, base_backup_dir="backups"):
-    """Create a backup path mirroring the original structure."""
+    """
+    Create a backup path mirroring the original structure.
+    """
     abs_path = os.path.abspath(original_path)
     relative_path = os.path.relpath(abs_path, start=os.getcwd())
     return os.path.join(base_backup_dir, relative_path)
 
 def create_backup(original_path, backup_path):
-    """Save a backup copy before modifying."""
+    """
+    Save a backup copy before modifying.
+    """
     os.makedirs(os.path.dirname(backup_path), exist_ok=True)
     shutil.copy2(original_path, backup_path)
 
 def parse_markdown_content(text):
-    """Parse markdown content, preserving frontmatter."""
+    """
+    Parse markdown content, preserving frontmatter.
+    """
     # First, identify and preserve frontmatter
     frontmatter = None
     content = text
@@ -32,7 +38,10 @@ def parse_markdown_content(text):
     return frontmatter, content
 
 def clean_formatting(text):
-    """Clean up the formatting of various email-style markers."""
+    """
+    Clean up the formatting of various email-style markers.
+    """
+    
     # Replace "**-Original Message**-" with "*-- Original Message --*"
     text = re.sub(r'\*\*-+\s*Original\s*Message\s*-+\*\*', '*-- Original Message --*', text, flags=re.IGNORECASE)
     
@@ -56,7 +65,9 @@ def clean_formatting(text):
     return text
 
 def extract_email_headers(text):
-    """Extract email header information from the text."""
+    """
+    Extract email header information from the text.
+    """
     headers = {}
     
     # Common email header fields to extract
@@ -85,7 +96,9 @@ def extract_email_headers(text):
     return headers
 
 def extract_embeds(text):
-    """Extract embedded file references from the text."""
+    """
+    Extract embedded file references from the text.
+    """
     embeds = []
     
     # Pattern for ![[filename.ext]] and [[filename.ext]] embeds
@@ -101,7 +114,9 @@ def extract_embeds(text):
     return embeds
 
 def extract_complete_messages(text):
-    """Extract complete messages with their headers using multiple patterns."""
+    """
+    Extract complete messages with their headers using multiple patterns.
+    """
     messages = []
     
     # Pattern 1: "Name at HH:MM" format
@@ -197,7 +212,9 @@ def extract_complete_messages(text):
     return non_overlapping
 
 def has_embed_difference(text1, text2):
-    """Check if there are differences in embeds between two texts."""
+    """
+    Check if there are differences in embeds between two texts.
+    """
     # Extract embeds from both texts
     embeds1 = re.findall(r'(!?\[\[.*?\]\])', text1)
     embeds2 = re.findall(r'(!?\[\[.*?\]\])', text2)
@@ -214,7 +231,9 @@ def has_embed_difference(text1, text2):
     return False
 
 def create_context_summary(message):
-    """Create a context summary for a message that will be removed."""
+    """
+    Create a context summary for a message that will be removed.
+    """
     if message['pattern'] == 'time':
         # For "Name at HH:MM" format
         name = extract_name_from_header(message['header'])
@@ -252,7 +271,9 @@ def create_context_summary(message):
     return "[duplicate message removed]"
 
 def find_duplicate_messages(messages, min_chars=40):
-    """Find duplicate messages based on content similarity."""
+    """
+    Find duplicate messages based on content similarity.
+    """
     duplicates = []
     
     # Compare all message pairs
@@ -306,7 +327,10 @@ def find_duplicate_messages(messages, min_chars=40):
     return duplicates
 
 def extract_name_from_header(header):
-    """Extract the sender's name from various header formats."""
+    """
+    Extract the sender's name from various header formats.
+    """
+    
     # For "Name at HH:MM" format
     time_match = re.match(r'([A-Za-z]+)\s+at\s+\d{1,2}:\d{2}', header)
     if time_match:
@@ -331,7 +355,9 @@ def extract_name_from_header(header):
     return None
 
 def find_repeating_paragraphs(text, min_chars=40):
-    """Find repeating paragraphs that might be duplicates."""
+    """
+    Find repeating paragraphs that might be duplicates.
+    """
     # Split the content into paragraphs
     paragraphs = re.split(r'\n\s*\n', text)
     
@@ -390,7 +416,9 @@ def find_repeating_paragraphs(text, min_chars=40):
     return duplicates
 
 def detect_message_header_before(text, position, max_lines=3):
-    """Detect if there's a message header right before the given position."""
+    """
+    Detect if there's a message header right before the given position.
+    """
     # Get a few lines before the position
     lines_before = text[:position].split('\n')[-max_lines:]
     
@@ -412,7 +440,9 @@ def detect_message_header_before(text, position, max_lines=3):
     return None, None
 
 def remove_duplicates(filepath, interactive=True, min_chars=40, verbose=False, dry_run=False, fix_formatting=True, preserve_context=True):
-    """Remove duplicate content while preserving message context."""
+    """
+    Remove duplicate content while preserving message context.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         text = f.read()
     
@@ -607,12 +637,16 @@ def remove_duplicates(filepath, interactive=True, min_chars=40, verbose=False, d
         return modified
 
 def is_dated_markdown_file(filename):
-    """Check if the filename matches the YYYY-MM-DD*.md pattern."""
+    """
+    Check if the filename matches the YYYY-MM-DD*.md pattern.
+    """
     pattern = r"^\d{4}-\d{2}-\d{2}.*\.md$"
     return bool(re.match(pattern, filename))
 
 def process_folder(folder_path, interactive=True, min_chars=40, verbose=False, dry_run=False, fix_formatting=True, preserve_context=True):
-    """Process all dated markdown files in a folder and its subfolders."""
+    """
+    Process all dated markdown files in a folder and its subfolders.
+    """
     processed_files = 0
     modified_files = 0
     

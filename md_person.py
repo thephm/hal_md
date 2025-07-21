@@ -9,9 +9,13 @@ import os
 import sys
 import glob
 import re
+import yaml
 
 sys.path.insert(1, '../hal/')
 import person
+import identity
+import contact
+import socials
 
 sys.path.insert(1, './') 
 import md_frontmatter
@@ -34,6 +38,56 @@ CONTENT_EMBED = "![["
 PersonSections = [SECTION_BIO, SECTION_QUOTES, SECTION_LIFE_EVENTS, 
                   SECTION_REFERENCES, SECTION_PEOPLE, SECTION_FAVORITES, 
                   SECTION_NOTES]
+    
+# flat YAML key -> (object path as tuple)
+YAML_TO_ATTR = {
+    "tags": ("", "tags"),
+    "slug": ("", "slug"),
+    "subject_id": ("", "subject_id"),
+    "connected_on": ("", "connected_on"),
+    "birthday": ("", "birthday"),
+    "deathday": ("", "deathday"),
+    "anniversary": ("", "anniversary"),
+    "interests": ("", "interests"),
+    "favorites": ("", "favorites"),
+    "service_id": ("", "service_id"),
+    "title": ("", "title"),
+    "organizations": ("", "organizations"),
+    "positions": ("", "positions"),
+    "skills": ("", "skills"),
+    "first_name": ("identity", "first_name"),
+    "middle_name": ("identity", "middle_name"),
+    "last_name": ("identity", "last_name"),
+    "nick_name": ("identity", "nick_name"),
+    "nee": ("identity", "nee"),
+    "gender": ("identity", "gender"),
+    "pronouns": ("identity", "pronouns"),
+    "aliases": ("identity", "aliases"),
+    "mobile": ("contact", "mobile"),
+    "last_contact": ("", "last_contact"),
+    "phone": ("contact", "phone"),
+    "email": ("contact", "email"),
+    "url": ("contact", "url"),
+    "work_mobile": ("work_contact", "mobile"),
+    "work_email": ("work_contact", "email"),
+    "work_url": ("work_contact", "url"),
+    "other_mobile": ("other_contact", "mobile"),
+    "other_email": ("other_contact", "email"),
+    "other_url": ("other_contact", "url"),
+    "linkedin_id": ("socials", "linkedin_id"),
+    "facebook_id": ("socials", "facebook_id"),
+    "instagram_id": ("socials", "instagram_id"),
+    "bluesky_id": ("socials", "bluesky_id"),
+    "x_id": ("socials", "x_id"),
+    "github_id": ("socials", "github_id"),
+    "medium_id": ("socials", "medium_id"),
+    "threads_id": ("socials", "threads_id"),
+    "address": ("contact", "address", "address"),
+    "city": ("contact", "address", "city"),
+    "province": ("contact", "address", "province"),
+    "country": ("contact", "address", "country"),
+    "hometown": ("contact", "address", "hometown"),
+}
 
 class PersonFrontmatter(md_frontmatter.Frontmatter):
     def __init__(self, parent):
@@ -43,6 +97,38 @@ class PersonFrontmatter(md_frontmatter.Frontmatter):
         self.fields.extend(person.Fields)
         self.section_headings = PersonSections
         self.raw = ""
+    
+    def parse(self):
+        """
+        Parse the YAML frontmatter into fields and assign to embedded objects.
+        """
+        result = False
+        try:
+            yamlData = yaml.safe_load_all(self.raw)
+            for doc in yamlData:
+                if isinstance(doc, dict):
+                    # preserve the order and all fields
+                    self.fields = list(doc.keys())
+                    for key, value in doc.items():
+                        if key == "tags":
+                            self.tags = value  
+                            self.parent.tags = value 
+                        if key in YAML_TO_ATTR:
+                            obj = self.parent
+                            path = YAML_TO_ATTR[key]
+                            for attr in path[:-1]:
+                                if attr:  # Only traverse if attr is not empty
+                                    obj = getattr(obj, attr, None)
+                                    if obj is None:
+                                        break
+                            if obj is not None:
+                                setattr(obj, path[-1], value)
+                        else:
+                            setattr(self.parent, key, value)
+                    result = True
+        except Exception as e:
+            print(e)
+        return result
 
 class PersonBody(md_body.Body):
     def __init__(self, parent):
@@ -54,40 +140,80 @@ class PersonBody(md_body.Body):
 class PersonFile(md_file.File):
     def __init__(self):
         super().__init__()
-        self.prefix = ""    # will be the Person's name
+        self.prefix = ""
+        self.subject_id = ""
+        self.slug = ""
+        self.connected_on = ""
+        self.birthday = ""
+        self.deathday = ""
+        self.anniversary = ""
+        self.interests = []
+        self.favorites = []
+        self.title = ""
+        self.organizations = []
+        self.skills = []
+        self.last_contact = ""
+        self.last_updated = ""
+        self.identity = identity.Identity()
+        self.contact = contact.Contact()
+        self.contact.qualifier = contact.QUALIFIER_HOME
+        self.work_contact = contact.Contact()
+        self.work_contact.qualifier = contact.QUALIFIER_WORK
+        self.other_contact = contact.Contact()
+        self.other_contact.qualifier = contact.QUALIFIER_OTHER
+        self.socials = socials.Socials()
         self.frontmatter = PersonFrontmatter(self)
         self.frontmatter.init_fields()
         self.body = PersonBody(self)
+        
+    def get_yaml(self):
+        result = md_frontmatter.FRONTMATTER_SEPARATOR + NEW_LINE
 
-    # -------------------------------------------------------------------------
-    #
-    # Get the first part of a section of the body.
-    #
-    # Parameters:
-    #
-    #   - section - the name of the section e.g. "## Notes"
-    #   - before - get any content before this text
-    #
-    # Returns:
-    #
-    #   - The first part of the section
-    #
-    # Notes:
-    #
-    #   - Looks for any content in the section in front of the 'before' text
-    #
-    #   - Useful to get notes before the first embedded wikilink in "## Notes"
-    #     so it can be retained 
-    #
-    #   - Example: if before is "![[spongebob/2024-03-24.md]]", it will find:
-    #
-    #       "![[spongebob/2024-03-24.md]]"          # nothing before
-    #       "- ![[spongebob/2024-03-24.md]]"        # bullet before
-    #       "   - ![[spongebob/2024-03-24.md]]"     # tabs before "-"
-    #       "-  ![[spongebob/2024-03-24.md]]"       # tabs after "-"
-    #    
-    # -------------------------------------------------------------------------
+        for field in self.frontmatter.fields:
+            if field in YAML_TO_ATTR:
+                obj = self
+                path = YAML_TO_ATTR[field]
+                for attr in path[:-1]:
+                    if attr:
+                        obj = getattr(obj, attr, None)
+                        if obj is None:
+                            break
+                if obj is not None:
+                    value = getattr(obj, path[-1], None)
+                else:
+                    value = None
+            else:
+                value = getattr(self, field, None)
+
+            if value not in (None, "", []):
+                result += f"{field}: {value}\n"
+
+        result += md_frontmatter.FRONTMATTER_SEPARATOR + NEW_LINE
+
+        return result
+
     def section_top(self, section, before):
+        """
+        Get the first part of a section of the body.
+
+        Parameters:
+        section (str): The name of the section e.g. "## Notes"
+        before (str): Get any content before this text
+
+        Returns:
+        str: The first part of the section.
+
+        Notes:
+        - Looks for any content in the section in front of the 'before' text
+        - Useful to get notes before the first embedded wikilink in "## Notes"
+          so it can be retained 
+
+        - Example: if before is "![[spongebob/2024-03-24.md]]", it will find:
+            "![[spongebob/2024-03-24.md]]"          # nothing before
+            "- ![[spongebob/2024-03-24.md]]"        # bullet before
+            "   - ![[spongebob/2024-03-24.md]]"     # tabs before "-"
+            "-  ![[spongebob/2024-03-24.md]]"       # tabs after "-"
+        """
 
         top = ""
         
@@ -109,35 +235,27 @@ class PersonFile(md_file.File):
 
         return top
 
-    # -------------------------------------------------------------------------
-    #
-    # Update a specific section within a Person's profile Markdown file body.
-    #
-    # Parameters:
-    #
-    #   slug - the person slug, e.g. 'spongebob'
-    #   section_heading - the body section to update e.g. SECTION_NOTES
-    #   value - what to set the field to
-    #
-    # Returns:
-    #
-    #   True if successful, False otherwise.
-    #
-    # Notes:
-    #
-    #   - The section header should have a blank line before and after it
-    #
-    # -------------------------------------------------------------------------
     def update_section(self, slug, section_heading, value):
+        """
+        Update a specific section within a Person's profile Markdown file body.
+        
+        Parameters:
+        slug (str): The person's slug, e.g. 'spongebob'
+        section_heading (str): The body section to update e.g. SECTION_NOTES
+        value (str): What to set the field to.
+
+        Returns:
+        bool: True if saved, false if not.
+
+        Notes:
+        The section header should have a blank line before and after it
+        """
 
         result = False
 
-        # get the Person's profile file
-        # person_file = read_person_frontmatter(slug, path)
-
         if self.file is not None:
 
-            # read the body of the file, which also parses it
+            # this also parses it
             self.body.read()
 
             # check if the section exists in the file
@@ -150,22 +268,45 @@ class PersonFile(md_file.File):
             result = self.save()
 
         return result
+    
+    def save(self):
+        """
+        Save the PersonFile, writing the correct YAML frontmatter and body.
+        """
+        # Open file for writing
+        if self.file:
+            self.file.close()
+        self.open('w+')
 
-# -------------------------------------------------------------------------
-#
-# Get a list of people slugs based on the folder names under `path`.
-#
-# Parameters:
-#
-#   path - the path to the file
-#
-# Notes:
-#
-#   - Each top-level folder contains all of the files for person
-#   - Does not recursively
-#
-# -------------------------------------------------------------------------
+        # Write the YAML frontmatter using the custom get_yaml()
+        self.file.write(self.get_yaml())
+
+        # Write the body (if you want to preserve the rest of the file)
+        if hasattr(self.body, "get_text"):
+            self.file.write(self.body.get_text())
+        else:
+            # fallback: just write the raw body if available
+            if hasattr(self.body, "raw"):
+                self.file.write(self.body.raw)
+
+        self.file.truncate()  # Remove any leftover content if file shrank
+        self.file.flush()
+        return True
+
 def get_slugs(path):
+    """
+    Get a list of people slugs based on the folder names under `path`.
+
+    Parameters:
+    path (str): The path to the file
+    
+    Returns:
+    list: slugs
+
+    Notes:
+    - Each top-level folder contains all of the files for person
+    - Does not recursively
+    """
 
     slugs = []
 
@@ -178,21 +319,17 @@ def get_slugs(path):
 
     return slugs
 
-# -------------------------------------------------------------------------
-#
-# Get a list of a person's Markdown files not named with `YYYY-MM-DD`.
-# 
-# Parameters:
-#
-#   slug - the person slug, e.g. 'spongebob'
-#   path - the path to the file
-#
-# Returns:
-#
-#   A list of files.
-#
-# -------------------------------------------------------------------------
 def get_non_dated_files(slug, path):
+    """
+    Get a list of a person's Markdown files not named with `YYYY-MM-DD`.
+
+    Parameters:
+    slug (str): The person slug, e.g. 'spongebob'
+    path (str): The path to the file
+
+    Returns:
+    list: A list of files.
+    """
 
     # get a list of files with ".md" extension
     all_files = glob.glob(os.path.join(path, slug + "/*.md"))
@@ -205,21 +342,17 @@ def get_non_dated_files(slug, path):
 
     return files
 
-# -------------------------------------------------------------------------
-#
-# Figure out which file from a list of filenames is the Person's profile.
-# 
-# Parameters:
-#
-#   slug - the person slug, e.g. 'spongebob'
-#   path - the path to the file
-#
-# Returns:
-#
-#   The first file found with `tags: [person]` in it or None.
-#
-# -------------------------------------------------------------------------
 def read_person_frontmatter(slug, path):
+    """
+    Figure out which file from a list of filenames is the Person's profile.
+
+    Parameters:
+    slug (str): The person slug, e.g. 'spongebob'.
+    path (str): The path to the file.
+
+    Returns:
+    PersonFile: The first file found with `tags: [person]` in it or None.
+    """
     
     # get list of files that aren't interactions or notes e.g. ! `2024-03-22.md`
     files = get_non_dated_files(slug, path)
@@ -229,63 +362,45 @@ def read_person_frontmatter(slug, path):
         person_file = PersonFile()
         person_file.path = file
         person_file.frontmatter.read()
-        
-        yaml = person_file.frontmatter
+
+        frontmatter = person_file.frontmatter
 
         # check if it actually is this person's profile 
-        if yaml.tags and person.TAG_PERSON in yaml.tags:
+        if frontmatter.tags and person.TAG_PERSON in frontmatter.tags:
             return person_file
 
     return None
 
-# -------------------------------------------------------------------------
-#
-# Update the value of a Person's specific profile metadata field.
-#
-# Parameters:
-#
-#   slug - the person slug, e.g. 'spongebob'
-#   path - the path to the file
-#   field - the frontmatter field to update, e.g. 'last_contact'
-#   value - what to set the field to
-#
-# Returns:
-#
-#   True if successful, False otherwise.
-#
-# Notes:
-#
-#   - In the case of `last_contact`, only update it if it's a more recent
-#     date than the current value
-#   - @todo: check if yaml.slug == slug to make sure it's the right person
-#
-# -------------------------------------------------------------------------
 def update_field(slug, path, field, value):
-
+    """
+    Update the value of a Person's specific profile metadata field.
+    """
     result = False
 
     # get the Person's profile file
     person_file = read_person_frontmatter(slug, path)
 
     if person_file is not None:
-
         yaml = person_file.frontmatter
 
-        try:
-            # get the current value of the field
-            current_value = getattr(yaml, field)
-        except:
-            pass  
-
-        # set the `last_contact` if the new value is a more recent date
-        if field == person.last_contact:
-            if value > str(current_value):
-                setattr(yaml, field, value)
-
-        # read the body of the file
+        # read the body of the file (this also parses frontmatter)
         person_file.body.read()
 
-        # write the file with the updated 'last_contact' value
+        # use YAML_TO_ATTR to set the value in the correct place
+        if field in YAML_TO_ATTR:
+            obj = person_file
+            path_tuple = YAML_TO_ATTR[field]
+            for attr in path_tuple[:-1]:
+                if attr:
+                    obj = getattr(obj, attr, None)
+                    if obj is None:
+                        break
+            if obj is not None:
+                setattr(obj, path_tuple[-1], value)
+        else:
+            setattr(person_file, field, value)
+
+        # write the file with the updated value
         result = person_file.save()
 
     return result

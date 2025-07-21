@@ -11,8 +11,10 @@ sys.path.insert(1, './')
 import md_person
 import md_interactions
 
-# Parse the command line arguments
 def get_arguments():
+    """
+    Parse the command line arguments.
+    """
 
     parser = ArgumentParser()
 
@@ -32,26 +34,22 @@ def get_arguments():
 
     return args
 
-# -----------------------------------------------------------------------------
-#
-# Given a set of interactions, update each Person's `last_contact` field
-#
-# Parameters:
-# 
-#   - folder - folder containing sub-folders for each person
-#   - the_interactions - collection of Interaction
-#
-# Returns:
-#
-#   - True if success, False otherwise
-#
-# Notes:
-# 
-#   - #todo maybe use `Message` `from message_md` instead of `Interaction`
-#   - as go through the files, e.g. exclude "tags: note" 
-#
-# -----------------------------------------------------------------------------
 def update_last_contact(folder, the_interactions):
+    """
+    Given a set of interactions, update each Person's `last_contact` field
+    
+    Parameters:
+    folder (str): Folder containing sub-folders for each person
+    the_interactions (list): Collection of Interaction
+    
+    Returns:
+    bool: True if success, False otherwise.
+
+    Notes:
+    #todo maybe use `Message` `from message_md` instead of `Interaction`
+
+    As we go through the files, e.g. exclude "tags: note"
+    """
 
     result = False
     the_date = ""
@@ -66,32 +64,28 @@ def update_last_contact(folder, the_interactions):
 
         # update their profile
         if the_date:
-            result = md_person.update_field(slug, folder, person.last_contact, str(the_date))
+            result = md_person.update_field(slug, folder, "last_contact", str(the_date))
 
     return result
 
-# -----------------------------------------------------------------------------
-#
-# Given a folder name, load all of the interactions with that person and
-# update the `last_contact` field with the date of the most recent interaction.
-#
-# Parameters:
-# 
-#   - folder - folder containing sub-folders for each person
-#   - interactions - collection of Interaction
-#
-# Returns:
-#
-#   - the number of interactions
-#
-# Notes:
-# 
-#   - populates `theInteractions` with all of the interactions e.g. chats
-#     this person had and sorts them from most recent to oldest
-#   - #todo maybe use `Message` `from message_md` instead of `Interaction`
-#
-# -----------------------------------------------------------------------------
 def load_interactions(folder, the_interactions):
+    """
+    Given a folder name, load all of the interactions with that person and
+    update the `last_contact` field with the date of the most recent interaction.
+    
+    Parameters:
+    folder (str): Folder containing sub-folders for each person
+    interactions (list): Collection of Interaction
+
+    Returns:
+    int: The number of interactions
+
+    Notes:
+    Populates `theInteractions` with all of the interactions e.g. chats
+    that this person had and sorts them from most recent to oldest
+
+    #todo maybe use `Message` `from message_md` instead of `Interaction`
+    """
 
     count = 0
 

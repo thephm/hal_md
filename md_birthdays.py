@@ -49,20 +49,16 @@ def get_arguments():
 
     return args
 
-# -----------------------------------------------------------------------------
-#
-# Sort a collection of birthdays in chronological order from Jan to Dec 
-#
-# Parameters:
-#
-#   birthdays - collection of {slug, birthday}
-#
-# Notes:
-# 
-#   - Some birthdays in form `YYYY-MM-DD` and some `MM-DD`
-#
-# -----------------------------------------------------------------------------
 def sort_birthdays(birthdays):
+    """
+    Sort a collection of birthdays in chronological order from Jan to Dec 
+
+    Parameters:
+    birthdays (list): Collection of {slug, birthday}
+
+    Notes:
+    Some birthdays in form `YYYY-MM-DD` and some `MM-DD`
+    """
 
     valid_birthdays = []
 
@@ -102,17 +98,17 @@ def calculate_age(birthday, deathday):
 
     return age
 
-# -----------------------------------------------------------------------------
-#
-# Display the birthdays coming up in the next `num_days` days
-#
-# Parameters:
-#
-#   birthdays - collection of {slug, name, birthday, deathday}
-#   num_days - the number of days (including today) forward to look
-#
-# -----------------------------------------------------------------------------
 def upcoming(birthdays, num_days):
+    """
+    Display the birthdays coming up in the next `num_days` days
+    
+    Parameters:
+    birthdays (list): Collection of {slug, name, birthday, deathday}
+    num_days (int): The number of days (including today) forward to look
+
+    Returns:
+    str: List of birthdays.
+    """
 
     output = ""
 
@@ -143,16 +139,13 @@ def upcoming(birthdays, num_days):
 
     return output
 
-# -----------------------------------------------------------------------------
-#
-# Generate a calendar of birthdays in Markdown 
-#
-# Parameters:
-#
-#   birthdays - collection of {slug, name, birthday, deathday}
-#
-# -----------------------------------------------------------------------------
 def make_calendar(birthdays):
+    """
+    Generate a calendar of birthdays in Markdown 
+
+    Parameters:
+    birthdays (list): Collection of {slug, name, birthday, deathday}
+    """
 
     output = ""
 

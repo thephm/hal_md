@@ -16,25 +16,19 @@ import md_file
 
 FIELD_VALUES = "values"
 
-# -----------------------------------------------------------------------------
-#
-# Given a folder name, get a specific set of attribute for each person under 
-# that folder.
-#
-# Parameters:
-# 
-#   - folder - source folder containing sub-folders for each person
-#   - fields - the attributes in the frontmatter  tp retrieve
-#   - max - maximum number of people to load
-#
-# Returns:
-#
-#   - collection of {name, slug, value}
-#
-# Notes:
-#
-# -----------------------------------------------------------------------------
 def get_values(folder, fields, args):
+    """
+    Given a folder name, get a specific set of attribute for each person under 
+    that folder.
+
+    Arguments:
+    folder (str): Source folder containing sub-folders for each person
+    fields (list): The attributes in the frontmatter to retrieve
+    args (list): Arguments including maximum number of people to load
+
+    Returns:
+    list: collection of {name, slug, value}
+    """
 
     if args.debug:
         print("get_values('" + folder + "', " + "'" + str(fields) + "', " + str(args) + ")")
@@ -64,22 +58,18 @@ def get_values(folder, fields, args):
 
     return values
 
-# -----------------------------------------------------------------------------
-#
-# Get a specific person's attributes from the frontmatter in their profile.
-#
-# Parameters:
-#
-#   folder - source folder containing sub-folders for each person
-#   slug - slug of the person 
-#   fields - the frontmatter fields to read, e.g. {'birthday', 'deathday'}
-#
-# Returns:
-#
-#   {fileprefix, value} of the field, file_prefix will be the person's name
-#
-# -----------------------------------------------------------------------------
 def get_person_values(folder, slug, fields):
+    """
+    Get a specific person's attributes from the frontmatter in their profile.
+
+    Parameters:
+    folder (str): Source folder containing sub-folders for each person
+    slug (str): Slug of the person 
+    fields (list): The frontmatter fields to read, e.g. {'birthday', 'deathday'}
+
+    Returns:
+    list: {fileprefix, value} of the field, file_prefix will be the person's name
+    """
 
     result = {}
 

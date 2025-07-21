@@ -21,8 +21,10 @@ def extract_day(dateString):
         elif len(dateString) == 5:  # MM-DD format
             return dateString[3:5]
 
-# parse a date string of format `YYYY-MM-DD` or `MM-DD` into a datetime object
 def get_date(dateStr):
+    """
+    Parse a date string of format `YYYY-MM-DD` or `MM-DD` into datetime object
+    """
 
     the_date = None
     
