@@ -44,49 +44,51 @@ YAML_TO_ATTR = {
     "tags": ("", "tags"),
     "slug": ("", "slug"),
     "subject_id": ("", "subject_id"),
-    "connected_on": ("", "connected_on"),
-    "birthday": ("", "birthday"),
-    "deathday": ("", "deathday"),
-    "anniversary": ("", "anniversary"),
-    "interests": ("", "interests"),
-    "favorites": ("", "favorites"),
-    "service_id": ("", "service_id"),
-    "title": ("", "title"),
-    "organizations": ("", "organizations"),
-    "positions": ("", "positions"),
-    "skills": ("", "skills"),
     "first_name": ("identity", "first_name"),
     "middle_name": ("identity", "middle_name"),
     "last_name": ("identity", "last_name"),
-    "nick_name": ("identity", "nick_name"),
     "nee": ("identity", "nee"),
-    "gender": ("identity", "gender"),
+    "nick_name": ("identity", "nick_name"),
     "pronouns": ("identity", "pronouns"),
     "aliases": ("identity", "aliases"),
-    "mobile": ("contact", "mobile"),
+    "gender": ("identity", "gender"),
+    "birthday": ("", "birthday"),
+    "deathday": ("", "deathday"),
+    "anniversary": ("", "anniversary"),
+    "connected_on": ("", "connected_on"),
+    "last_updated": ("", "last_updated"),
     "last_contact": ("", "last_contact"),
-    "phone": ("contact", "phone"),
-    "email": ("contact", "email"),
+    "title": ("", "title"),
+    "organizations": ("", "organizations"),
+    "skills": ("", "skills"),
+    "interests": ("", "interests"),
+    "favorites": ("", "favorites"),
     "url": ("contact", "url"),
-    "work_mobile": ("work_contact", "mobile"),
-    "work_email": ("work_contact", "email"),
     "work_url": ("work_contact", "url"),
-    "other_mobile": ("other_contact", "mobile"),
-    "other_email": ("other_contact", "email"),
     "other_url": ("other_contact", "url"),
-    "linkedin_id": ("socials", "linkedin_id"),
-    "facebook_id": ("socials", "facebook_id"),
-    "instagram_id": ("socials", "instagram_id"),
-    "bluesky_id": ("socials", "bluesky_id"),
+    "email": ("contact", "email"),
+    "work_email": ("work_contact", "email"),
+    "other_email": ("other_contact", "email"),
+    "mobile": ("contact", "mobile"),
+    "work_mobile": ("work_contact", "mobile"),
+    "other_mobile": ("other_contact", "mobile"),
+    "phone": ("contact", "phone"),
     "x_id": ("socials", "x_id"),
-    "github_id": ("socials", "github_id"),
-    "medium_id": ("socials", "medium_id"),
+    "instagram_id": ("socials", "instagram_id"),
     "threads_id": ("socials", "threads_id"),
+    "bluesky_id": ("socials", "bluesky_id"),
+    "facebook_id": ("socials", "facebook_id"),
+    "medium_id": ("socials", "medium_id"),
+    "linkedin_id": ("socials", "linkedin_id"),
+    "github_id": ("socials", "github_id"),
     "address": ("contact", "address", "address"),
     "city": ("contact", "address", "city"),
     "province": ("contact", "address", "province"),
     "country": ("contact", "address", "country"),
     "hometown": ("contact", "address", "hometown"),
+    # Additional fields not in your preferred order
+    "service_id": ("", "service_id"),
+    "positions": ("", "positions"),
 }
 
 class PersonFrontmatter(md_frontmatter.Frontmatter):
@@ -169,8 +171,12 @@ class PersonFile(md_file.File):
     def get_yaml(self):
         result = md_frontmatter.FRONTMATTER_SEPARATOR + NEW_LINE
 
-        for field in self.frontmatter.fields:
-            if field in YAML_TO_ATTR:
+        # Create a set of available fields for quick lookup
+        available_fields = set(self.frontmatter.fields)
+        
+        # Output fields in YAML_TO_ATTR order first
+        for field in YAML_TO_ATTR.keys():
+            if field in available_fields:
                 obj = self
                 path = YAML_TO_ATTR[field]
                 for attr in path[:-1]:
@@ -182,11 +188,28 @@ class PersonFile(md_file.File):
                     value = getattr(obj, path[-1], None)
                 else:
                     value = None
-            else:
-                value = getattr(self, field, None)
 
-            if value not in (None, "", []):
-                result += f"{field}: {value}\n"
+                if value not in (None, "", []):
+                    # Format lists as proper YAML arrays
+                    if isinstance(value, list) and value:
+                        result += f"{field}:\n"
+                        for item in value:
+                            result += f"  - {item}\n"
+                    else:
+                        result += f"{field}: {value}\n"
+        
+        # Add any remaining fields not in YAML_TO_ATTR
+        for field in self.frontmatter.fields:
+            if field not in YAML_TO_ATTR:
+                value = getattr(self, field, None)
+                if value not in (None, "", []):
+                    # Format lists as proper YAML arrays
+                    if isinstance(value, list) and value:
+                        result += f"{field}:\n"
+                        for item in value:
+                            result += f"  - {item}\n"
+                    else:
+                        result += f"{field}: {value}\n"
 
         result += md_frontmatter.FRONTMATTER_SEPARATOR + NEW_LINE
 
