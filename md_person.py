@@ -97,6 +97,9 @@ class PersonFrontmatter(md_frontmatter.Frontmatter):
         self.parent = parent
         self.tags.extend(person.Tags)
         self.fields.extend(person.Fields)
+        # Ensure last_contact is in the fields list for YAML output
+        if "last_contact" not in self.fields:
+            self.fields.append("last_contact")
         self.section_headings = PersonSections
         self.raw = ""
     
@@ -111,6 +114,9 @@ class PersonFrontmatter(md_frontmatter.Frontmatter):
                 if isinstance(doc, dict):
                     # preserve the order and all fields
                     self.fields = list(doc.keys())
+                    # Ensure last_contact is always in the fields list for YAML output
+                    if "last_contact" not in self.fields:
+                        self.fields.append("last_contact")
                     for key, value in doc.items():
                         if key == "tags":
                             self.tags = value  

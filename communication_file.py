@@ -11,8 +11,9 @@ TAG_CHAT = "chat"
 TAG_EMAIL = "email"
 TAG_PHONE = "phone"
 TAG_CALL = "call"
+TAG_SMS = "sms"
 
-Tags = [TAG_CHAT, TAG_EMAIL, TAG_PHONE, TAG_CALL]
+Tags = [TAG_CHAT, TAG_EMAIL, TAG_PHONE, TAG_CALL, TAG_SMS]
 
 # fields in a communication Markdown files
 FIELD_PEOPLE = "people"
