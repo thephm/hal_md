@@ -92,7 +92,7 @@ def get_date(file):
 
     for tag in file.frontmatter.tags:
         if tag in communication_file.Tags:
-            the_date = file.frontmatter.get_date()
+            date = file.frontmatter.get_date()
             break
 
-    return the_date
+    return date
