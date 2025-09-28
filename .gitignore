@@ -7,3 +7,4 @@ __pycache__
 *.sln
 *.pyproj.user
 people.json
+People/*
