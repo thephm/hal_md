@@ -130,6 +130,7 @@ So far, I've created:
 - 2024-03-10: [md_birthdays](md_birthdays.py) outputs a month-by-month calendar of birthdays
 - 2024-03-10: [sample](https://github.com/thephm/sample) a sample collection of famous computer science folk
 - 2024-09-22: [comms](comms.py) to show the most recent communications with a person
+- 2024-09-29: [embed_notes](embed_notes.py) to embed dated interaction files into Person profiles
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
 
@@ -159,6 +160,44 @@ For this tool you need to install a few libraries:
 - `-m` or `--markdown` - To display the Markdown instead of plain text
 - `-t` or `--time` - Show the time e.g. SpongeBob at 23:31"
 - `-c` or `--color` - Use ANSI colors, otherwise just black/white text
+
+### Embed Notes
+
+The `embed_notes.py` script embeds all dated interaction files (e.g., `2023-02-01.md`, `2024-03-24.md`) into each Person's profile under the `## Notes` section. This creates a complete communication history timeline within each person's file.
+
+The script also ensures that each Person file has a proper H1 title (e.g., `# John Doe`) that matches the filename, adding it if missing.
+
+**DISCLAIMER!**: Please, **always** do test runs of this script on a copy of your files somewhere other than your main folder/vault. Only once you're confident that it is not mangling your precious files, run it on the main folder/vault.
+
+For example, if you have these files in a person's folder:
+```
+spongebob-squarepants/
+├── Spongebob Squarepants.md # Person profile
+├── 2023-02-01.md            # Interaction file
+└── 2024-03-24.md            # Interaction file
+``` 
+
+The script will update `Spongebob Squarepants.md` to include:
+```markdown
+# Spongebob Squarepants
+
+## Bio
+...
+
+## Notes
+
+- Some manual notes here
+
+![[spongebob-squarepants/2023-02-01.md]]
+
+![[spongebob-squarepants/2024-03-24.md]]
+```
+
+#### Command line options
+
+- `-f` or `--folder` - The folder where each Person has a subfolder named with their slug
+- `-d` or `--debug` - Print extra info as files are processed
+- `-x` or `--max` - Maximum number of people to process
 
 ### Most contacted
 

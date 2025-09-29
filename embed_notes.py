@@ -46,6 +46,52 @@ def get_arguments():
 
     return args
 
+def ensure_h1_title_final(person_file, slug):
+    """
+    Ensure the Person file has an H1 title matching the person's name.
+    This version works after all sections have been updated.
+    
+    Parameters:
+    person_file (PersonFile): The person's file object
+    slug (str): Person's slug e.g. 'spongebob'
+    
+    Returns:
+    bool: True if changes were made, False otherwise
+    """
+    
+    # Get the person's name from the filename (without .md extension)
+    filename = os.path.basename(person_file.path)
+    person_name = filename.replace(".md", "")
+    
+    # Fallback: try to get name from identity fields
+    if not person_name or person_name == slug:
+        if person_file.identity and person_file.identity.first_name:
+            person_name = person_file.identity.first_name
+            if person_file.identity.last_name:
+                person_name += " " + person_file.identity.last_name
+        else:
+            # Final fallback: use capitalized slug
+            person_name = slug.replace("-", " ").replace("_", " ").title()
+    
+    h1_title = "# " + person_name
+    
+    # Check if first section is an H1 title
+    if person_file.body.sections and person_file.body.sections[0]['heading'].startswith("# "):
+        # H1 exists, check if it matches expected name
+        current_h1 = person_file.body.sections[0]['heading'].strip()
+        if current_h1 == h1_title:
+            return False  # No changes needed
+        else:
+            # Update existing H1 to match person name
+            person_file.body.sections[0]['heading'] = h1_title
+            return True
+    else:
+        # No H1 title exists, add one at the beginning
+        new_h1_section = {'heading': h1_title, 'content': '\n'}
+        person_file.body.sections.insert(0, new_h1_section)
+        return True
+
+
 def generate_markdown(slug, the_interactions):
     """
     Create a set of lines in Markdown with [[Wikilinks]] to each interaction.
@@ -146,6 +192,10 @@ def update_interactions(folder):
             
             # update what's in the Person's Notes section of their profile
             person_file.update_section(slug, notes_section, new_markdown)
+
+            # ensure the person file has an H1 title matching their name (after all other updates)
+            # We need to do this after update_section since that calls body.read() again
+            h1_updated = ensure_h1_title_final(person_file, slug)
 
             # write the file with the updated section
             result = person_file.save()
