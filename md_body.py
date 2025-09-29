@@ -38,6 +38,10 @@ class Body:
         # grab the handle to the file from the parent object
         file = self.parent.file
 
+        # Clear previous content before reading
+        self.raw = ""
+        self.sections = []
+
         # read the body of the file
         for line in file:
             self.raw += str(line)
@@ -109,6 +113,25 @@ class Body:
             file.write(section[SECTION_CONTENT])
 
         return True  
+    
+    def get_text(self):
+        """
+        Get the complete body text reconstructed from the sections.
+        
+        Returns:
+        str: The complete body text with all sections and their content.
+        
+        Notes:
+        Similar to write() method but returns a string instead of writing to file.
+        This is used when saving the file to get the updated body content.
+        """
+        result = NEW_LINE  # Start with a newline like the write() method
+        
+        for section in self.sections:
+            result += section[SECTION_HEADING] + NEW_LINE
+            result += section[SECTION_CONTENT]
+        
+        return result
     
     # get the content from a specific section of the file
     def get_content(self, section_heading):

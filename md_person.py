@@ -288,10 +288,18 @@ class PersonFile(md_file.File):
             self.body.read()
 
             # check if the section exists in the file
+            section_found = False
             for section in self.body.sections:
                 if section['heading'] == section_heading:
                     # update the content of the section
                     section['content'] = value
+                    section_found = True
+                    break
+            
+            # if section doesn't exist, create it
+            if not section_found:
+                new_section = {'heading': section_heading, 'content': value}
+                self.body.sections.append(new_section)
 
             # write the file with the updated section
             result = self.save()
