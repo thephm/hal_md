@@ -16,6 +16,12 @@ import md_file
 
 FIELD_VALUES = "values"
 
+# Support both older `hal` modules that exported field constants and newer
+# modules that only define classes.
+PERSON_TAG_FIELD = getattr(person, "tag", "person")
+PERSON_SLUG_FIELD = getattr(person, "slug", "slug")
+PERSON_NAME_FIELD = getattr(identity, "name", "name")
+
 def get_values(folder, fields, args):
     """
     Given a folder name, get a specific set of attribute for each person under 
@@ -91,15 +97,18 @@ def get_person_values(folder, slug, fields):
         yaml = theFile.frontmatter
         
         # if this is a person profile and the right person 
-        if yaml.tags and person.tag in yaml.tags:
+        if yaml.tags and PERSON_TAG_FIELD in yaml.tags:
             # for each of the fields being requested
-            result[person.slug] = slug
-            result[identity.name] = md_file.get_prefix(file)
+            result[PERSON_SLUG_FIELD] = slug
+            result[PERSON_NAME_FIELD] = md_file.get_prefix(file)
             for field in fields:
                 result[field] = ""
                 try:
-                    # get the value of the field
-                    value = getattr(yaml, field)
+                    # Person frontmatter parsing may map values onto PersonFile
+                    # (parent) instead of the frontmatter object itself.
+                    value = getattr(yaml, field, None)
+                    if value in (None, ""):
+                        value = getattr(theFile, field, None)
                     if value is not None:
                         result[field] = str(value)
                 except:

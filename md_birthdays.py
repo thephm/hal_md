@@ -15,6 +15,13 @@ sys.path.insert(1, './')
 import md_lookup
 import md_date
 
+# Support both older `hal` modules that exported field constants and newer
+# modules that only define classes.
+PERSON_SLUG_FIELD = getattr(person, "slug", "slug")
+PERSON_NAME_FIELD = getattr(identity, "name", "name")
+BIRTHDAY_FIELD = getattr(life_events, "birthday", "birthday")
+DEATHDAY_FIELD = getattr(life_events, "deathday", "deathday")
+
 NEW_LINE = "\n"
 HEADING_2 = "##"
 BIRTHDAY_TABLE_HEADING = "Day | Person | Year | Age\n:-:|---|:-:|:-:\n"
@@ -64,10 +71,10 @@ def sort_birthdays(birthdays):
 
     # filter out birthdays with missing or invalid dates
     for birthday in birthdays:
-        slug = birthday[person.slug]
-        name = birthday[identity.name]
-        date = birthday[life_events.birthday]
-        deathday = birthday[life_events.deathday]
+        slug = birthday[PERSON_SLUG_FIELD]
+        name = birthday[PERSON_NAME_FIELD]
+        date = birthday[BIRTHDAY_FIELD]
+        deathday = birthday[DEATHDAY_FIELD]
         if date and md_date.extract_month(date) and md_date.extract_day(date):
             valid_birthdays.append((name, slug, date, deathday))
         elif date and date != None and date != "None":
@@ -206,7 +213,7 @@ if folder and not os.path.exists(folder):
     print('The folder "' + folder + '" could not be found.')
 
 elif folder:
-    birthdays = md_lookup.get_values(folder, [life_events.birthday, life_events.deathday], args)
+    birthdays = md_lookup.get_values(folder, [BIRTHDAY_FIELD, DEATHDAY_FIELD], args)
     sorted_birthdays = sort_birthdays(birthdays)
 
     if args.upcoming:
