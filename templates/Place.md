@@ -2,6 +2,7 @@
 tags:
   - place
 aliases: 
+  - 
 people:
 url: 
 phone: 

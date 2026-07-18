@@ -1,6 +1,29 @@
 ---
 tags:
   - person
+first_name:
+last_name:
+aliases: 
+  - 
+slug:
+birthday:
+title:
+skills:
+  - 
+interests:
+  - 
+organizations:
+  - 
+url: 
+email: 
+mobile: 
+phone: 
+x_id: 
+linkedin_id: 
+linkedin_url:
+city: 
+province: 
+country: 
 ---
 
 # Person
@@ -17,42 +40,7 @@ tags:
 
 - 
 
-## References
-
-1.
-
-## Products
-
-- 
-
-## Positions
-
-- 
-
 ## People
-
-- 
-
-## Interests
-
-- 
-
-## Notes
-
--
-
-
-# Person
-
-## Bio
-
-> 
-
-## Quotes
-
-> 
-
-## Life Events
 
 - 
 
@@ -60,23 +48,10 @@ tags:
 
 1.
 
-## Products
-
-- 
-
 ## Positions
-
-- 
-
-## People
-
-- 
-
-## Interests
 
 - 
 
 ## Notes
 
 -
-

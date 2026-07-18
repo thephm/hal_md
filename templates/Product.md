@@ -2,10 +2,14 @@
 tags:
   - product
 aliases: 
+  - 
 slug: 
 organizations: 
+  - 
 people: 
+  - 
 integrations: 
+  - 
 url: 
 email: 
 phone: 

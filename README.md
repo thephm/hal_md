@@ -213,6 +213,24 @@ DISCLAIMER: this script was entirely crafted by ChatGPT based on about 40 prompt
 - `-n` or `--top-n` - Show the `n` people you communicate with the most number of days
 - `-o` or `--output-csv` - Generate to a CSV file instead of displaying the results
 
+### Wikilink audit
+
+The `scan_wikilinks.py` script walks a vault, indexes every file, resolves Obsidian wikilinks, and writes two reports in the vault root:
+
+- `.wikilink_index.md` with frontmatter for the last scan time plus vault counts and a full link map
+- `missing_files.md` with one clickable line per broken wikilink so you can jump from Obsidian into a Jottacloud search
+
+#### Command line options
+
+- `root` - The vault root to scan
+- `-i` or `--include-extensions` - Only index files with these extensions, e.g. `.md,.jpg,.pdf` (default: all)
+- `-o` or `--output` - Folder where the generated index and broken-link report should be written, relative to the current working directory unless you pass an absolute path
+- `-x` or `--max` - Stop after scanning this many files when testing
+- `--index-name` - Hidden index file name to write in the vault root
+- `--missing-name` - Broken-link report file name to write in the vault root
+- `--source-extensions` - Comma-separated list of file extensions to scan for wikilinks
+- `-d` or `--debug` - Show one-line progress updates for the folder or file currently being scanned
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.

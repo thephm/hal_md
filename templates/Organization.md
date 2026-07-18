@@ -1,7 +1,9 @@
 ---
-tags: [organization]
+tags:
+  - organization
 slug: 
-aliases: []
+aliases: 
+  - 
 url: 
 email: 
 phone: 

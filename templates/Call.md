@@ -1,8 +1,10 @@
 ---
 tags:
-  - phone-call
-people: 
+  - call
+people:
+  -  
 organizations: 
+  - 
 date: 
 time: 
 ---

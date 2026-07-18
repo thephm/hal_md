@@ -1,8 +1,11 @@
 ---
-tags: [email]
+tags: 
+  - email
 from: 
-to: []
-cc: []
+to:
+  - 
+cc:
+  - 
 subject: 
 date: 
 time: 

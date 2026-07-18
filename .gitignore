@@ -8,3 +8,7 @@ __pycache__
 *.pyproj.user
 people.json
 People/*
+.venv/
+output/
+**/.wikilink_index.md
+**/missing_files.md
