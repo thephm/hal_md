@@ -19,6 +19,10 @@ import os
 import sys
 import json
 import yaml
+import re
+
+
+EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 
 def extract_frontmatter(filepath):
     with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
@@ -54,8 +58,16 @@ def clean_field(value):
 def extract_emails(frontmatter):
     # List of all possible email keys in order
     email_keys = ['email', 'work_email', 'home_email', 'other_email']
-    emails = [frontmatter.get(key) for key in email_keys if frontmatter.get(key)]
-    return ";".join(emails)
+    emails = []
+    seen = set()
+    for key in email_keys:
+        for match in EMAIL_RE.finditer(str(frontmatter.get(key) or "")):
+            email = match.group(0)
+            normalized = email.lower()
+            if normalized not in seen:
+                seen.add(normalized)
+                emails.append(email)
+    return emails
 
 def update_person_file(filepath, slug):
     """Update the person's markdown file to include the slug in the frontmatter."""
@@ -111,7 +123,7 @@ def extract_person_info(frontmatter, folder_slug, filepath):
         "last-name": clean_field(frontmatter.get('last_name')),
         "mobile": clean_field(frontmatter.get('mobile')),
         "work-mobile": clean_field(frontmatter.get('work_mobile')),
-        "email": extract_emails(frontmatter),
+        "emails": extract_emails(frontmatter),
         "facebook-id": clean_field(frontmatter.get('facebook_id')),
         "linkedin-id": clean_field(frontmatter.get('linkedin_id')),
         "x-id": clean_field(frontmatter.get('x_id'))

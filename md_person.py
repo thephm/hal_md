@@ -50,7 +50,7 @@ YAML_TO_ATTR = {
     "nee": ("identity", "nee"),
     "nick_name": ("identity", "nick_name"),
     "pronouns": ("identity", "pronouns"),
-    "aliases": ("identity", "aliases"),
+    "alias_slugs": ("identity", "aliases"),
     "gender": ("identity", "gender"),
     "birthday": ("", "birthday"),
     "deathday": ("", "deathday"),

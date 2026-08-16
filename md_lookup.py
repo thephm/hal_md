@@ -2,7 +2,9 @@
 
 import os
 import glob
+import json
 import re
+from argparse import ArgumentParser
 
 import sys
 
@@ -21,6 +23,25 @@ FIELD_VALUES = "values"
 PERSON_TAG_FIELD = getattr(person, "tag", "person")
 PERSON_SLUG_FIELD = getattr(person, "slug", "slug")
 PERSON_NAME_FIELD = getattr(identity, "name", "name")
+
+def get_arguments():
+    parser = ArgumentParser(
+        description="Retrieve frontmatter attributes from Person Markdown files."
+    )
+
+    parser.add_argument("-f", "--folder", dest="folder", default=".",
+                        help="The folder where each Person has a subfolder named with their slug")
+
+    parser.add_argument("-d", "--debug", dest="debug", action="store_true", default=False,
+                        help="Print extra info as the files are processed")
+
+    parser.add_argument("-x", "--max", type=int, dest="max", default=99999,
+                        help="Maximum number of people to process")
+
+    parser.add_argument("fields", metavar="FIELD", nargs="*",
+                        help="Frontmatter field(s) to retrieve; omit to retrieve all fields")
+
+    return parser.parse_args()
 
 def get_values(folder, fields, args):
     """
@@ -50,8 +71,12 @@ def get_values(folder, fields, args):
     for slug in slugs:
         person_values = get_person_values(folder, slug, fields)
 
-        # check if at least one of the fields requested is non-empty
-        has_non_empty_field = any(person_values.get(field) for field in fields)
+        # check if at least one requested field (or any profile field) is non-empty
+        result_fields = fields or [
+            field for field in person_values
+            if field not in (PERSON_SLUG_FIELD, PERSON_NAME_FIELD)
+        ]
+        has_non_empty_field = any(person_values.get(field) for field in result_fields)
 
         # only add those people where there was a value found
         if has_non_empty_field:
@@ -94,6 +119,9 @@ def get_person_values(folder, slug, fields):
         theFile = md_person.PersonFile()
         theFile.path = file
         theFile.frontmatter.read()
+        if theFile.file:
+            theFile.file.close()
+            theFile.file = None
         yaml = theFile.frontmatter
         
         # if this is a person profile and the right person 
@@ -101,17 +129,29 @@ def get_person_values(folder, slug, fields):
             # for each of the fields being requested
             result[PERSON_SLUG_FIELD] = slug
             result[PERSON_NAME_FIELD] = md_file.get_prefix(file)
-            for field in fields:
-                result[field] = ""
-                try:
-                    # Person frontmatter parsing may map values onto PersonFile
-                    # (parent) instead of the frontmatter object itself.
-                    value = getattr(yaml, field, None)
-                    if value in (None, ""):
-                        value = getattr(theFile, field, None)
-                    if value is not None:
-                        result[field] = str(value)
-                except:
-                    pass  # it's ok not to have the field
+            selected_fields = fields or yaml.fields
+            for field in selected_fields:
+                source_field = "tags" if field == "tag" else field
+                value = get_field_value(theFile, source_field)
+                if fields or value not in (None, "", []):
+                    result[field] = "" if value is None else str(value)
 
     return result
+
+def get_field_value(person_file, field):
+    """Return a flat frontmatter field from its mapped PersonFile location."""
+    path = md_person.YAML_TO_ATTR.get(field)
+    if path:
+        value = person_file
+        for attribute in path:
+            if attribute:
+                value = getattr(value, attribute, None)
+            if value is None:
+                break
+        return value
+
+    return getattr(person_file, field, None)
+
+if __name__ == "__main__":
+    arguments = get_arguments()
+    print(json.dumps(get_values(arguments.folder, arguments.fields, arguments), indent=2))

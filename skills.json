@@ -1,0 +1,4606 @@
+{
+  "2d": [
+    "2d"
+  ],
+  "3cx": [
+    "3cx"
+  ],
+  "3d-printing": [
+    "3d-printing",
+    "3D Printing"
+  ],
+  "3g": [
+    "3G"
+  ],
+  "3gpp": [
+    "3GPP"
+  ],
+  "3pl": [
+    "3pl"
+  ],
+  "4g": [
+    "4G"
+  ],
+  "5g": [
+    "5G"
+  ],
+  "a3": [
+    "A3", 
+    "A3 Method",
+    "A3 Problem Solving"
+  ],
+  "abap": [
+    "ABAP"
+  ],
+  "account-management": [
+    "account-management"
+  ],
+  "accounting": [
+    "accounting"
+  ],
+  "accounts-payables": [
+    "accounts-payables"
+  ],
+  "accounts-receivables": [
+    "accounts-receivables"
+  ],
+  "acd": [
+    "ACD",
+    "Automatic Call Distribution (ACD)",
+    "Automatic Call Distribution"
+  ],
+  "ace": [
+    "ace"
+  ],
+  "acls": [
+    "ACLs",
+    "ACL",
+    "Access Control Lists (ACLs)",
+    "Access Control Lists"
+  ],
+  "acrobat": [
+    "acrobat",
+    "Acrobat",
+    "Adobe Acrobat"
+  ],
+  "acs": [
+    "ACS",
+    "Automatic Configuration Server (ACS)",
+    "Automatic Configuration Server"
+  ],
+  "actionscript": [
+    "ActionScript",
+    "Action Script"
+  ],
+  "ad": [
+    "AD",
+    "active-directory"
+  ],
+  "activesync": [
+    "activesync-",
+    "Active Sync",
+    "ActiveSync"
+  ],
+  "actuarial-science": [
+    "Actuarial Science"
+  ],
+  "adas": [
+    "ADAS"
+  ],
+  "adf": [
+    "ADF",
+    "Azure Data Factory (ADF)",
+    "Azure Data Factory",
+    "Data Factory"
+  ],
+  "adkar": [
+    "ADKAR"
+  ],
+  "adls2": [
+    "ADLS Gen 2",
+    "ADLS Gen2",
+    "Data Lake Gen2",
+    "Data Lake Gen 2",
+    "Azure Data Lake Gen2",
+    "Azure Data Lake Storage Gen2",
+    "Azure Data Lake Storage Gen2 (ADLS Gen2)"
+  ],
+  "ado-net": [
+    "ADO.NET",
+    "ADO",
+    "Microsoft ADO",
+    "Microsoft ADO.NET"
+  ],
+  "adobe": [
+    "Adobe"
+  ],
+  "acrobat": [
+    "Adobe Acrobat",
+    "Acrobat"
+  ],
+  "adobe-encore": [
+    "Encore",
+    "Adobe Encore"
+  ],
+  "adobe-flex": [
+    "Adobe Flex",
+    "Flex"
+  ],
+  "illustrator": [
+    "Illustrator",
+    "Adobe Illustrator"
+  ],
+  "indesign": [
+    "Indesign",
+    "Adobe Indesign"
+  ],
+  "photoshop": [
+    "adobe-photoshop",
+    "Photoshop",
+    "Adobe Photoshop"
+  ],
+  "adobe-premiere": [
+    "Adobe Premiere",
+    "Premiere"
+  ],
+  "advertising": [
+    "Advertising"
+  ],
+  "aerospace": [
+    "Aerospace"
+  ],
+  "aesthetics": [
+    "Aesthetics"
+  ],
+  "afrikaans": [
+    "Afrikaans"
+  ],
+  "aftereffects": [
+    "After Effects",
+    "AfterEffects"
+  ],
+  "agendashift": [
+    "Agenda Shift",
+    "AgendaShift"
+  ],
+  "agile": [
+    "Agile"
+  ],
+  "agile-and-waterfall": [
+    "Agile and Waterfall",
+    "agile-and-waterfall",
+    "agile-and-waterfall-methodologies",
+    "Agile and Waterfall Methodologies"
+  ],
+  "agile-project-management": [
+    "Agile Project Management"
+  ],
+  "agritech": [
+    "AgriTech",
+    "Agri Tech",
+    "Agriculture Technology"
+  ],
+  "ai": [
+    "AI",
+    "Artificial Intelligence"
+  ],
+  "aiops": [
+    "AIOps",
+    "AI Operations"
+  ],
+  "airflow": [
+    "Airflow",
+    "Apache Airflow"
+  ],
+  "airmagnet": [
+    "AirMagnet",
+    "Air Magnet"
+  ],
+  "aix": [
+    "aix"
+  ],
+  "ajax": [
+    "Ajax"
+  ],
+  "akc": [
+    "AKC"
+  ],
+  "akt": [
+    "AKT"
+  ],
+  "albanian": [
+    "Albanian"
+  ],
+  "algorithms": [
+    "Algorithms"
+  ],
+  "amharic": [
+    "Amharic"
+  ],
+  "analog-circuit-design": [
+    "Analog Circuits",
+    "Analog Circuit Design"
+  ],
+  "analytics": [
+    "Analytics"
+  ],
+  "android": [
+    "Android"
+  ],
+  "android-wear": [
+    "Android Wear"
+  ],
+  "angular": [
+    "Angular"
+  ],
+  "animal-psychology": [
+    "Animal Psychology"
+  ],
+  "animation": [
+    "Animation"
+  ],
+  "ansi-41": [
+    "ANSI 41",
+    "ANSI-41"
+  ],
+  "ansible": [
+    "Ansible"
+  ],
+  "ant": [
+    "Ant"
+  ],
+  "antennas": [
+    "Antenna Design",
+    "Antennas"
+  ],
+  "apache": [
+    "Apache"
+  ],
+  "arabic": [
+    "Arabic"
+  ],
+  "arcgis": [
+    "ArcGIS",
+    "Arc GIS",
+    "Arc GIS Pro"
+  ],
+  "archimate": [
+    "Archimate"
+  ],
+  "architecture": [
+    "Architecture"
+  ],
+  "arm": [
+    "Arm"
+  ],
+  "armenian": [
+    "Armenian"
+  ],
+  "art-direction": [
+    "Art Direction"
+  ],
+  "artist-development": [
+    "Artist Development"
+  ],
+  "aruba": [
+    "Aruba"
+  ],
+  "asana": [
+    "Asana"
+  ],
+  "asic": [
+    "ASIC",
+    "ASIC Design"
+  ],
+  "asigra": [
+    "Asigra"
+  ],
+  "asl": [
+    "ASL",
+    "American Sign Language"
+  ],
+  "asp": [
+    "asp"
+  ],
+  "asp-net": [
+    "asp-net",
+    "asp.net"
+  ],
+  "asq": [
+    "asq"
+  ],
+  "asset-management": [
+    "asset-management",
+    "Asset Management"
+  ],
+  "asterisk": [
+    "asterisk"
+  ],
+  "astrophysics": [
+    "Astrophysics"
+  ],
+  "atm": [
+    "atm"
+  ],
+  "audit": [
+    "audit"
+  ],
+  "auditing": [
+    "auditing"
+  ],
+  "augmented-reality": [
+    "Augmented Reality"
+  ],
+  "autocad": [
+    "AutoCAD"
+  ],
+  "autodesk-fusion-360": [
+    "AutoDesk Fusion 360",
+    "AutoDesk Fusion360",
+    "AutoDesk Fusion"
+  ],
+  "automation": [
+    "Automation",
+    "Process Automation"
+  ],
+  "avay": [
+    "Avay"
+  ],
+  "avaya": [
+    "Avaya"
+  ],
+  "aws": [
+    "AWS",
+    "Amazon Web Services"
+  ],
+  "azure": [
+    "Azure",
+    "Microsoft Azure",
+    "Azure Cloud",
+    "Azure certified",
+    "Microsoft Azure certified"
+  ],
+  "azure-ad": [
+    "Azure AD",
+    "Azure Active Directory"
+  ],
+  "azure-app-services": [
+    "Azure App Services",
+    "App Services"
+  ],
+  "azure-data-catalog": [
+    "Azure Data Catalog"
+  ],
+  "azure-data-lake": [
+    "azure-data-lake"
+  ],
+  "azure-devops": [
+    "azure-devops"
+  ],
+  "azure-functions": [
+    "Azure Functions"
+  ],
+  "azure-key-vault": [
+    "Azure Key Vault",
+    "Key Vault"
+  ],
+  "azure-logic-apps": [
+    "Azure Logic Apps",
+    "Logic Apps"
+  ],
+  "azure-monitor": [
+    "Azure Monitor"
+  ],
+  "azure-openai": [
+    "azure-openai"
+  ],
+  "b2b": [
+    "B2B"
+  ],
+  "ba": [
+    "BA",
+    "business-analysis",
+    "Business Analysis",
+    "business-analyst",
+    "Business Analyst"
+  ],
+  "ballet": [
+    "Ballet"
+  ],
+  "bangali": [
+    "Bangali"
+  ],
+  "banking": [
+    "Banking"
+  ],
+  "baseband": [
+    "Baseband"
+  ],
+  "bash": [
+    "bash"
+  ],
+  "basketball": [
+    "Basketball"
+  ],
+  "bccpa": [
+    "BCPA",
+    "British Columbia Professional Accountant"
+  ],
+  "bea-weblogic": [
+    "bea-weblogic",
+    "BEA WebLogic",
+    "WebLogic"
+  ],
+  "belarusian": [
+    "Belarusian"
+  ],
+  "bengali": [
+    "Bengali"
+  ],
+  "bgp": [
+    "BGP",
+    "Border Gateway Protocol",
+    "Border Gateway Protocol (BGP)"
+  ],
+  "big-data": [
+    "Big Data"
+  ],
+  "big-table": [
+    "Big Table"
+  ],
+  "bigquery": [
+    "BigQuery",
+    "Google BigQuery"
+  ],
+  "billing": [
+    "billing"
+  ],
+  "bitbucket": [
+    "BitNucket"
+  ],
+  "blackberry": [
+    "BlackBerry",
+    "Black Berry"
+  ],
+  "bes": [
+    "BlackBerry Enterprise Server",
+    "blackberry-enterprise-server"
+  ],
+  "blockchain": [
+    "Blockchain"
+  ],
+  "blue-dolphin": [
+    "BlueDolphin",
+    "Blue Dolphin"
+  ],
+  "bluetooth": [
+    "Bluetooth"
+  ],
+  "boating": [
+    "Boating"
+  ],
+  "bookkeeping": [
+    "Bookkeeping"
+  ],
+  "bosnian": [
+    "Bosnian"
+  ],
+  "branding": [
+    "Branding"
+  ],
+  "brew": [
+    "Brew"
+  ],
+  "broadband": [
+    "Broadband"
+  ],
+  "broadband-telephony": [
+    "Broadband Telephony"
+  ],
+  "broadcast": [
+    "Broadcast"
+  ],
+  "broadcasting": [
+    "Broadcasting"
+  ],
+  "broadsoft": [
+    "Broadsoft"
+  ],
+  "bss": [
+    "BSS",
+    "Business Support Systems",
+    "Business Support Systems (BSS)"
+  ],
+  "budgets": [
+    "Budgets"
+  ],
+  "building-codes": [
+    "Building Codes"
+  ],
+  "burpsuite": [
+    "Burpsuite"
+  ],
+  "business-analytics": [
+    "Business Analytics"
+  ],
+  "business-case": [
+    "BC",
+    "Business Case",
+    "Business Cases"
+  ],
+  "business-continuity": [
+    "Business Continuity"
+  ],
+  "business-development": [
+    "Business Development",
+    "Business Development Manager",
+    "BizDev"
+  ],
+  "bi": [
+    "business-intelligence",
+    "Business Intelligence"
+  ],
+  "business-operations": [
+    "Operations"
+    "Business Operations"
+  ],
+  "business-planning": [
+    "business-planning"
+  ],
+  "business-process": [
+    "business-process"
+  ],
+  "business-process-design": [
+    "business-process-design"
+  ],
+  "business-process-improvement": [
+    "business-process-improvement"
+  ],
+  "business-strategy": [
+    "business-strategy"
+  ],
+  "business-transformation": [
+    "business-transformation"
+  ],
+  "c": [
+    "C"
+  ],
+  "c#": [
+    "C#"
+  ],
+  "c4": [
+    "C4"
+  ],
+  "ca": [
+    "ca"
+  ],
+  "ca-pm": [
+    "CAPM",
+    "capm",
+    "CA PM",
+    "CA Project Management",
+    "Computer Associates PM",
+    "Computer Associates Project Management"
+  ],
+  "ca-spectrum": [
+    "CA Spectrum",
+    "Computer Associates Spectrum"
+  ],
+  "cabinetry": [
+    "Cabinetry"
+  ],
+  "cable-networks": [
+    "Cable Networks"
+  ],
+  "cablecad": [
+    "Cable CAD",
+    "CableCAD"
+  ],
+  "cabling": [
+    "Cabling",
+    "cabling-standards",
+    "Cabling Standards"
+  ],
+  "cad": [
+    "CAD",
+    "Computer Aided Design",
+    "Computer Aided Design (CAD)"
+  ],
+  "call-centers": [
+    "Call Center",
+    "Call Centers",
+    "Call Centre",
+    "Call Centres",
+    "Call Centre Technology",
+    "Call Center Technology",
+    "Call Centre Technologies",
+    "Call Center Technologies"
+  ],
+  "cantonese": [
+    "Cantonese"
+  ],
+  "capacity-planning": [
+    "Capacity Planning"
+  ],
+  "captivate": [
+    "Captivate"
+  ],
+  "career-counseling": [
+    "Career Counseling"
+  ],
+  "carpentry": [
+    "Carpentry"
+  ],
+  "cartography": [
+    "Cartography"
+  ],
+  "cartoonist": [
+    "Cartoonist"
+  ],
+  "cash-management": [
+    "Cash Management"
+  ],
+  "cassandra": [
+    "Cassandra"
+  ],
+  "catching-balls": [
+    "Catching Balls"
+  ],
+  "cattle-breeding": [
+    "Cattle Breeding"
+  ],
+  "cbt": [
+    "CBT"
+  ],
+  "cbtc": [
+    "CBTC",
+    "Communications Based Train Control",
+    "Communications-Based Train Control"
+  ],
+  "ccap": [
+    "CCAP",
+    "Converged Cable Access Platform"
+  ],
+  "ccda": [
+    "CCDA",
+    "Cisco Design Associate",
+    "Cisco Certified Design Associate"
+  ],
+  "ccdp": [
+    "CCDP",
+    "Cisco Design Professional",
+    "Cisco Certified Design Professional"
+  ],
+  "ccie": [
+    "CCIE",
+    "Cisco Internetwork Expert",
+    "Cisco Certified Internetwork Expert"
+  ],
+  "ccip": [
+    "CCIP",
+    "Cisco Internetwork Professional",
+    "Cisco Certified Internetwork Professional"
+  ],
+  "ccna": [
+    "CCNA",
+    "Cisco Network Associate",
+    "Cisco Certified Network Associate",
+  ],
+  "ccnav": [
+    "CCNAV",
+    "Cisco Network Associate Virtual",
+    "Cisco Certified Network Associate Virtual"
+  ],
+  "ccnp": [
+    "CCNP",
+    "Cisco Network Professional",
+    "Cisco Certified Network Professional"
+  ],
+  "ccsp": [
+    "CCSP",
+    "Cisco Security Professional",
+    "Cisco Certified Security Professional"
+  ],
+  "ccvp": [
+    "CCVP",
+    "Cisco Voice Professional",
+    "Cisco Certified Voice Professional"
+  ],
+  "ccxml": [
+    "CCXML",
+    "Call Control eXtensible Markup Language",
+    "Call Control XML"
+  ],
+  "cd": [
+    "Continuous Delivery (CD)",
+    "Continuous Delivery"
+  ],
+  "cdma": [
+    "CDMA",
+    "Code Division Multiple Access"
+  ],
+  "cdmp": [
+    "CDMP",
+    "Certified Data Management Professional"
+  ],
+  "cdsm": [
+    "CDSM",
+    "Certified Data Scientist Master"
+  ],
+  "ceh": [
+    "CEH",
+    "Certified Ethical Hacker"
+  ],
+  "cellular": [
+    "Cellular"
+    "cellular-networks"
+    "Cellular Networks"
+  ],
+  "cfot": [
+    "CFOT",
+    "Certified Fiber Optic Tech",
+    "Certified Fiber Optic Technician"
+  ],
+  "cftl": [
+    "CFTL",
+    "Certified Fiber To The Home Installer"
+  ],
+  "change-control": [
+    "Change Control"
+  ],
+  "change-management": [
+    "change-management",
+    "Change Management",
+    "Change Management Office (CMO)",
+    "Change Management Office",
+    "Change Management and Process Improvement",
+    "Change Management and Process Optimization",
+    "Change Management and Process Enhancements",
+    "Change Management and Process Implementation"
+  ],
+  "channel-partners": [
+    "Channel Partners"
+  ],
+  "chinese": [
+    "Chinese"
+  ],
+  "chrl": [
+    "CHRL",
+    "Certified HR Leader",
+    "Certified Human Resources Leader"
+  ],
+  "chrp": [
+    "CHRP",
+    "Certified Human Resources Professional"
+  ],
+  "ci": [
+    "Continuous Integration (CI)",
+    "Continuous Integration"
+  ],
+  "ci-cd": [
+    "ci-cd",
+    "ci/cd",
+    "CICD"
+  ],
+  "cim": [
+    "CIM",
+    "Certified Information Manager"
+  ],
+  "circuit-wizard": [
+    "Circuit Wizard"
+  ],
+  "cisa": [
+    "CISA",
+    "Certified Information Systems Auditor"
+  ],
+  "cisco": [
+    "Cisco",
+    "Cisco Technologies"
+  ],
+  "ccm": [
+    "cisco-call-manager",
+    "Cisco Call Manager",
+    "Cisco CM"
+  ],
+  "cisco-ios": [
+    "Cisco IOS"
+  ],
+  "cisco-unified-communication-manager": [
+    "Cisco Unified Communication Manager",
+    "Cisco UCM"
+  ],
+  "cisp": [
+    "CISP",
+    "Certified Information Systems Professional"
+  ],
+  "cissp": [
+    "CISSP",
+    "Certified Information Systems Security Professional"
+  ],
+  "civil-aviation": [
+    "Civil Aviation"
+  ],
+  "clearcase": [
+    "Clearcase"
+  ],
+  "clearpass": [
+    "ClearPass"
+  ],
+  "clinical-education": [
+    "Clinical Education"
+  ],
+  "clinical-research": [
+    "Clinical Research"
+  ],
+  "cloud": [
+    "Cloud",
+    "Cloud Computing",
+    "cloud-computing"
+  ],
+  "cmdb": [
+    "CMDB",
+    "Configuration Management Database"
+  ],
+  "cmmi": [
+    "CMMI",
+    "CMMI-",
+    "Capability Maturity Model Integration"
+  ],
+  "cmna": [
+    "CMNA",
+    "Certified Meraki Network Associate"
+  ],
+  "cmrea": [
+    "CMREA",
+    "Certified Meraki Routing and Switching Expert"
+  ],
+  "cms": [
+    "CMS",
+    "Content Management System",
+  ],
+  "cmts": [
+    "CMTS",
+    "Cable Modem Termination System"
+  ],
+  "coaching": [
+    "Coaching"
+  ],
+  "coaching-csm": [
+    "coaching csm"
+  ],
+  "cobit-5": [
+    "Cobit-5",
+    "Cobit 5"
+  ],
+  "coffee": [
+    "Coffee"
+  ],
+  "coffee-grower": [
+    "Coffee Grower",
+    "Coffee Farmer",
+    "Coffee Farming"
+  ],
+  "cognitive-radio": [
+    "Cognitive Radio"
+  ],
+  "cognos": [
+    "Cognos"
+  ],
+  "cold-calling": [
+    "Cold Calling"
+  ],
+  "collections": [
+    "Collections"
+  ],
+  "com": [
+    "COM",
+    "Component Object Model"
+  ],
+  "commercial": [
+    "Commercial"
+  ],
+  "communications": [
+    "Communications"
+  ],
+  "community-management": [
+    "Community Management"
+  ],
+  "community-outreach": [
+    "Community Outreach"
+  ],
+  "comparative-law": [
+    "Comparative Law"
+  ],
+  "competitive-analysis": [
+    "Competitive Analysis",
+    "Competitive Analytics"
+  ],
+  "compliance": [
+    "Compliance"
+  ],
+  "comptia": [
+    "CompTIA",
+    "CompTIA A+",
+  ],
+  "computer-networking": [
+    "Computer Networking"
+  ],
+  "configuration-management": [
+    "Configuration Management"
+  ],
+  "conflict-resolution": [
+    "Conflict Resolution"
+  ],
+  "confluence": [
+    "Confluence",
+    "Atlassian Confluence"
+  ],
+  "construction": [
+    "Construction"
+  ],
+  "consulting": [
+    "Consulting"
+  ],
+  "consumer-protection": [
+    "Consumer Protection"
+  ],
+  "contact-centers": [
+    "Contact Centers"
+  ],
+  "content-licensing": [
+    "content-licensing"
+  ],
+  "content-management": [
+    "content-management"
+  ],
+  "contingency-planning": [
+    "contingency-planning"
+  ],
+  "continuous-integration": [
+    "continuous-integration"
+  ],
+  "contract-management": [
+    "contract-management"
+  ],
+  "contract-negotiations": [
+    "contract-negotiations"
+  ],
+  "cooking": [
+    "cooking"
+  ],
+  "copy-editing": [
+    "copy-editing"
+  ],
+  "copy-writing": [
+    "copy-writing"
+  ],
+  "copywriting": [
+    "copywriting"
+  ],
+  "core-network": [
+    "core-network"
+  ],
+  "corporate-finance": [
+    "Corporate Finance"
+  ],
+  "corporate-tax": [
+    "Corporate Tax"
+  ],
+  "cosmos": [
+    "Azure Cosmos DB",
+    "Cosmos DB",
+    "Cosmos"
+  ],
+  "cosmos-db": [
+    "cosmos-db"
+  ],
+  "cost-control": [
+    "cost-control"
+  ],
+  "costing": [
+    "costing"
+  ],
+  "counseling-psychology": [
+    "counseling-psychology"
+  ],
+  "courts": [
+    "courts"
+  ],
+  "cpa": [
+    "cpa"
+  ],
+  "cpo": [
+    "cpo"
+  ],
+  "cpp": [
+    "cpp",
+    "C++"
+  ],
+  "cpr": [
+    "cpr"
+  ],
+  "crafts": [
+    "crafts"
+  ],
+  "crdt": [
+    "crdt"
+  ],
+  "creative-direction": [
+    "creative-direction"
+  ],
+  "creative-writing": [
+    "creative-writing"
+  ],
+  "creole": [
+    "creole"
+  ],
+  "cricut": [
+    "cricut"
+  ],
+  "crisis-management": [
+    "crisis-management"
+  ],
+  "critical-thinking": [
+    "critical-thinking"
+  ],
+  "crm": [
+    "crm",
+    "Customer Relationship Management (CRM)",
+    "Customer Relationship Management",
+    "Customer Relationships",
+    "Long-term Customer Relationships"
+  ],
+  "croatian": [
+    "croatian"
+  ],
+  "cror": [
+    "cror"
+  ],
+  "crucible": [
+    "crucible"
+  ],
+  "crypography": [
+    "crypography"
+  ],
+  "crystal-reports": [
+    "crystal-reports"
+  ],
+  "csd": [
+    "csd"
+  ],
+  "csm": [
+    "csm"
+  ],
+  "cspo": [
+    "cspo"
+  ],
+  "css": [
+    "css"
+  ],
+  "cti": [
+    "cti"
+  ],
+  "curl": [
+    "curl"
+  ],
+  "curriculum-design": [
+    "curriculum-design"
+  ],
+  "curriculum-development": [
+    "curriculum-development"
+  ],
+  "customer-experience": [
+    "customer-experience"
+  ],
+  "customer-relations": [
+    "customer-relations"
+  ],
+  "customer-research": [
+    "customer-research"
+  ],
+  "customer-service": [
+    "customer-service"
+  ],
+  "customer-support": [
+    "customer-support"
+  ],
+  "cuwss": [
+    "cuwss"
+  ],
+  "cvs": [
+    "cvs"
+  ],
+  "cwna": [
+    "cwna"
+  ],
+  "cwsp": [
+    "cwsp"
+  ],
+  "cyber": [
+    "cyber"
+  ],
+  "cyber-security": [
+    "cyber-security"
+  ],
+  "cysa": [
+    "cysa+"
+  ],
+  "czech": [
+    "czech"
+  ],
+  "danish": [
+    "danish"
+  ],
+  "data": [
+    "data"
+  ],
+  "data-analysis": [
+    "data-analysis"
+  ],
+  "data-analytics": [
+    "data-analytics",
+    "Data Analytics"
+  ],
+  "data-architecture": [
+    "data-architecture"
+  ],
+  "data-audit": [
+    "data-audit"
+  ],
+  "data-center": [
+    "data-center"
+  ],
+  "data-collection": [
+    "data-collection"
+  ],
+  "data-engineering": [
+    "data-engineering",
+    "Data Engineering"
+  ],
+  "data-governance": [
+    "data-governance",
+    "Data Governance"
+  ],
+  "data-lake": [
+    "data-lake"
+  ],
+  "data-lifecycle-management": [
+    "Data Lifecycle Management",
+    "Lifecycle Management"
+  ],
+  "data-modelling": [
+    "data-modelling"
+  ],
+  "data-observability": [
+    "data-observability"
+  ],
+  "data-privacy": [
+    "data-privacy",
+    "Data Privacy"
+  ],
+  "data-quality": [
+    "data-quality",
+    "Data Quality"
+  ],
+  "data-quality-assurance": [
+    "data-quality-assurance"
+  ],
+  "data-science": [
+    "data-science"
+  ],
+  "data-warehousing": [
+    "data-warehousing"
+  ],
+  "database-architecture": [
+    "database-architecture"
+  ],
+  "database-design": [
+    "database-design"
+  ],
+  "databases": [
+    "databases"
+  ],
+  "databricks": [
+    "databricks",
+    "azure-databricks",
+    "Azure Databricks",
+    "Databricks certified"
+  ],
+  "datacom": [
+    "datacom"
+  ],
+  "dataverse": [
+    "dataverse"
+  ],
+  "db2": [
+    "db2"
+  ],
+  "dba": [
+    "dba"
+  ],
+  "dbt": [
+    "dbt",
+    "dbt Core",
+    "dbt Cloud",
+    "dbt Labs",
+    "dbt certified"
+  ],
+  "decision-analysis": [
+    "decision-analysis"
+  ],
+  "deep-learning": [
+    "deep-learning"
+  ],
+  "delphi": [
+    "delphi"
+  ],
+  "delta-lake": [
+    "Delta Lake"
+  ],
+  "demand-generation": [
+    "demand-generation"
+  ],
+  "design-thinking": [
+    "design-thinking"
+  ],
+  "designer": [
+    "designer"
+  ],
+  "development-manager": [
+    "development-manager"
+  ],
+  "device-drivers": [
+    "device-drivers"
+  ],
+  "devops": [
+    "devops"
+  ],
+  "dhcp": [
+    "dhcp"
+  ],
+  "dhtml": [
+    "dhtml"
+  ],
+  "dialing-plans": [
+    "dialing-plans"
+  ],
+  "diet": [
+    "diet"
+  ],
+  "dietician": [
+    "dietician"
+  ],
+  "digital-electronics": [
+    "digital-electronics"
+  ],
+  "digital-marketing": [
+    "digital-marketing"
+  ],
+  "digital-media": [
+    "digital-media"
+  ],
+  "digital-signal-processing": [
+    "digital-signal-processing"
+  ],
+  "digital-signal-processors": [
+    "digital-signal-processors"
+  ],
+  "digital-strategy": [
+    "digital-strategy"
+  ],
+  "digital-transformation": [
+    "digital-transformation"
+  ],
+  "digital-video": [
+    "digital-video"
+  ],
+  "direct-marketing": [
+    "direct-marketing"
+  ],
+  "direct-sales": [
+    "direct-sales"
+  ],
+  "directing": [
+    "directing"
+  ],
+  "director-of-indigenous-initiatives": [
+    "Director of Indigenous Initiatives"
+  ],
+  "directx": [
+    "directx"
+  ],
+  "disaster-recovery": [
+    "disaster-recovery"
+  ],
+  "disaster-response": [
+    "disaster-response"
+  ],
+  "dispatcher": [
+    "dispatcher"
+  ],
+  "distributed-systems": [
+    "distributed-systems"
+  ],
+  "diversity": [
+    "diversity"
+  ],
+  "dj": [
+    "dj"
+  ],
+  "dns": [
+    "dns"
+  ],
+  "docker": [
+    "docker",
+    "Docker certified"
+  ],
+  "docsis": [
+    "docsis"
+  ],
+  "document-management": [
+    "document-management"
+  ],
+  "documentation": [
+    "documentation"
+  ],
+  "dog-loving": [
+    "dog-loving"
+  ],
+  "doodle": [
+    "doodle"
+  ],
+  "doors": [
+    "doors"
+  ],
+  "dot-net": [
+    "dot-net"
+  ],
+  "drawing": [
+    "drawing"
+  ],
+  "dreamweaver": [
+    "dreamweaver"
+  ],
+  "drones": [
+    "drones"
+  ],
+  "dsl": [
+    "dsl"
+  ],
+  "dutch": [
+    "dutch"
+  ],
+  "dwdm": [
+    "dwdm"
+  ],
+  "dynalist": [
+    "dynalist"
+  ],
+  "e-commerce": [
+    "e-commerce"
+  ],
+  "eai": [
+    "eai"
+  ],
+  "eam": [
+    "eam"
+  ],
+  "eclipse": [
+    "eclipse"
+  ],
+  "ecommerce": [
+    "ecommerce"
+  ],
+  "edi": [
+    "edi"
+  ],
+  "editing": [
+    "editing"
+  ],
+  "edtech": [
+    "edtech"
+  ],
+  "ejb": [
+    "ejb"
+  ],
+  "ekahau": [
+    "ekahau"
+  ],
+  "ekg": [
+    "ekg"
+  ],
+  "elasticsearch": [
+    "elasticsearch"
+  ],
+  "elearning": [
+    "elearning"
+  ],
+  "electric-commander": [
+    "electric-commander"
+  ],
+  "electrical": [
+    "electrical"
+  ],
+  "electrical-engineering": [
+    "electrical-engineering"
+  ],
+  "electrician": [
+    "electrician"
+  ],
+  "electronic-trading": [
+    "electronic-trading"
+  ],
+  "electronics": [
+    "electronics"
+  ],
+  "elixir": [
+    "elixir"
+  ],
+  "elkstack": [
+    "elkstack"
+  ],
+  "elt": [
+    "ELT"
+  ],
+  "email": [
+    "email"
+  ],
+  "email-marketing": [
+    "email-marketing"
+  ],
+  "embedded-linux": [
+    "embedded-linux"
+  ],
+  "embedded-software": [
+    "embedded-software"
+  ],
+  "embedded-systems": [
+    "embedded-systems"
+  ],
+  "emergency-management": [
+    "emergency-management"
+  ],
+  "employee-engagement": [
+    "employee-engagement"
+  ],
+  "employee-relations": [
+    "employee-relations"
+  ],
+  "employee-selection": [
+    "employee-selection"
+  ],
+  "employment-law": [
+    "employment-law"
+  ],
+  "encryption": [
+    "encryption"
+  ],
+  "energy": [
+    "energy"
+  ],
+  "engineering": [
+    "engineering"
+  ],
+  "english": [
+    "english"
+  ],
+  "enterprise-architecture": [
+    "enterprise-architecture"
+  ],
+  "enterprise-sales": [
+    "enterprise-sales"
+  ],
+  "enterprise-software": [
+    "enterprise-software"
+  ],
+  "enterprise-software-sales": [
+    "enterprise-software-sales"
+  ],
+  "entrepreneurship": [
+    "entrepreneurship"
+  ],
+  "environmental-awareness": [
+    "environmental-awareness"
+  ],
+  "environmental-impact-assessment": [
+    "environmental-impact-assessment"
+  ],
+  "eqi": [
+    "eqi"
+  ],
+  "equity": [
+    "equity"
+  ],
+  "erp": [
+    "Enterprise Resource Planning (ERP)",
+    "Enterprise Resource Planning",
+    "ERP Systems",
+    "ERP",
+    "erp"
+  ],
+  "esb": [
+    "esb"
+  ],
+  "esl": [
+    "esl"
+  ],
+  "esri": [
+    "esri"
+  ],
+  "estimation": [
+    "estimation"
+  ],
+  "etcs": [
+    "etcs"
+  ],
+  "ethernet": [
+    "ethernet"
+  ],
+  "etl": [
+    "etl"
+  ],
+  "etom": [
+    "etom"
+  ],
+  "eukranian": [
+    "eukranian"
+  ],
+  "event-management": [
+    "event-management"
+  ],
+  "event-planning": [
+    "event-planning"
+  ],
+  "excel": [
+    "excel"
+  ],
+  "executive-admin": [
+    "executive-admin"
+  ],
+  "executive-coaching": [
+    "executive-coaching"
+  ],
+  "executive-management": [
+    "executive-management"
+  ],
+  "executive-search": [
+    "executive-search"
+  ],
+  "export-compliance": [
+    "export-compliance"
+  ],
+  "express": [
+    "express"
+  ],
+  "extreme-programming": [
+    "extreme-programming"
+  ],
+  "f": [
+    "f#"
+  ],
+  "f4p": [
+    "f4p"
+  ],
+  "f5": [
+    "f5"
+  ],
+  "fabric-data-factory": [
+    "Fabric Data Factory"
+  ],
+  "facilitation": [
+    "facilitation"
+  ],
+  "facilities": [
+    "facilities"
+  ],
+  "facilities-engineering": [
+    "facilities-engineering"
+  ],
+  "facilities-management": [
+    "facilities-management"
+  ],
+  "family-law": [
+    "family-law"
+  ],
+  "farming": [
+    "farming"
+  ],
+  "fashion-design": [
+    "fashion-design"
+  ],
+  "fcsi": [
+    "fcsi"
+  ],
+  "federal-government-sales": [
+    "federal-government-sales"
+  ],
+  "feminist-legal-studies": [
+    "feminist-legal-studies"
+  ],
+  "fetching": [
+    "fetching"
+  ],
+  "fiber-optics": [
+    "fiber-optics"
+  ],
+  "fiber-splicing": [
+    "fiber-splicing"
+  ],
+  "fibre-optics": [
+    "fibre-optics"
+  ],
+  "film": [
+    "film"
+  ],
+  "finance": [
+    "finance"
+  ],
+  "financial-analysis": [
+    "financial-analysis"
+  ],
+  "financial-forecasting": [
+    "financial-forecasting"
+  ],
+  "financial-modeling": [
+    "financial-modeling"
+  ],
+  "financial-planning": [
+    "financial-planning"
+  ],
+  "financial-reporting": [
+    "financial-reporting"
+  ],
+  "financial-software": [
+    "financial-software"
+  ],
+  "finnish": [
+    "finnish"
+  ],
+  "fire-protection": [
+    "fire-protection"
+  ],
+  "fire-supression-systems": [
+    "fire-supression-systems"
+  ],
+  "firebase": [
+    "firebase"
+  ],
+  "firestore": [
+    "firestore"
+  ],
+  "firewall": [
+    "firewall"
+  ],
+  "firewalls": [
+    "firewalls"
+  ],
+  "fireworks": [
+    "fireworks"
+  ],
+  "fitness": [
+    "fitness"
+  ],
+  "fixed-asset-management": [
+    "fixed-asset-management"
+  ],
+  "flash": [
+    "flash"
+  ],
+  "flask": [
+    "flask"
+  ],
+  "flutter": [
+    "flutter"
+  ],
+  "flying": [
+    "flying"
+  ],
+  "fma": [
+    "fma"
+  ],
+  "forecasting": [
+    "forecasting"
+  ],
+  "forgerock": [
+    "forgerock"
+  ],
+  "fortinet": [
+    "fortinet"
+  ],
+  "fortran": [
+    "fortran"
+  ],
+  "fpga": [
+    "fpga"
+  ],
+  "freebsd": [
+    "freebsd"
+  ],
+  "freepbx": [
+    "freepbx"
+  ],
+  "freight-transportation": [
+    "freight-transportation"
+  ],
+  "french": [
+    "french"
+  ],
+  "fttx": [
+    "fttx",
+    "fttx-"
+  ],
+  "fundraising": [
+    "fundraising"
+  ],
+  "game-design": [
+    "game-design"
+  ],
+  "game-development": [
+    "game-development"
+  ],
+  "game-mechanics": [
+    "game-mechanics"
+  ],
+  "game-production": [
+    "Game Production"
+  ],
+  "gameplay": [
+    "Gameplay",
+    "Game Play"
+  ],
+  "gcp": [
+    "gcp",
+    "Google Cloud Platform"
+  ],
+  "gdpr": [
+    "GPDR",
+    "General Data Protection Regulation"
+  ],
+  "geography": [
+    "Geography"
+  ],
+  "geology": [
+    "Geology"
+  ],
+  "georgian": [
+    "Georgian"
+  ],
+  "geospatial-analytics": [
+    "Geospatial Analytics"
+  ],
+  "geospatial-data": [
+    "Geospatial Data"
+  ],
+  "germ": [
+    "Germ"
+  ],
+  "german": [
+    "German"
+  ],
+  "gis": [
+    "GIS",
+    "Geographic Information System",
+  ],
+  "git": [
+    "git",
+    "GitHub",
+    "GitLab"
+  ],
+  "go": [
+    "Go"
+  ],
+  "go-to-market-strategy": [
+    "GTM Strategy",
+    "Go to Market Strategy"
+  ],
+  "golang": [
+    "GOlang",
+    "Go lang"
+  ],
+  "google-apps": [
+    "Google Apps"
+  ],
+  "google-compute": [
+    "google-compute"
+  ],
+  "governance": [
+    "governance",
+    "Governances"
+  ],
+  "government": [
+    "Government"
+  ],
+  "gprs": [
+    "GPRS",
+    "General Packet Radio Service"
+  ],
+  "gps": [
+    "GPS",
+    "Global Positioning System"
+  ],
+  "gpu": [
+    "GPU",
+    "Graphics Processing Unit"
+  ],
+  "grafana": [
+    "Grafana"
+  ],
+  "graffiti": [
+    "Graffiti"
+  ],
+  "graph-theory": [
+    "Graph Theory"
+  ],
+  "graphic-design": [
+    "Graphics"
+    "Graphic Design"
+  ],
+  "graphics": [
+    "Graphics"
+  ],
+  "graphite": [
+    "Graphite"
+  ],
+  "graphml": [
+    "GraphML",
+    "Graph Markup Language"
+  ],
+  "graphql": [
+    "GraphQL",
+    "Graph QL",
+    "Graph Query Language"
+  ],
+  "gsm": [
+    "GSM",
+    "Global System for Mobile Communications"
+  ],
+  "gtfs": [
+    "GTFS",
+    "General Transit Feed Specification"
+  ],
+  "guice": [
+    "Guice"
+  ],
+  "guitar": [
+    "Guitar"
+  ],
+  "gujarati": [
+    "Gujarati"
+  ],
+  "gxl": [
+    "GXL",
+    "Graph eXchange Language"
+  ],
+  "h-323": [
+    "H-323",
+    "H.323"
+  ],
+  "ha": [
+    "HA",
+    "High Availability"
+  ],
+  "hadoop": [
+    "Hadoop"
+  ],
+  "hair-dresser": [
+    "Hair Dresser"
+  ],
+  "ham": [
+    "HAM",
+    "Hardware Asset Management"
+  ],
+  "hardware": [
+    "Hardware"
+  ],
+  "hardware-architecture": [
+    "HW Architecture",
+    "H/W Architecture",
+    "Hardware Architecture"
+  ],
+  "hazard-analysis": [
+    "Hazard Analysis"
+  ],
+  "hcm": [
+    "HCM",
+    "Human Capital Management",
+    "Human Capital Management (HCM)"
+  ],
+  "health-and-safety": [
+    "Health & Safety",
+    "Health and Safety"
+  ],
+  "healthcare": [
+    "Healthcare",
+    "Health care"
+  ],
+  "heavy-equipment": [
+    "Heavy Equipment"
+  ],
+  "hebrew": [
+    "Hebrew"
+  ],
+  "hexagon": [
+    "Hexagon",
+    "Hexagon PPM"
+  ],
+  "hfc": [
+    "HFC",
+    "Hybrid Fiber Coaxial"
+  ],
+  "hibernate": [
+    "Hibernate"
+  ],
+  "hindi": [
+    "Hindi"
+  ],
+  "hockey-referee": [
+    "Hockey Referee"
+  ],
+  "home-automation": [
+    "Home Automation"
+  ],
+  "home-renovation": [
+    "Home Renovation",
+    "Home Renos",
+    "Home Renovation",
+    "Home Renovations"
+  ],
+  "home-theater": [
+    "Home Theatre",
+    "Home Theater"
+  ],
+  "homeseer": [
+    "HomeSeer"
+  ],
+  "hootsuite": [
+    "Hootsuite"
+  ],
+  "hospitality": [
+    "Hospitality",
+    "hospitality-management",
+    "Hospitality Management"
+  ],
+  "hotspot-2-0": [
+    "Hotspot 2.0"
+  ],
+  "household-finance": [
+    "Household Finance"
+  ],
+  "hp-atp": [
+    "hp-atp"
+  ],
+  "hp-openview": [
+    "hp-openview"
+  ],
+  "hp-qc": [
+    "hp-qc"
+  ],
+  "hr": [
+    "hr"
+  ],
+  "hr-solutions": [
+    "hr-solutions"
+  ],
+  "hris": [
+    "hris"
+  ],
+  "html": [
+    "html"
+  ],
+  "html5": [
+    "html5"
+  ],
+  "human-factors": [
+    "human-factors"
+  ],
+  "hungarian": [
+    "hungarian"
+  ],
+  "hybrid-project-management": [
+    "hybrid-project-management"
+  ],
+  "hydrologic-modeling": [
+    "hydrologic-modeling"
+  ],
+  "iaac": [
+    "Infrastructure as Code (Bicep)",
+    "Infrastructure as Code",
+    "IaC"
+  ],
+  "iam": [
+    "iam"
+  ],
+  "ibm-datapower": [
+    "ibm-datapower"
+  ],
+  "ibm-lotus-domino": [
+    "ibm-lotus-domino"
+  ],
+  "ibm-spss": [
+    "ibm-spss"
+  ],
+  "ibwave": [
+    "ibwave"
+  ],
+  "ic": [
+    "ic"
+  ],
+  "ids": [
+    "ids"
+  ],
+  "ignition": [
+    "ignition"
+  ],
+  "iiba-cbap": [
+    "iiba-cbap"
+  ],
+  "illustrator": [
+    "illustrator"
+  ],
+  "image-processing": [
+    "image-processing"
+  ],
+  "inap": [
+    "inap"
+  ],
+  "incident-management": [
+    "incident-management"
+  ],
+  "inclusion": [
+    "inclusion"
+  ],
+  "indesign": [
+    "indesign"
+  ],
+  "indian": [
+    "indian"
+  ],
+  "indonesian": [
+    "indonesian"
+  ],
+  "industry-4-0": [
+    "industry-4.0"
+  ],
+  "influxdb": [
+    "influxdb"
+  ],
+  "info-sec": [
+    "info-sec"
+  ],
+  "infor-eam": [
+    "infor-eam"
+  ],
+  "information-architecture": [
+    "information-architecture"
+  ],
+  "information-development": [
+    "information-development"
+  ],
+  "information-governance": [
+    "information-governance"
+  ],
+  "information-management": [
+    "information-management"
+  ],
+  "infrastructure": [
+    "infrastructure"
+  ],
+  "inmarsat": [
+    "inmarsat"
+  ],
+  "inside-sales": [
+    "inside-sales"
+  ],
+  "insights": [
+    "insights"
+  ],
+  "inspection": [
+    "inspection"
+  ],
+  "instructional-design": [
+    "instructional-design"
+  ],
+  "insurance": [
+    "insurance"
+  ],
+  "insurance-law": [
+    "insurance-law"
+  ],
+  "integrated-marketing": [
+    "integrated-marketing"
+  ],
+  "integration": [
+    "integration"
+  ],
+  "intel-x86-assembly": [
+    "intel-x86-assembly"
+  ],
+  "intellectual-property": [
+    "intellectual-property"
+  ],
+  "intellij": [
+    "intellij"
+  ],
+  "interaction-design": [
+    "interaction-design"
+  ],
+  "internal-audit": [
+    "internal-audit"
+  ],
+  "international-finance": [
+    "international-finance"
+  ],
+  "international-law": [
+    "international-law"
+  ],
+  "interviews": [
+    "interviews"
+  ],
+  "intune": [
+    "intune"
+  ],
+  "inventory-control": [
+    "inventory-control"
+  ],
+  "investor-relations": [
+    "investor-relations"
+  ],
+  "ios": [
+    "ios"
+  ],
+  "iot": [
+    "iot"
+  ],
+  "ip": [
+    "ip"
+  ],
+  "ip-law": [
+    "ip-law"
+  ],
+  "ip-networking": [
+    "ip-networking"
+  ],
+  "ip-routing": [
+    "ip-routing"
+  ],
+  "iphone": [
+    "iphone"
+  ],
+  "ips": [
+    "ips"
+  ],
+  "ipsec": [
+    "ipsec"
+  ],
+  "iptv": [
+    "iptv"
+  ],
+  "ipv6": [
+    "ipv6"
+  ],
+  "ironman": [
+    "ironman"
+  ],
+  "irrigation": [
+    "irrigation"
+  ],
+  "is41": [
+    "is41"
+  ],
+  "isaca": [
+    "isaca"
+  ],
+  "iso": [
+    "iso"
+  ],
+  "isup": [
+    "isup"
+  ],
+  "it": [
+    "it"
+  ],
+  "it-operations": [
+    "it-operations"
+  ],
+  "it-service-management": [
+    "it-service-management"
+  ],
+  "italian": [
+    "italian"
+  ],
+  "itam": [
+    "itam"
+  ],
+  "itil": [
+    "itil"
+  ],
+  "itil-v3": [
+    "itil-v3"
+  ],
+  "itil-v4": [
+    "itil-v4"
+  ],
+  "itom": [
+    "itom"
+  ],
+  "itsd": [
+    "itsd"
+  ],
+  "itsm": [
+    "itsm"
+  ],
+  "iv": [
+    "Iv"
+  ],
+  "ivr": [
+    "ivr"
+  ],
+  "j2ee": [
+    "j2ee"
+  ],
+  "japanes": [
+    "japanes"
+  ],
+  "japanese": [
+    "japanese"
+  ],
+  "java": [
+    "java"
+  ],
+  "java-ee": [
+    "java-ee"
+  ],
+  "java-j2ee": [
+    "java-j2ee"
+  ],
+  "java-j2me": [
+    "java-j2me"
+  ],
+  "java-springboot": [
+    "java-springboot"
+  ],
+  "javascript": [
+    "javascript"
+  ],
+  "jboss": [
+    "jboss"
+  ],
+  "jcnia": [
+    "jcnia"
+  ],
+  "jdbc": [
+    "jdbc"
+  ],
+  "jenkins": [
+    "jenkins"
+  ],
+  "jira": [
+    "jira",
+    "Atlassian Jira"
+  ],
+  "jncda": [
+    "jncda"
+  ],
+  "journalism": [
+    "journalism"
+  ],
+  "jquery": [
+    "jquery"
+  ],
+  "jquery-mobile": [
+    "jquery-mobile"
+  ],
+  "jsp": [
+    "jsp"
+  ],
+  "juggling": [
+    "juggling"
+  ],
+  "juniper": [
+    "juniper"
+  ],
+  "junos": [
+    "junos"
+  ],
+  "jupyter": [
+    "jupyter"
+  ],
+  "kafka": [
+    "kafka"
+  ],
+  "kanban": [
+    "kanban"
+  ],
+  "kcp": [
+    "kcp"
+  ],
+  "kernel": [
+    "kernel"
+  ],
+  "kettlebells": [
+    "kettlebells"
+  ],
+  "kmp": [
+    "kmp"
+  ],
+  "knitting": [
+    "knitting"
+  ],
+  "knowledge-management": [
+    "knowledge-management"
+  ],
+  "kotlin": [
+    "kotlin"
+  ],
+  "kubernetes": [
+    "kubernetes",
+    "K8s"
+  ],
+  "labour-relations": [
+    "labour-relations"
+  ],
+  "labview": [
+    "labview"
+  ],
+  "lakehouse": [
+    "Lakehouse"
+  ],
+  "lamp": [
+    "lamp"
+  ],
+  "land-development": [
+    "land-development"
+  ],
+  "laravel": [
+    "laravel"
+  ],
+  "large-scale-systems": [
+    "large-scale-systems"
+  ],
+  "latex": [
+    "latex"
+  ],
+  "ldap": [
+    "ldap"
+  ],
+  "lead-generation": [
+    "lead-generation"
+  ],
+  "leadership": [
+    "leadership"
+  ],
+  "leadership-development": [
+    "leadership-development"
+  ],
+  "lean-six-sigma": [
+    "lean-six-sigma"
+  ],
+  "learning": [
+    "learning"
+  ],
+  "leasing": [
+    "leasing"
+  ],
+  "leed": [
+    "leed"
+  ],
+  "legal": [
+    "legal"
+  ],
+  "legal-theory": [
+    "legal-theory"
+  ],
+  "lidar": [
+    "lidar"
+  ],
+  "life-safety": [
+    "life-safety"
+  ],
+  "liferay": [
+    "liferay"
+  ],
+  "linux": [
+    "Linux",
+    "linux"
+  ],
+  "listening": [
+    "listening"
+  ],
+  "litigation": [
+    "litigation"
+  ],
+  "livelink": [
+    "livelink"
+  ],
+  "lms": [
+    "lms"
+  ],
+  "log-analytics": [
+    "Log Analytics"
+  ],
+  "logistics": [
+    "logistics"
+  ],
+  "lora": [
+    "lora"
+  ],
+  "lotus-connections": [
+    "lotus-connections"
+  ],
+  "lotus-notes": [
+    "lotus-notes"
+  ],
+  "lpwan": [
+    "lpwan"
+  ],
+  "lte": [
+    "lte"
+  ],
+  "m-a": [
+    "m&a"
+  ],
+  "m2m": [
+    "m2m"
+  ],
+  "m365": [
+    "m365"
+  ],
+  "macedonian": [
+    "macedonian"
+  ],
+  "machine-learning": [
+    "machine-learning"
+  ],
+  "machine-vision": [
+    "machine-vision"
+  ],
+  "machinery-diagnostics": [
+    "machinery-diagnostics"
+  ],
+  "macro-finance": [
+    "macro-finance"
+  ],
+  "mainframe": [
+    "mainframe"
+  ],
+  "maithili": [
+    "maithili"
+  ],
+  "malay": [
+    "malay"
+  ],
+  "managed-services": [
+    "managed-services"
+  ],
+  "management": [
+    "management"
+  ],
+  "management-consulting": [
+    "management-consulting",
+    "Management Consulting"
+  ],
+  "mandarin": [
+    "mandarin"
+  ],
+  "manufacturing": [
+    "manufacturing"
+  ],
+  "mapinfo": [
+    "mapinfo"
+  ],
+  "marathi": [
+    "-marathi"
+  ],
+  "markdown": [
+    "markdown"
+  ],
+  "market-analysis": [
+    "market-analysis"
+  ],
+  "market-research": [
+    "market-research"
+  ],
+  "marketing": [
+    "marketing"
+  ],
+  "marketing-communications": [
+    "marketing-communications"
+  ],
+  "marketing-strategy": [
+    "marketing-strategy"
+  ],
+  "massage": [
+    "massage"
+  ],
+  "material-requirements-planning": [
+    "material-requirements-planning"
+  ],
+  "materials-science": [
+    "materials-science"
+  ],
+  "mathematics": [
+    "mathematics"
+  ],
+  "matlab": [
+    "matlab"
+  ],
+  "maven": [
+    "maven"
+  ],
+  "maximo": [
+    "maximo"
+  ],
+  "mcp": [
+    "mcp"
+  ],
+  "mcsa": [
+    "mcsa"
+  ],
+  "mcsd": [
+    "mcsd"
+  ],
+  "mcse": [
+    "mcse"
+  ],
+  "mdm": [
+    "mdm"
+  ],
+  "mechanical": [
+    "mechanical"
+  ],
+  "media": [
+    "media"
+  ],
+  "media-relations": [
+    "media-relations"
+  ],
+  "meditation": [
+    "meditation"
+  ],
+  "mef": [
+    "mef"
+  ],
+  "mental-health": [
+    "mental-health"
+  ],
+  "mentoring": [
+    "mentoring"
+  ],
+  "meraki": [
+    "meraki"
+  ],
+  "mergers": [
+    "mergers",
+    "mergers-"
+  ],
+  "mergers-acquisitions": [
+    "mergers-&-acquisitions"
+  ],
+  "mern": [
+    "mern"
+  ],
+  "metadata-management": [
+    "metadata-management",
+    "Metadata Management"
+  ],
+  "metaswitch": [
+    "metaswitch"
+  ],
+  "metro-ethernet": [
+    "metro-ethernet"
+  ],
+  "mfc": [
+    "mfc"
+  ],
+  "microcontrollers": [
+    "microcontrollers"
+  ],
+  "microservices": [
+    "microservices"
+  ],
+  "microsoft-azure": [
+    "microsoft-azure"
+  ],
+  "microsoft-dynamics": [
+    "microsoft-dynamics"
+  ],
+  "microsoft-exchange": [
+    "microsoft-exchange"
+  ],
+  "microsoft-fabric": [
+    "microsoft-fabric",
+    "Microsoft Fabric",
+    "Fabric",
+    "Microsoft Fabric certified"
+  ],
+  "microsoft-power-apps": [
+    "microsoft-power-apps"
+  ],
+  "microsoft-power-bi": [
+    "microsoft-power-bi"
+  ],
+  "microsoft-reporting-service": [
+    "microsoft-reporting-service"
+  ],
+  "microsoft-sql-server": [
+    "microsoft-sql-server"
+  ],
+  "microsoft-teams": [
+    "microsoft-teams"
+  ],
+  "microsoft-technologies": [
+    "microsoft-technologies"
+  ],
+  "microsoft-viva": [
+    "microsoft-viva"
+  ],
+  "microtik": [
+    "microtik"
+  ],
+  "middleware": [
+    "middleware"
+  ],
+  "midwifery": [
+    "midwifery"
+  ],
+  "mining": [
+    "mining"
+  ],
+  "mits": [
+    "mits"
+  ],
+  "ml": [
+    "Machine Learning",
+    "ML"
+  ],
+  "mlops": [
+    "mlops"
+  ],
+  "mobile-advertising": [
+    "mobile-advertising"
+  ],
+  "mobile-applications": [
+    "mobile-applications"
+  ],
+  "mobile-communications": [
+    "mobile-communications"
+  ],
+  "mobile-development": [
+    "mobile-development"
+  ],
+  "mobile-devices": [
+    "mobile-devices"
+  ],
+  "mobile-payments": [
+    "mobile-payments"
+  ],
+  "mobile-technology": [
+    "mobile-technology"
+  ],
+  "modelling": [
+    "modelling"
+  ],
+  "mongo": [
+    "mongo"
+  ],
+  "monitoring": [
+    "Monitoring"
+  ],
+  "mpls": [
+    "mpls"
+  ],
+  "ms-access": [
+    "ms-access"
+  ],
+  "ms-planner": [
+    "ms-planner"
+  ],
+  "ms-project": [
+    "ms-project"
+  ],
+  "ms-project-server": [
+    "ms-project-server"
+  ],
+  "ms-reporting-server": [
+    "ms-reporting-server"
+  ],
+  "ms-sql": [
+    "ms-sql"
+  ],
+  "ms365": [
+    "ms365"
+  ],
+  "msql": [
+    "msql"
+  ],
+  "mts": [
+    "mts"
+  ],
+  "music": [
+    "music"
+  ],
+  "mvc": [
+    "mvc"
+  ],
+  "mysql": [
+    "mysql"
+  ],
+  "nanotechnology": [
+    "nanotechnology"
+  ],
+  "nas": [
+    "nas"
+  ],
+  "negotiation": [
+    "negotiation"
+  ],
+  "nepali": [
+    "nepali"
+  ],
+  "net": [
+    ".net"
+  ],
+  "netbeans": [
+    "netbeans"
+  ],
+  "network-administration": [
+    "network-administration"
+  ],
+  "network-architecture": [
+    "network-architecture"
+  ],
+  "network-design": [
+    "network-design"
+  ],
+  "network-management": [
+    "network-management"
+  ],
+  "network-operations": [
+    "network-operations"
+  ],
+  "network-security": [
+    "network-security"
+  ],
+  "networking": [
+    "networking"
+  ],
+  "neurolingistics": [
+    "neurolingistics"
+  ],
+  "new-business-development": [
+    "new-business-development"
+  ],
+  "newsletters": [
+    "newsletters"
+  ],
+  "nfc": [
+    "nfc"
+  ],
+  "ngfw": [
+    "ngfw"
+  ],
+  "nginx": [
+    "nginx"
+  ],
+  "nms": [
+    "nms"
+  ],
+  "no-code": [
+    "no-code"
+  ],
+  "noc": [
+    "noc"
+  ],
+  "nodejs": [
+    "nodejs"
+  ],
+  "nodes": [
+    "nodes"
+  ],
+  "non-profits": [
+    "non-profits"
+  ],
+  "none": [
+    "None"
+  ],
+  "nse4": [
+    "nse4"
+  ],
+  "nursing": [
+    "nursing"
+  ],
+  "nutrition": [
+    "nutrition"
+  ],
+  "o365": [
+    "o365"
+  ],
+  "oacp": [
+    "oacp"
+  ],
+  "obeya": [
+    "obeya"
+  ],
+  "objective-c": [
+    "objective-c"
+  ],
+  "observability": [
+    "Observability"
+  ],
+  "ocap": [
+    "ocap"
+  ],
+  "odbc": [
+    "odbc"
+  ],
+  "odi": [
+    "odi"
+  ],
+  "office-administration": [
+    "office-administration"
+  ],
+  "offshore-development": [
+    "offshore-development"
+  ],
+  "okr": [
+    "okr"
+  ],
+  "okta": [
+    "okta"
+  ],
+  "omnis": [
+    "omnis"
+  ],
+  "onboarding": [
+    "onboarding"
+  ],
+  "oncology": [
+    "oncology"
+  ],
+  "online-advertising": [
+    "online-advertising"
+  ],
+  "online-help": [
+    "online-help"
+  ],
+  "online-marketing": [
+    "online-marketing",
+    "online-marketing-"
+  ],
+  "ooa": [
+    "ooa"
+  ],
+  "ood": [
+    "ood"
+  ],
+  "open-source-software": [
+    "open-source-software"
+  ],
+  "openapi": [
+    "openapi"
+  ],
+  "opengl": [
+    "opengl"
+  ],
+  "openshift": [
+    "openshift"
+  ],
+  "openstack": [
+    "openstack"
+  ],
+  "opensync": [
+    "opensync"
+  ],
+  "openvg": [
+    "openvg"
+  ],
+  "operating-systems": [
+    "operating-systems"
+  ],
+  "ptical-networks": [
+    "Optical Networks"
+  ],
+  "optics": [
+    "optics"
+  ],
+  "optometrist": [
+    "optometrist"
+  ],
+  "oracle": [
+    "oracle"
+  ],
+  "oracle-bi": [
+    "oracle-bi"
+  ],
+  "oracle-ebs": [
+    "oracle-ebs"
+  ],
+  "oracle-financials": [
+    "oracle-financials"
+  ],
+  "oracle-soa": [
+    "oracle-soa"
+  ],
+  "organization-effectiveness": [
+    "organization-effectiveness"
+  ],
+  "organizational-change": [
+    "organizational-change"
+  ],
+  "organizational-design": [
+    "organizational-design"
+  ],
+  "organizational-development": [
+    "organizational-development"
+  ],
+  "ospf": [
+    "ospf"
+  ],
+  "oss": [
+    "oss"
+  ],
+  "outside-plant": [
+    "outside-plant"
+  ],
+  "outsourcing": [
+    "outsourcing"
+  ],
+  "p-eng": [
+    "p-eng"
+  ],
+  "p6": [
+    "p6"
+  ],
+  "paas": [
+    "paas"
+  ],
+  "painting": [
+    "painting"
+  ],
+  "palmos": [
+    "palmos"
+  ],
+  "pandas": [
+    "pandas"
+  ],
+  "paper-prototyping": [
+    "paper-prototyping"
+  ],
+  "paralegal": [
+    "paralegal"
+  ],
+  "partner-management": [
+    "partner-management"
+  ],
+  "partnerships": [
+    "partnerships"
+  ],
+  "pascal": [
+    "pascal"
+  ],
+  "patent-prosecution": [
+    "patent-prosecution"
+  ],
+  "patents": [
+    "patents"
+  ],
+  "payroll": [
+    "payroll"
+  ],
+  "pcb-design": [
+    "pcb-design"
+  ],
+  "pci": [
+    "pci"
+  ],
+  "pci-dss": [
+    "pci-dss"
+  ],
+  "pcnsc": [
+    "pcnsc"
+  ],
+  "pcnse": [
+    "pcnse"
+  ],
+  "pentaho": [
+    "pentaho"
+  ],
+  "peo": [
+    "peo"
+  ],
+  "peoplesoft": [
+    "peoplesoft"
+  ],
+  "perforce": [
+    "perforce"
+  ],
+  "performance-engineering": [
+    "performance-engineering"
+  ],
+  "performance-improvement": [
+    "performance-improvement"
+  ],
+  "performance-management": [
+    "performance-management"
+  ],
+  "perl": [
+    "perl"
+  ],
+  "permits": [
+    "permits"
+  ],
+  "persian": [
+    "persian"
+  ],
+  "personal-development": [
+    "personal-development"
+  ],
+  "personal-training": [
+    "personal-training"
+  ],
+  "personality-assessment": [
+    "personality-assessment"
+  ],
+  "petroleum": [
+    "petroleum"
+  ],
+  "pfsense": [
+    "pfsense"
+  ],
+  "pharmacy": [
+    "pharmacy"
+  ],
+  "philanthropy": [
+    "philanthropy"
+  ],
+  "photography": [
+    "photography"
+  ],
+  "photoshop": [
+    "photoshop"
+  ],
+  "php": [
+    "php"
+  ],
+  "physical-security": [
+    "physical-security"
+  ],
+  "physics": [
+    "physics"
+  ],
+  "physiotherapy": [
+    "physiotherapy"
+  ],
+  "piano": [
+    "piano"
+  ],
+  "pki": [
+    "pki"
+  ],
+  "pl-sql": [
+    "pl/sql"
+  ],
+  "planning": [
+    "planning"
+  ],
+  "plantuml": [
+    "plantuml"
+  ],
+  "plc-programming": [
+    "plc-programming"
+  ],
+  "plumbing": [
+    "plumbing"
+  ],
+  "pmi": [
+    "pmi",
+    "PMI certified"
+  ],
+  "pmi-acp": [
+    "pmi-acp"
+  ],
+  "pmo": [
+    "pmo",
+    "Project Management Office (PMO)",
+    "Project Management Office"
+  ],
+  "pmp": [
+    "pmp",
+    "Project Management Professional (PMP)",
+    "Project Management Professional"
+  ],
+  "podcasts": [
+    "podcasts"
+  ],
+  "policies": [
+    "policies"
+  ],
+  "policy-analysis": [
+    "policy-analysis"
+  ],
+  "polish": [
+    "polish"
+  ],
+  "politics": [
+    "politics"
+  ],
+  "polymers": [
+    "polymers"
+  ],
+  "portfolio-management": [
+    "Portfolio Management",
+    "Portfolio Management Office (PMO)",
+    "Portfolio Management Office"
+  ],
+  "portuguese": [
+    "portuguese",
+    "portuguese-"
+  ],
+  "postgres": [
+    "postgres"
+  ],
+  "postgresql": [
+    "postgresql",
+    "Postgres"
+  ],
+  "postures": [
+    "postures"
+  ],
+  "power": [
+    "power"
+  ],
+  "power-apps": [
+    "power-apps"
+  ],
+  "power-automate": [
+    "power-automate"
+  ],
+  "power-bi": [
+    "power-bi",
+    "Power BI"
+  ],
+  "power-distribution": [
+    "power-distribution"
+  ],
+  "power-flow": [
+    "power-flow"
+  ],
+  "power-platform": [
+    "power-platform"
+  ],
+  "power-query": [
+    "power-query"
+  ],
+  "power-systems": [
+    "power-systems"
+  ],
+  "powerpoint": [
+    "powerpoint"
+  ],
+  "pr": [
+    "pr"
+  ],
+  "pre-sales": [
+    "pre-sales"
+  ],
+  "predictive-maintenance": [
+    "predictive-maintenance"
+  ],
+  "predictive-modeling": [
+    "Predictive Modeling"
+  ],
+  "presentations": [
+    "presentations"
+  ],
+  "press-releases": [
+    "press-releases"
+  ],
+  "pri": [
+    "pri"
+  ],
+  "primavera": [
+    "primavera"
+  ],
+  "prince2": [
+    "prince2"
+  ],
+  "printing": [
+    "printing"
+  ],
+  "privacy": [
+    "privacy"
+  ],
+  "problem-management": [
+    "problem-management"
+  ],
+  "process": [
+    "process",
+    "Process Improvement",
+    "Business Process",
+    "Business Process Improvement",
+    "Process Optimization",
+    "Process Enhancements",
+    "Process Enhancements and Implementation",
+    "Process Implementation",
+    "Business Process Optimization"
+  ],
+  "process-engineering": [
+    "process-engineering"
+  ],
+  "process-improvement": [
+    "process-improvement"
+  ],
+  "process-modeling": [
+    "process-modeling"
+  ],
+  "procurement": [
+    "procurement"
+  ],
+  "product-design": [
+    "product-design"
+  ],
+  "product-development": [
+    "product-development"
+  ],
+  "product-management": [
+    "product-management",
+    "product-management-",
+    "product-management--"
+  ],
+  "product-marketing": [
+    "product-marketing"
+  ],
+  "product-owner": [
+    "product-owner"
+  ],
+  "product-planning": [
+    "product-planning"
+  ],
+  "product-requirements": [
+    "product-requirements"
+  ],
+  "production": [
+    "production"
+  ],
+  "professional-networking": [
+    "professional-networking"
+  ],
+  "professional-services": [
+    "professional-services"
+  ],
+  "progam-management": [
+    "progam-management"
+  ],
+  "program-management": [
+    "program-management",
+    "Program Management",
+    "Program Management Office (PMO)",
+    "Program Management Office"
+  ],
+  "programming": [
+    "programming"
+  ],
+  "project-coordination": [
+    "project-coordination"
+  ],
+  "project-engineering": [
+    "project-engineering"
+  ],
+  "project-management": [
+    "project-management"
+  ],
+  "project-planning": [
+    "project-planning"
+  ],
+  "project-portfolio-management": [
+    "project-portfolio-management"
+  ],
+  "prometheus": [
+    "Prometheus"
+  ],
+  "proofreading": [
+    "proofreading"
+  ],
+  "prop-making": [
+    "prop-making"
+  ],
+  "property-management": [
+    "property-management"
+  ],
+  "prosci": [
+    "prosci"
+  ],
+  "psxtools": [
+    "psxtools"
+  ],
+  "psychiatry": [
+    "psychiatry"
+  ],
+  "psychological-assessment": [
+    "psychological-assessment"
+  ],
+  "psychotherapy": [
+    "psychotherapy"
+  ],
+  "public-health": [
+    "public-health"
+  ],
+  "public-law": [
+    "public-law"
+  ],
+  "public-policy": [
+    "public-policy"
+  ],
+  "public-relations": [
+    "public-relations"
+  ],
+  "public-speaking": [
+    "public-speaking"
+  ],
+  "public-transport": [
+    "public-transport"
+  ],
+  "publicity": [
+    "publicity"
+  ],
+  "punjabi": [
+    "punjabi"
+  ],
+  "purchasing": [
+    "purchasing"
+  ],
+  "purview": [
+    "Purview",
+    "Microsoft Purview"
+  ],
+  "pyspark": [
+    "PySpark"
+  ],
+  "python": [
+    "python"
+  ],
+  "qa": [
+    "qa"
+  ],
+  "qa-automation": [
+    "qa-automation"
+  ],
+  "qlikview": [
+    "qlikview"
+  ],
+  "qml": [
+    "qml"
+  ],
+  "qnx": [
+    "qnx"
+  ],
+  "qos": [
+    "qos"
+  ],
+  "qt": [
+    "qt"
+  ],
+  "qt-creator": [
+    "qt-creator"
+  ],
+  "quality-center": [
+    "quality-center"
+  ],
+  "quality-control": [
+    "quality-control"
+  ],
+  "quality-management": [
+    "quality-management"
+  ],
+  "r": [
+    "r"
+  ],
+  "r-d": [
+    "r&d"
+  ],
+  "rabbitmq": [
+    "rabbitmq"
+  ],
+  "radar": [
+    "radar"
+  ],
+  "radius": [
+    "radius"
+  ],
+  "rail": [
+    "rail"
+  ],
+  "rail-operations": [
+    "rail-operations"
+  ],
+  "rail-ops": [
+    "rail-ops"
+  ],
+  "railway": [
+    "railway"
+  ],
+  "raspberrypi": [
+    "raspberrypi"
+  ],
+  "rational-rose": [
+    "rational-rose"
+  ],
+  "rbac": [
+    "RBAC"
+  ],
+  "rcs": [
+    "rcs"
+  ],
+  "rcsp": [
+    "rcsp"
+  ],
+  "rdu": [
+    "rdu"
+  ],
+  "react": [
+    "react"
+  ],
+  "real-estate": [
+    "real-estate"
+  ],
+  "real-time-systems": [
+    "real-time-systems"
+  ],
+  "reception": [
+    "reception"
+  ],
+  "recruiting": [
+    "recruiting"
+  ],
+  "recycling": [
+    "recycling"
+  ],
+  "red-hat-linux": [
+    "red-hat-linux"
+  ],
+  "redis": [
+    "redis"
+  ],
+  "redux": [
+    "redux"
+  ],
+  "regulatory-compliance": [
+    "regulatory-compliance"
+  ],
+  "regulatory-reporting": [
+    "Regulatory Reporting",
+    "Regulatory Compliance Reporting",
+    "Regulatory Compliance",
+    "Regulatory"
+  ],
+  "rehabilitation": [
+    "rehabilitation"
+  ],
+  "relationship-building": [
+    "relationship-building"
+  ],
+  "release-management": [
+    "release-management"
+  ],
+  "remedy": [
+    "remedy"
+  ],
+  "remote-sensing": [
+    "remote-sensing"
+  ],
+  "requirements": [
+    "requirements"
+  ],
+  "research": [
+    "research"
+  ],
+  "resouce-management": [
+    "resouce-management"
+  ],
+  "resource-planning": [
+    "resource-planning"
+  ],
+  "rest": [
+    "rest"
+  ],
+  "retirement-planning": [
+    "retirement-planning"
+  ],
+  "retrospectives": [
+    "retrospectives"
+  ],
+  "revit": [
+    "revit"
+  ],
+  "rf": [
+    "rf"
+  ],
+  "rf-design": [
+    "rf-design"
+  ],
+  "rf-engineering": [
+    "rf-engineering"
+  ],
+  "rf-planning": [
+    "rf-planning"
+  ],
+  "rfid": [
+    "rfid"
+  ],
+  "rfog": [
+    "rfog"
+  ],
+  "right-of-way": [
+    "right-of-way"
+  ],
+  "ringcentral": [
+    "ringcentral"
+  ],
+  "rip": [
+    "rip"
+  ],
+  "risk": [
+    "risk"
+  ],
+  "risk-management": [
+    "risk-management"
+  ],
+  "roaster": [
+    "roaster"
+  ],
+  "robotics": [
+    "robotics"
+  ],
+  "rohs": [
+    "rohs"
+  ],
+  "romanian": [
+    "romanian"
+  ],
+  "routers": [
+    "routers"
+  ],
+  "rpa": [
+    "rpa"
+  ],
+  "rpi": [
+    "rpi"
+  ],
+  "rtcp": [
+    "rtcp"
+  ],
+  "rtos": [
+    "rtos"
+  ],
+  "rtp": [
+    "rtp"
+  ],
+  "ruby-on-rails": [
+    "ruby-on-rails"
+  ],
+  "rundeck": [
+    "rundeck"
+  ],
+  "rup": [
+    "rup"
+  ],
+  "russian": [
+    "russian"
+  ],
+  "rust": [
+    "rust"
+  ],
+  "saas": [
+    "saas"
+  ],
+  "sacm": [
+    "sacm"
+  ],
+  "safe": [
+    "safe"
+  ],
+  "safety": [
+    "safety"
+  ],
+  "safety-management": [
+    "safety-management"
+  ],
+  "safety-management-systems": [
+    "safety-management-systems"
+  ],
+  "sales": [
+    "sales"
+  ],
+  "sales-engineering": [
+    "sales-engineering"
+  ],
+  "sales-management": [
+    "sales-management"
+  ],
+  "sales-operations": [
+    "sales-operations"
+  ],
+  "salesforce": [
+    "salesforce"
+  ],
+  "sam": [
+    "sam"
+  ],
+  "san": [
+    "san"
+  ],
+  "sap": [
+    "sap"
+  ],
+  "sap-bo": [
+    "sap-bo"
+  ],
+  "sap-hana": [
+    "sap-hana"
+  ],
+  "sap-hr": [
+    "sap-hr"
+  ],
+  "sarbox": [
+    "sarbox"
+  ],
+  "sas": [
+    "sas"
+  ],
+  "satellite": [
+    "satellite"
+  ],
+  "satellite-imagery": [
+    "satellite-imagery"
+  ],
+  "sbc": [
+    "sbc"
+  ],
+  "scala": [
+    "scala"
+  ],
+  "scheduling": [
+    "scheduling"
+  ],
+  "schematic-capture": [
+    "schematic-capture"
+  ],
+  "scientific-writing": [
+    "scientific-writing"
+  ],
+  "scm": [
+    "scm"
+  ],
+  "scorm": [
+    "scorm"
+  ],
+  "scripting": [
+    "scripting"
+  ],
+  "scrum": [
+    "scrum"
+  ],
+  "scrum-master": [
+    "scrum-master"
+  ],
+  "scrum-product-owner-certified": [
+    "scrum-product-owner-certified"
+  ],
+  "sd-wan": [
+    "sd-wan"
+  ],
+  "sdlc": [
+    "sdlc"
+  ],
+  "seamstress": [
+    "seamstress-"
+  ],
+  "security": [
+    "security"
+  ],
+  "security-law": [
+    "security-law"
+  ],
+  "selenium": [
+    "selenium"
+  ],
+  "sem": [
+    "sem"
+  ],
+  "semantic-web": [
+    "semantic-web"
+  ],
+  "semiconductors": [
+    "semiconductors"
+  ],
+  "sencha": [
+    "sencha"
+  ],
+  "sensors": [
+    "sensors"
+  ],
+  "sentinel": [
+    "sentinel"
+  ],
+  "seo": [
+    "seo"
+  ],
+  "serbian": [
+    "serbian"
+  ],
+  "service-delivery": [
+    "service-delivery"
+  ],
+  "service-management": [
+    "service-management"
+  ],
+  "service-now": [
+    "service-now"
+  ],
+  "servicenow": [
+    "servicenow"
+  ],
+  "servlet": [
+    "servlet"
+  ],
+  "set-top-box": [
+    "set-top-box"
+  ],
+  "shanghainese": [
+    "shanghainese"
+  ],
+  "sharepoint": [
+    "sharepoint"
+  ],
+  "shell-scripting": [
+    "shell-scripting"
+  ],
+  "shooting": [
+    "shooting"
+  ],
+  "shopify": [
+    "shopify"
+  ],
+  "siem": [
+    "siem"
+  ],
+  "signal-processing": [
+    "signal-processing"
+  ],
+  "sigtran": [
+    "sigtran"
+  ],
+  "simulations": [
+    "simulations"
+  ],
+  "simulink": [
+    "simulink"
+  ],
+  "sip": [
+    "sip"
+  ],
+  "site-supervision": [
+    "site-supervision"
+  ],
+  "six-sigma": [
+    "six-sigma"
+  ],
+  "six-sigma-black-belt": [
+    "six-sigma-black-belt"
+  ],
+  "six-signma": [
+    "six-signma"
+  ],
+  "skin-care": [
+    "skin-care"
+  ],
+  "skype-for-business": [
+    "skype-for-business"
+  ],
+  "sla": [
+    "sla",
+    "Service-Level Agreements (SLA)",
+    "Service Level Agreements"
+  ],
+  "small-cells": [
+    "small-cells"
+  ],
+  "smalltalk": [
+    "smalltalk"
+  ],
+  "smart-cities": [
+    "smart-cities"
+  ],
+  "smart-grid": [
+    "smart-grid"
+  ],
+  "smart-metering": [
+    "smart-metering"
+  ],
+  "smartphones": [
+    "smartphones"
+  ],
+  "smpp": [
+    "smpp"
+  ],
+  "sms": [
+    "sms"
+  ],
+  "smsc": [
+    "smsc"
+  ],
+  "smtp": [
+    "smtp"
+  ],
+  "snmp": [
+    "snmp"
+  ],
+  "snow-pipe": [
+    "Snow pipe",
+    "Snowpipe"
+  ],
+  "snowflake": [
+    "snowflake"
+  ],
+  "soa": [
+    "soa"
+  ],
+  "soap": [
+    "soap"
+  ],
+  "soc": [
+    "soc"
+  ],
+  "soc-2": [
+    "soc-2"
+  ],
+  "soc-management": [
+    "soc-management"
+  ],
+  "social-games": [
+    "social-games"
+  ],
+  "social-media": [
+    "social-media"
+  ],
+  "social-media-marketing": [
+    "social-media-marketing"
+  ],
+  "social-networking": [
+    "social-networking"
+  ],
+  "social-networks": [
+    "social-networks"
+  ],
+  "social-responsibility": [
+    "social-responsibility"
+  ],
+  "sociology": [
+    "sociology"
+  ],
+  "software-architecture": [
+    "software-architecture"
+  ],
+  "software-design": [
+    "software-design"
+  ],
+  "software-development": [
+    "software-development"
+  ],
+  "software-development-methodologies": [
+    "software-development-methodologies"
+  ],
+  "software-documentation": [
+    "software-documentation"
+  ],
+  "software-engineering": [
+    "software-engineering"
+  ],
+  "software-licensing": [
+    "software-licensing"
+  ],
+  "software-support": [
+    "software-support"
+  ],
+  "solaris": [
+    "solaris"
+  ],
+  "solidworks": [
+    "solidworks"
+  ],
+  "solution-architecture": [
+    "solution-architecture"
+  ],
+  "solution-selling": [
+    "solution-selling"
+  ],
+  "sonet": [
+    "sonet"
+  ],
+  "sound-systems": [
+    "sound-systems"
+  ],
+  "soundedit": [
+    "soundedit"
+  ],
+  "soundforge": [
+    "soundforge"
+  ],
+  "sourcing": [
+    "sourcing"
+  ],
+  "spanish": [
+    "spanish",
+    "spanish-"
+  ],
+  "spark": [
+    "spark"
+  ],
+  "spatial-analysis": [
+    "spatial-analysis"
+  ],
+  "spectroscopy": [
+    "spectroscopy"
+  ],
+  "speech-writing": [
+    "speech-writing"
+  ],
+  "splunk": [
+    "splunk"
+  ],
+  "spring": [
+    "spring"
+  ],
+  "spring-boot": [
+    "spring-boot"
+  ],
+  "spsp": [
+    "spsp"
+  ],
+  "sql": [
+    "sql"
+  ],
+  "sql-server": [
+    "sql-server"
+  ],
+  "sqlite": [
+    "sqlite"
+  ],
+  "sr-ed": [
+    "sr&ed"
+  ],
+  "sre": [
+    "sre"
+  ],
+  "ss7": [
+    "ss7"
+  ],
+  "ssl": [
+    "ssl"
+  ],
+  "ssrs": [
+    "ssrs"
+  ],
+  "stage-lighting-design": [
+    "stage-lighting-design"
+  ],
+  "startups": [
+    "startups"
+  ],
+  "stategic-planning": [
+    "stategic-planning"
+  ],
+  "statistics": [
+    "statistics"
+  ],
+  "stonebranch": [
+    "stonebranch"
+  ],
+  "storage": [
+    "storage"
+  ],
+  "stormwater-management": [
+    "stormwater-management"
+  ],
+  "storyboarding": [
+    "storyboarding"
+  ],
+  "storytelling": [
+    "storytelling"
+  ],
+  "strategic-communications": [
+    "strategic-communications"
+  ],
+  "strategic-partnership-management": [
+    "strategic-partnership-management"
+  ],
+  "strategic-partnerships": [
+    "strategic-partnerships"
+  ],
+  "strategic-planning": [
+    "strategic-planning"
+  ],
+  "strategic-thinking": [
+    "strategic-thinking"
+  ],
+  "strategy": [
+    "strategy"
+  ],
+  "streaming-media": [
+    "streaming-media"
+  ],
+  "streamlit": [
+    "Streamlit"
+  ],
+  "street-lighting": [
+    "street-lighting"
+  ],
+  "structured-cabling": [
+    "structured-cabling"
+  ],
+  "stylist": [
+    "stylist"
+  ],
+  "subversion": [
+    "subversion"
+  ],
+  "supplier-management": [
+    "supplier-management"
+  ],
+  "supply-chain": [
+    "supply-chain"
+  ],
+  "support": [
+    "support"
+  ],
+  "svenska": [
+    "svenska"
+  ],
+  "svg": [
+    "svg"
+  ],
+  "swahili": [
+    "swahili"
+  ],
+  "swift": [
+    "swift"
+  ],
+  "swimming": [
+    "swimming"
+  ],
+  "swing": [
+    "swing"
+  ],
+  "switches": [
+    "switches"
+  ],
+  "sybase": [
+    "sybase"
+  ],
+  "synapse": [
+    "Azure Synapse Analytics",
+    "Synapse Analytics",
+    "Azure Synapse",
+    "Synapse"
+  ],
+  "syncml": [
+    "syncml"
+  ],
+  "system-administration": [
+    "system-administration"
+  ],
+  "system-architecture": [
+    "system-architecture"
+  ],
+  "systems-administration": [
+    "systems-administration"
+  ],
+  "systems-architecture": [
+    "systems-architecture"
+  ],
+  "systems-engineering": [
+    "systems-engineering"
+  ],
+  "t-sql": [
+    "t-sql"
+  ],
+  "tableau": [
+    "tableau"
+  ],
+  "tagalog": [
+    "tagalog"
+  ],
+  "tailwind": [
+    "tailwind"
+  ],
+  "talent-acquisition": [
+    "talent-acquisition"
+  ],
+  "talent-management": [
+    "talent-management"
+  ],
+  "tamil": [
+    "tamil"
+  ],
+  "tapi": [
+    "tapi"
+  ],
+  "tax": [
+    "tax"
+  ],
+  "tcap": [
+    "tcap"
+  ],
+  "tcp-ip": [
+    "tcp/ip"
+  ],
+  "tdd": [
+    "tdd"
+  ],
+  "teaching": [
+    "teaching"
+  ],
+  "team-building": [
+    "team-building",
+    "team-building-"
+  ],
+  "teamviewer": [
+    "teamviewer"
+  ],
+  "teamwork": [
+    "teamwork"
+  ],
+  "technical-recruiting": [
+    "technical-recruiting"
+  ],
+  "technical-support": [
+    "technical-support"
+  ],
+  "technical-writing": [
+    "technical-writing"
+  ],
+  "technology": [
+    "technology"
+  ],
+  "technology-licensing": [
+    "technology-licensing"
+  ],
+  "telecom": [
+    "telecom"
+  ],
+  "telecommunications": [
+    "telecommunications"
+  ],
+  "telegraph": [
+    "telegraph"
+  ],
+  "telemetry": [
+    "telemetry"
+  ],
+  "telephony": [
+    "telephony"
+  ],
+  "television": [
+    "television"
+  ],
+  "tensorflow": [
+    "tensorflow"
+  ],
+  "teraform": [
+    "teraform"
+  ],
+  "terraform": [
+    "terraform",
+    "HashiCorp Terraform",
+    "Terraform certified"
+  ],
+  "test-automation": [
+    "test-automation"
+  ],
+  "test-driven-development": [
+    "test-driven-development"
+  ],
+  "test-planning": [
+    "test-planning"
+  ],
+  "testing": [
+    "testing"
+  ],
+  "teststand": [
+    "teststand"
+  ],
+  "thai": [
+    "thai"
+  ],
+  "threat-intelligence": [
+    "threat-intelligence"
+  ],
+  "thuraya": [
+    "thuraya"
+  ],
+  "time-management": [
+    "time-management"
+  ],
+  "timely": [
+    "timely"
+  ],
+  "tivoli": [
+    "tivoli"
+  ],
+  "tls": [
+    "tls"
+  ],
+  "togaf": [
+    "togaf"
+  ],
+  "together": [
+    "together"
+  ],
+  "tour-management": [
+    "tour-management"
+  ],
+  "tourism": [
+    "tourism"
+  ],
+  "toxicology": [
+    "toxicology"
+  ],
+  "trading": [
+    "trading"
+  ],
+  "training": [
+    "training"
+  ],
+  "transfusions": [
+    "transfusions"
+  ],
+  "transit": [
+    "transit"
+  ],
+  "transit-planning": [
+    "transit-planning"
+  ],
+  "translation": [
+    "translation"
+  ],
+  "transportation": [
+    "transportation"
+  ],
+  "transportation-management": [
+    "transportation-management"
+  ],
+  "troubleshooting": [
+    "troubleshooting"
+  ],
+  "twi": [
+    "twi"
+  ],
+  "typescript": [
+    "typescript"
+  ],
+  "typing": [
+    "typing"
+  ],
+  "tyska": [
+    "tyska"
+  ],
+  "uba": [
+    "uba"
+  ],
+  "ui": [
+    "ui"
+  ],
+  "ui-design": [
+    "ui-design"
+  ],
+  "uipath": [
+    "uipath"
+  ],
+  "ukrainian": [
+    "ukrainian"
+  ],
+  "uml": [
+    "uml"
+  ],
+  "umts": [
+    "umts"
+  ],
+  "unified-communications": [
+    "unified-communications"
+  ],
+  "unions": [
+    "unions"
+  ],
+  "unity-catalog": [
+    "Unity Catalog",
+    "Databricks Unity Catalog"
+  ],
+  "unity3d": [
+    "unity3d"
+  ],
+  "unix": [
+    "unix"
+  ],
+  "unix-administration": [
+    "unix-administration"
+  ],
+  "unreal-engine": [
+    "unreal-engine"
+  ],
+  "upsource": [
+    "upsource"
+  ],
+  "urdu": [
+    "urdu"
+  ],
+  "usability": [
+    "usability"
+  ],
+  "usability-testing": [
+    "usability-testing"
+  ],
+  "user-acceptance-testing": [
+    "user-acceptance-testing"
+  ],
+  "user-centered-design": [
+    "user-centered-design"
+  ],
+  "user-experience": [
+    "user-experience"
+  ],
+  "user-scenarios": [
+    "user-scenarios"
+  ],
+  "user-stories": [
+    "user-stories"
+  ],
+  "ux": [
+    "ux"
+  ],
+  "value-stream-mapping": [
+    "value-stream-mapping"
+  ],
+  "vb": [
+    "vb"
+  ],
+  "vb-script": [
+    "vb-script"
+  ],
+  "vca-dcv": [
+    "vca-dcv"
+  ],
+  "vca6-nv": [
+    "vca6-nv"
+  ],
+  "vcix-nv": [
+    "vcix-nv"
+  ],
+  "vend": [
+    "vend"
+  ],
+  "vendor-management": [
+    "vendor-management"
+  ],
+  "venture-capital": [
+    "venture-capital"
+  ],
+  "verilog": [
+    "verilog"
+  ],
+  "video": [
+    "video"
+  ],
+  "video-editing": [
+    "video-editing"
+  ],
+  "video-games": [
+    "video-games"
+  ],
+  "video-production": [
+    "video-production"
+  ],
+  "vietnamese": [
+    "vietnamese"
+  ],
+  "vignette": [
+    "vignette"
+  ],
+  "viral-marketing": [
+    "viral-marketing"
+  ],
+  "virtual-assistant": [
+    "virtual-assistant"
+  ],
+  "virtualization": [
+    "virtualization"
+  ],
+  "visio": [
+    "visio"
+  ],
+  "visual-c": [
+    "visual-c++"
+  ],
+  "visual-studio": [
+    "visual-studio"
+  ],
+  "vmware": [
+    "vmware"
+  ],
+  "vnfm": [
+    "vnfm"
+  ],
+  "vod": [
+    "vod"
+  ],
+  "voice-acting": [
+    "voice-acting"
+  ],
+  "voicexml": [
+    "voicexml"
+  ],
+  "voip": [
+    "voip"
+  ],
+  "volcano": [
+    "volcano"
+  ],
+  "volunteer-management": [
+    "volunteer-management"
+  ],
+  "vpn": [
+    "vpn"
+  ],
+  "vr": [
+    "vr"
+  ],
+  "vue-js": [
+    "vue.js"
+  ],
+  "vxworks": [
+    "vxworks"
+  ],
+  "vyond": [
+    "vyond"
+  ],
+  "wan": [
+    "wan"
+  ],
+  "warehouse-management": [
+    "warehouse-management"
+  ],
+  "warehouse-operations": [
+    "warehouse-operations"
+  ],
+  "waste-management": [
+    "waste-management"
+  ],
+  "water-management": [
+    "water-management"
+  ],
+  "waterfall-project-management": [
+    "waterfall-project-management"
+  ],
+  "wcf": [
+    "wcf"
+  ],
+  "web": [
+    "web"
+  ],
+  "web-analytics": [
+    "web-analytics"
+  ],
+  "web-app": [
+    "web-app"
+  ],
+  "web-design": [
+    "web-design"
+  ],
+  "web-services": [
+    "web-services"
+  ],
+  "weblogic": [
+    "weblogic"
+  ],
+  "webrtc": [
+    "webrtc"
+  ],
+  "websphere": [
+    "websphere"
+  ],
+  "welding": [
+    "welding"
+  ],
+  "wellness": [
+    "wellness"
+  ],
+  "wi-fi": [
+    "wi-fi"
+  ],
+  "wimax": [
+    "wimax"
+  ],
+  "win32": [
+    "win32"
+  ],
+  "wince": [
+    "wince"
+  ],
+  "windows-administration": [
+    "windows-administration"
+  ],
+  "windows-forms": [
+    "windows-forms"
+  ],
+  "windows-networking": [
+    "windows-networking"
+  ],
+  "windows-server": [
+    "windows-server"
+  ],
+  "wine-making": [
+    "wine-making"
+  ],
+  "wireless": [
+    "wireless"
+  ],
+  "wireless-games": [
+    "wireless-games"
+  ],
+  "wireless-networking": [
+    "wireless-networking"
+  ],
+  "wireless-sensor-networks": [
+    "wireless-sensor-networks"
+  ],
+  "woocommerce": [
+    "woocommerce"
+  ],
+  "wordpress": [
+    "wordpress"
+  ],
+  "workflow-automation": [
+    "Workflow Automation"
+  ],
+  "workforce-management": [
+    "workforce-management"
+  ],
+  "workforce-planning": [
+    "workforce-planning"
+  ],
+  "workshop-facilitation": [
+    "workshop-facilitation"
+  ],
+  "wpf": [
+    "wpf"
+  ],
+  "writing": [
+    "writing"
+  ],
+  "written-communications": [
+    "written-communications"
+  ],
+  "wsdl": [
+    "wsdl"
+  ],
+  "xero": [
+    "xero"
+  ],
+  "xml": [
+    "xml"
+  ],
+  "xr": [
+    "xr"
+  ],
+  "xslt": [
+    "xslt"
+  ],
+  "yoga": [
+    "yoga"
+  ],
+  "zoho": [
+    "zoho"
+  ],
+  "zoning": [
+    "zoning"
+  ]
+}

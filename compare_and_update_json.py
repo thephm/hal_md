@@ -45,15 +45,55 @@
 
 import json
 import difflib
+import re
+
+
+EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 
 def load_json_list(filename):
-    with open(filename, 'r', encoding='utf-8') as f:
+    with open(filename, 'r', encoding='utf-8-sig') as f:
         return json.load(f)
+
+
+def extract_emails_from_record(record):
+    emails = []
+    seen = set()
+    if not isinstance(record, dict):
+        return emails
+
+    values = []
+    if record.get("email"):
+        values.append(record.get("email"))
+    if isinstance(record.get("emails"), list):
+        values.extend(record.get("emails"))
+
+    for value in values:
+        for match in EMAIL_RE.finditer(str(value or "")):
+            email = match.group(0)
+            normalized = email.lower()
+            if normalized not in seen:
+                seen.add(normalized)
+                emails.append(email)
+    return emails
+
+
+def normalize_email_fields(record):
+    if not isinstance(record, dict):
+        return record
+    normalized = dict(record)
+    emails = extract_emails_from_record(normalized)
+    normalized.pop("email", None)
+    if emails:
+        normalized["emails"] = emails
+    else:
+        normalized.pop("emails", None)
+    return normalized
 
 def normalize_dict(d):
     """Remove fields that are blank (None, empty string, empty list) and ensure consistent structure."""
     if not isinstance(d, dict):
         return d  # Return as-is if not a dictionary
+    d = normalize_email_fields(d)
     return {k: normalize_dict(v) for k, v in d.items() if v not in (None, "", [], {})}
 
 def to_dict_by_slug(items):
@@ -86,17 +126,21 @@ def show_diff_dicts(orig, mod):
     return "\n".join(diff)
 
 def choose_version(slug, orig, mod):
-    # Normalize the dictionaries to ignore blank and missing fields
-    orig_normalized = normalize_dict(orig)
-    mod_normalized = normalize_dict(mod)
+    orig = normalize_email_fields(orig)
+    mod = normalize_email_fields(mod)
 
-    # Handle the email field specifically
-    orig_emails = set(orig.get("email", "").split(";")) if orig else set()
-    mod_email = mod.get("email", "").strip() if mod else ""
-
-    if mod_email and mod_email not in orig_emails:
-        orig_emails.add(mod_email)
-        orig["email"] = ";".join(sorted(orig_emails))  # Merge emails and sort for consistency
+    orig_emails = extract_emails_from_record(orig)
+    mod_emails = extract_emails_from_record(mod)
+    seen = {email.lower() for email in orig_emails}
+    for email in mod_emails:
+        if email.lower() not in seen:
+            seen.add(email.lower())
+            orig_emails.append(email)
+    if orig_emails:
+        orig["emails"] = orig_emails
+    else:
+        orig.pop("emails", None)
+    orig.pop("email", None)
 
     # Compare the rest of the fields
     orig_normalized = normalize_dict(orig)
