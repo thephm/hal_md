@@ -1,6 +1,8 @@
-# Include the individual, dated Markdown note files into the Person's profile
-# under `## Notes` so you can see the entire communication history with them.   
-
+"""
+Include the individual, dated Markdown note files into the Person's profile
+under `## Notes` so you can see the entire communication history with them.
+"""
+    
 import os
 from argparse import ArgumentParser
 import datetime

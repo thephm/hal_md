@@ -7,13 +7,15 @@ from collections import Counter, defaultdict
 from datetime import datetime
 
 # Directory containing markdown files
-DIRECTORY = '/mnt/c/data/notes/People'
+SOURCE_FOLDER = '/mnt/c/notes/People'
 
 # Fields to be processed
 FIELDS_TO_PROCESS = ['to', 'from', 'people']
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Process markdown files to find most contacted people.')
+    parser.add_argument('-f', '--folder', default=SOURCE_FOLDER,
+                        help=f'Folder containing Person subfolders (default: {SOURCE_FOLDER})')
     parser.add_argument('-m', '--my-slug', type=str, required=True, help='Your slug to exclude from the count')
     parser.add_argument('-n', '--top-n', type=int, default=None, help='Number of top names to display')
     parser.add_argument('-o', '--output-csv', type=str, help='Output CSV file to save the results')
@@ -80,7 +82,10 @@ def print_top_names(top_names, person_dates, output_csv=None):
         rows.append(row)
 
         if not output_csv:
-            duration = f"{years}, {months}, {days}"
+            year_label = "year" if years == 1 else "years"
+            month_label = "month" if months == 1 else "months"
+            day_label = "day" if days == 1 else "days"
+            duration = f"{years} {year_label}, {months} {month_label}, {days} {day_label}"
             print(f"{name}: {count} {count_label} across {duration} since {first_date}. Most recently on {last_date}")
 
     if output_csv:
@@ -91,7 +96,7 @@ def print_top_names(top_names, person_dates, output_csv=None):
 
 def main():
     args = parse_arguments()
-    name_counter, person_dates = process_files(DIRECTORY, args.my_slug, FIELDS_TO_PROCESS)
+    name_counter, person_dates = process_files(args.folder, args.my_slug, FIELDS_TO_PROCESS)
     
     if args.top_n:
         top_names = name_counter.most_common(args.top_n)

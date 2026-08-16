@@ -1,3 +1,33 @@
+"""
+Deduplicate content in dated markdown notes (files matching YYYY-MM-DD*.md).
+
+Intended for journal/vault-style notes (e.g. Obsidian) where forwarded emails
+or chat logs get pasted in more than once. Scans a folder (or a single file)
+for dated markdown files and:
+
+  1. Preserves YAML frontmatter untouched.
+  2. Normalizes messy email-quote formatting (e.g. "**-Original Message-**"
+     variants, bolded "**From:**" headers) into a consistent plain style.
+  3. Extracts embedded "messages" using several patterns: "Name at HH:MM",
+     "Name wrote:", a bare name + blank line, and full email-style
+     From/To/Subject/Date headers.
+  4. Finds duplicate messages and duplicate paragraphs via difflib similarity
+     (0.8+ threshold for same sender, 0.9+ for different senders / bare
+     paragraphs), skipping any pair whose embedded file references
+     ([[file]] / ![[file]]) differ.
+  5. Removes duplicates - either interactively (y/n prompt per match) or
+     automatically for same-sender duplicates without embeds (--auto) -
+     replacing removed text with a short "[duplicate message removed]"
+     context stub by default (disable with --no-context).
+  6. Backs up every modified file to a mirrored backups/ directory before
+     writing changes. Supports --dry-run to preview without modifying files.
+
+CLI usage:
+    python dedupe.py <folder_or_file> [--auto] [--min-chars N] [--verbose]
+                      [--dry-run] [--no-format-fix] [--no-context]
+
+Run with no arguments for interactive prompts.
+"""
 import os
 import shutil
 import re
