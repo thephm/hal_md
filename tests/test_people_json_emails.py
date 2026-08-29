@@ -22,6 +22,10 @@ class PeopleJsonEmailsTests(unittest.TestCase):
                 "first_name": "Jane",
                 "last_name": "Doe",
                 "email": "jane@example.com",
+                "work_mobile": "+14165550101",
+                "facebook_id": "jane.doe",
+                "linkedin_id": "jane-doe",
+                "x_id": "janedoe",
             },
             "jane-doe",
             "unused.md",
@@ -29,6 +33,18 @@ class PeopleJsonEmailsTests(unittest.TestCase):
 
         self.assertEqual(person["emails"], ["jane@example.com"])
         self.assertNotIn("email", person)
+        self.assertEqual(person["first_name"], "Jane")
+        self.assertEqual(person["last_name"], "Doe")
+        self.assertEqual(person["work_mobile"], "+14165550101")
+        self.assertEqual(person["facebook_id"], "jane.doe")
+        self.assertEqual(person["linkedin_id"], "jane-doe")
+        self.assertEqual(person["x_id"], "janedoe")
+        self.assertNotIn("first-name", person)
+        self.assertNotIn("last-name", person)
+        self.assertNotIn("work-mobile", person)
+        self.assertNotIn("facebook-id", person)
+        self.assertNotIn("linkedin-id", person)
+        self.assertNotIn("x-id", person)
 
     def test_compare_update_normalizes_legacy_email_to_emails(self):
         normalized = normalize_email_fields(

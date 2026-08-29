@@ -119,14 +119,14 @@ def extract_person_info(frontmatter, folder_slug, filepath):
 
     return {
         "slug": slug,
-        "first-name": clean_field(frontmatter.get('first_name')),
-        "last-name": clean_field(frontmatter.get('last_name')),
+        "first_name": clean_field(frontmatter.get('first_name')),
+        "last_name": clean_field(frontmatter.get('last_name')),
         "mobile": clean_field(frontmatter.get('mobile')),
-        "work-mobile": clean_field(frontmatter.get('work_mobile')),
+        "work_mobile": clean_field(frontmatter.get('work_mobile')),
         "emails": extract_emails(frontmatter),
-        "facebook-id": clean_field(frontmatter.get('facebook_id')),
-        "linkedin-id": clean_field(frontmatter.get('linkedin_id')),
-        "x-id": clean_field(frontmatter.get('x_id'))
+        "facebook_id": clean_field(frontmatter.get('facebook_id')),
+        "linkedin_id": clean_field(frontmatter.get('linkedin_id')),
+        "x_id": clean_field(frontmatter.get('x_id'))
     }
 
 def main(folder_path):
