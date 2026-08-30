@@ -9,6 +9,7 @@ from sync_person_files import (
     PersonSynchronizer, SyncStore, default_config_dir, default_dev_output_dir,
     discover_people, main, source_hash,
 )
+from text_encoding import repair_mojibake
 
 
 class SyncPersonFilesTests(unittest.TestCase):
@@ -29,6 +30,10 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(default_dev_output_dir("posix", {}), Path("/mnt/c/data/dev-output"))
         self.assertEqual(default_config_dir("posix", {}), Path("/mnt/c/data/dev-output/config"))
         self.assertEqual(default_config_dir("posix", {"HAL_MD_CONFIG_DIR": "/data/config"}), Path("/data/config"))
+
+    def test_repair_mojibake_is_available_as_shared_utility(self):
+        self.assertEqual(repair_mojibake("SecrÃ©tariat"), "Secrétariat")
+        self.assertEqual(repair_mojibake("Laurentienne Générale"), "Laurentienne Générale")
 
     def arguments(self, dry_run=False):
         return Namespace(
@@ -210,6 +215,89 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         updated = personal_path.read_text(encoding="utf-8")
         self.assertIn("first_name: Jane\n", updated)
+
+    def test_merge_adds_missing_linkedin_id_without_review(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\nlinkedin_id: jane-doe-123\n---\n",
+        )
+
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("linkedin_id: jane-doe-123\n", updated)
+        self.assertFalse(synchronizer.reviews)
+
+    def test_merge_adds_linkedin_profile_to_references_once(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## References\n\n- Personal site\n\n## Notes\n\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\nlinkedin_id: jane-doe-123\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        reference = "[LinkedIn](https://www.linkedin.com/in/jane-doe-123)"
+        self.assertIn(reference, updated)
+        self.assertEqual(updated.count(reference), 1)
+
+    def test_sync_repairs_mojibake_in_existing_and_incoming_content(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Notes\nSecrÃ©taire at Laurentienne G\u00e9n\u00e9rale\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Bio\nSecrÃ©taire\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("Secrétaire"), 2)
+        self.assertNotIn("SecrÃ©taire", updated)
+        self.assertIn("Laurentienne Générale", updated)
+
+    def test_normalize_positions_repairs_mojibake_without_incoming_files(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Notes\nSecrÃ©tariat\n",
+        )
+
+        self.assertEqual(main([
+            "--existing", str(self.personal_root),
+            "--normalize-positions",
+            "--state-dir", str(self.state_root),
+        ]), 0)
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("Secrétariat", updated)
+        self.assertNotIn("SecrÃ©tariat", updated)
 
     def test_missing_skills_is_inserted_in_template_order(self):
         personal_path = self.write_person(

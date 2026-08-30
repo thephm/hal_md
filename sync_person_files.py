@@ -20,6 +20,9 @@ from typing import Any, Iterable
 
 import yaml
 
+from markdown_cleanup import normalize_heading_spacing
+from text_encoding import repair_mojibake
+
 
 def default_dev_output_dir(platform: str | None = None, environment: dict[str, str] | None = None) -> Path:
     environment = environment if environment is not None else os.environ
@@ -158,6 +161,14 @@ def section_span(raw: str, heading: str) -> tuple[int, int] | None:
 def section_content(raw: str, heading: str) -> str:
     span = section_span(raw, heading)
     return raw[span[0]:span[1]] if span else ""
+
+
+def linkedin_profile_url(values: dict[str, Any]) -> str:
+    url = str(values.get("linkedin_url") or "").strip()
+    if url:
+        return url
+    linkedin_id = str(values.get("linkedin_id") or "").strip()
+    return f"https://www.linkedin.com/in/{linkedin_id}" if linkedin_id else ""
 
 
 def replace_section(raw: str, heading: str, content: str, insert_before_first_section: bool = False, trailing_blank_line: bool = False) -> str:
@@ -459,6 +470,20 @@ class PersonSynchronizer:
         shutil.copy2(person.path, backup)
         person.path.write_text(updated, encoding="utf-8", newline="")
 
+    def repair_mojibake_in_people(self, people: list[PersonDocument]) -> None:
+        for person in people:
+            repaired = repair_mojibake(person.raw)
+            if repaired != person.raw:
+                self.record_change(person, "text_encoding", "mojibake", "utf-8", "repaired_encoding")
+                self.backup_and_write(person, repaired)
+
+    def normalize_markdown_in_people(self, people: list[PersonDocument]) -> None:
+        for person in people:
+            normalized = normalize_heading_spacing(person.raw)
+            if normalized != person.raw:
+                self.record_change(person, "heading_spacing", "inconsistent", "normalized", "normalized_markdown")
+                self.backup_and_write(person, normalized)
+
     def conflict(self, person: PersonDocument, field: str, personal: Any, other: Any, kind: str = "contact_info") -> None:
         decision = self.store.decision(person.slug, field, other)
         if decision:
@@ -524,7 +549,10 @@ class PersonSynchronizer:
                 self.record_change(person, field, old_value, other_values[field])
         for field in CONTACT_FIELDS:
             personal, source = personal_values.get(field), other_values.get(field)
-            if source and personal != source:
+            if source and not personal:
+                raw = replace_field(document_from_raw(person.path, raw), field, source)
+                self.record_change(person, field, personal, source)
+            elif source and personal != source:
                 decision = self.store.decision(person.slug, field, source)
                 if decision == "accepted_other":
                     raw = replace_field(document_from_raw(person.path, raw), field, source)
@@ -536,6 +564,12 @@ class PersonSynchronizer:
         birthday, source_birthday = str(personal_values.get("birthday") or ""), str(other_values.get("birthday") or "")
         if birthday and source_birthday and shared_month(birthday) != shared_month(source_birthday):
             self.conflict(person, "birthday", birthday, source_birthday, "birthday_mismatch")
+        profile_url = linkedin_profile_url(other_values)
+        references = section_content(raw, "## References")
+        if profile_url and profile_url not in references:
+            references = f"{references.rstrip()}\n\n[LinkedIn]({profile_url})"
+            raw = replace_section(raw, "## References", references, trailing_blank_line=True)
+            self.record_change(person, "References", section_content(person.raw, "## References"), references)
         personal_bio, other_bio = section_content(raw, "## Bio").strip(), section_content(other.raw, "## Bio").strip()
         if other_bio:
             if not personal_bio or difflib.SequenceMatcher(None, personal_bio, other_bio).ratio() >= self.args.bio_similarity:
@@ -565,6 +599,9 @@ class PersonSynchronizer:
         self.changes.append({"date": timestamp.date().isoformat(), "time": timestamp.strftime("%H:%M:%S"), "slug": slug, "name": other.name, "path": str(target), "action": "created_file", "field": "file", "old_value": "", "new_value": str(other.path)})
 
     def match_and_sync(self, personal: list[PersonDocument], other: list[PersonDocument], blocked_existing_slugs: set[str] | None = None, known_existing_slugs: set[str] | None = None) -> None:
+        original_personal = personal
+        personal = [document_from_raw(person.path, repair_mojibake(person.raw)) for person in personal]
+        other = [document_from_raw(person.path, repair_mojibake(person.raw)) for person in other]
         by_slug, by_linkedin = {person.slug: person for person in personal}, {str(person.frontmatter.get("linkedin_id")): person for person in personal if person.frontmatter.get("linkedin_id")}
         persisted_paths = {
             str(Path(entry.get("other_path", "")).resolve()): by_slug[slug]
@@ -608,6 +645,8 @@ class PersonSynchronizer:
                 self.matches.append({"other": str(source.path), "status": "other_only_created"})
         for person in personal:
             if person.slug not in matched_personal:
+                original = next(original for original in original_personal if original.path == person.path)
+                self.backup_and_write(original, person.raw)
                 self.matches.append({"slug": person.slug, "status": "personal_only"})
 
     def normalize_positions(self, people: list[PersonDocument]) -> None:
@@ -789,6 +828,14 @@ def main(argv: list[str] | None = None) -> int:
         logging.error("Skipping duplicate personal slugs: %s", ", ".join(duplicates))
         personal = [person for person in personal if person.slug not in duplicates]
     synchronizer = PersonSynchronizer(args)
+    synchronizer.repair_mojibake_in_people(personal)
+    if not args.dry_run:
+        discovered_existing = discover_people(Path(args.existing))
+        personal = scope_people(discovered_existing, args)
+    synchronizer.normalize_markdown_in_people(personal)
+    if not args.dry_run:
+        discovered_existing = discover_people(Path(args.existing))
+        personal = scope_people(discovered_existing, args)
     if args.incoming:
         other = discover_people(Path(args.incoming))
         requested_tags = split_csv_values(args.tag)
