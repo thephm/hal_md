@@ -24,6 +24,7 @@ Options:
 import argparse
 import csv
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -31,6 +32,10 @@ from pathlib import Path
 import yaml
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?\n)---\s*\n", re.DOTALL)
+DEFAULT_SKILLS_PATH = str(Path(os.environ.get(
+    "HAL_MD_CONFIG_DIR",
+    (r"C:\data\dev-output\config" if os.name == "nt" else "/mnt/c/data/dev-output/config"),
+)) / "skills.json")
 
 
 def extract_frontmatter(text: str) -> dict:
@@ -63,13 +68,40 @@ def slugify(text: str) -> str:
     return slug.strip("-") or "skill"
 
 
+def load_skill_groups(path: Path) -> tuple[dict, bool]:
+    """Load the supported flat or {"skills": {...}} registry shapes."""
+    if not path.exists():
+        return {}, False
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    if "skills" in data:
+        if not isinstance(data["skills"], dict):
+            raise ValueError(f"{path} has a non-object 'skills' field")
+        return data["skills"], True
+    return data, False
+
+
+def merge_skill_groups(groups: dict, skills: list[str]) -> None:
+    for skill in skills:
+        bucket = groups.setdefault(slugify(skill), [])
+        if isinstance(bucket, str):
+            bucket = [bucket]
+            groups[slugify(skill)] = bucket
+        if not isinstance(bucket, list):
+            raise ValueError(f"Invalid aliases for skill '{slugify(skill)}'")
+        if skill not in bucket:
+            bucket.append(skill)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Extract skills from hal_md Person markdown files into skills.json"
     )
     parser.add_argument("--folder", required=True, help="Root folder to search for .md files")
     parser.add_argument("--field", default="skills", help="Frontmatter field name (default: skills)")
-    parser.add_argument("--output", default="skills.json", help="Output JSON path (default: skills.json)")
+    parser.add_argument("--output", default=DEFAULT_SKILLS_PATH,
+                        help=f"Output JSON path (default: {DEFAULT_SKILLS_PATH})")
     parser.add_argument("--report", help="Optional CSV path: skill,file for traceability")
     args = parser.parse_args()
 
@@ -81,7 +113,11 @@ def main():
     if not md_files:
         sys.exit(f"No .md files found under {root}")
 
-    groups = {}   # slug -> list of raw skill strings seen for that slug
+    out_path = Path(args.output)
+    try:
+        groups, wrapped = load_skill_groups(out_path)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        sys.exit(f"Could not load {out_path}: {error}")
     rows = []     # for the optional traceability report
 
     files_scanned = 0
@@ -104,18 +140,16 @@ def main():
             continue
 
         files_with_skills += 1
+        merge_skill_groups(groups, skills)
         for skill in skills:
-            slug = slugify(skill)
-            bucket = groups.setdefault(slug, [])
-            if skill not in bucket:
-                bucket.append(skill)
             rows.append((skill, str(path)))
 
     # sort keys and values for stable, diffable output
-    ordered = {k: sorted(set(v)) for k, v in sorted(groups.items())}
+    ordered = {key: sorted(set(values)) for key, values in sorted(groups.items())}
 
-    out_path = Path(args.output)
-    out_path.write_text(json.dumps(ordered, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    output_data = {"skills": ordered} if wrapped else ordered
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(output_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     if args.report:
         report_path = Path(args.report)

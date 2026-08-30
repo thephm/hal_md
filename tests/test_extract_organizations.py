@@ -26,6 +26,26 @@ class ExtractOrganizationsTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(organizations[0]["people"], [])
 
+    def test_wheelabrator_variants_are_canonicalized_as_aliases(self):
+        organizations = [
+            {
+                "name": "Wheelabrator Group",
+                "slug": "wheelabrator-group",
+                "aliases": [],
+                "people": [],
+            }
+        ]
+
+        eo.normalize_existing_record(organizations[0])
+        result = eo.ensure_organization(organizations, "Wheelabrator Canada")
+
+        self.assertIs(result, organizations[0])
+        self.assertEqual(organizations[0]["name"], "Wheelabrator")
+        self.assertEqual(
+            organizations[0]["aliases"],
+            ["Wheelabrator Group", "Wheelabrator Canada"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -21,13 +21,31 @@ from typing import Any, Iterable
 import yaml
 
 
-DEFAULT_STATE_DIR = r"C:\data\dev-output\people_sync_state"
+def default_dev_output_dir(platform: str | None = None, environment: dict[str, str] | None = None) -> Path:
+    environment = environment if environment is not None else os.environ
+    default = r"C:\data\dev-output" if (platform or os.name) == "nt" else "/mnt/c/data/dev-output"
+    return Path(environment.get("HAL_MD_DEV_OUTPUT_DIR", default))
+
+
+def default_config_dir(platform: str | None = None, environment: dict[str, str] | None = None) -> Path:
+    environment = environment if environment is not None else os.environ
+    return Path(environment.get("HAL_MD_CONFIG_DIR", default_dev_output_dir(platform, environment) / "config"))
+
+
+DEFAULT_STATE_DIR = default_dev_output_dir() / "people_sync_state"
+DEFAULT_ORGANIZATIONS_PATH = default_config_dir() / "organizations.json"
 CONTACT_FIELDS = ("mobile", "emails", "linkedin_id")
+FRONTMATTER_FIELD_ORDER = (
+    "tags", "first_name", "last_name", "aliases", "slug", "birthday", "title",
+    "skills", "interests", "organizations", "url", "email", "mobile", "phone",
+    "x_id", "linkedin_id", "linkedin_url", "city", "province", "country",
+)
 H2_PATTERN = re.compile(r"(?m)^## [^\r\n]+\r?$")
 DATE_PATTERN = re.compile(r"\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b")
 DATED_FILE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}(?:\D.*)?\.md$", re.I)
 WIKILINK_DATE_PATTERN = re.compile(r"!\[\[[^\]]*/(\d{4}-\d{2}-\d{2})\.md\]\]")
 INLINE_DATE_PATTERN = re.compile(r"(?m)^\s*[-*]?\s*(\d{4}-\d{2}-\d{2}):")
+CHANGE_REPORT_FIELDS = ("date", "time", "action", "field", "name", "old_value", "new_value", "path", "slug")
 
 
 @dataclass
@@ -142,9 +160,9 @@ def section_content(raw: str, heading: str) -> str:
     return raw[span[0]:span[1]] if span else ""
 
 
-def replace_section(raw: str, heading: str, content: str, insert_before_first_section: bool = False) -> str:
+def replace_section(raw: str, heading: str, content: str, insert_before_first_section: bool = False, trailing_blank_line: bool = False) -> str:
     line_end = "\r\n" if "\r\n" in raw else "\n"
-    content = line_end + content.rstrip("\r\n") + line_end
+    content = line_end + content.rstrip("\r\n") + line_end * (2 if trailing_blank_line else 1)
     span = section_span(raw, heading)
     if span:
         return raw[:span[0]] + content + raw[span[1]:]
@@ -193,7 +211,19 @@ def replace_field(document: PersonDocument, field: str, value: Any) -> str:
     if span:
         return document.raw[:span[0]] + replacement + document.raw[span[1]:]
     closing_start = document.raw.rfind("---", document.frontmatter_start, document.frontmatter_end)
-    insert_at = closing_start
+    try:
+        field_index = FRONTMATTER_FIELD_ORDER.index(field)
+    except ValueError:
+        return document.raw[:closing_start] + replacement + document.raw[closing_start:]
+    later_fields = FRONTMATTER_FIELD_ORDER[field_index + 1:]
+    insert_at = next(
+        (span[0] for candidate in later_fields if (span := field_span(document, candidate))),
+        None,
+    )
+    if insert_at is None:
+        earlier_fields = FRONTMATTER_FIELD_ORDER[:field_index]
+        previous_spans = [field_span(document, candidate) for candidate in earlier_fields]
+        insert_at = next((span[1] for span in reversed(previous_spans) if span), closing_start)
     return document.raw[:insert_at] + replacement + document.raw[insert_at:]
 
 
@@ -239,11 +269,61 @@ def normalized_position_organization(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", ascii_value.casefold())
 
 
-def position_organization(block: str) -> str:
+def load_organization_aliases(path: Path) -> dict[str, str]:
+    """Map organization names and aliases to their canonical registry display name."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        logging.warning("Could not load organization aliases from %s: %s", path, error)
+        return {}
+    records = data.get("organizations", []) if isinstance(data, dict) else data
+    if not isinstance(records, list):
+        logging.warning("Ignoring organization aliases with unexpected structure: %s", path)
+        return {}
+    aliases: dict[str, str] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        canonical = str(record.get("name") or record.get("organization") or "").strip()
+        if not canonical:
+            continue
+        values = [record.get("name"), *(record.get("aliases") or [])]
+        for value in values:
+            key = normalized_position_organization(str(value or ""))
+            if key:
+                aliases[key] = canonical
+    return aliases
+
+
+def position_organization(block: str, aliases: dict[str, str] | None = None) -> str:
     first_line = block.splitlines()[0] if block else ""
     links = re.findall(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]|\[([^\]]+)\]\([^)]*\)", first_line)
     links = [wikilink or markdown_link for wikilink, markdown_link in links]
-    return normalized_position_organization(links[0]) if links else ""
+    organization = normalized_position_organization(links[0]) if links else ""
+    return normalized_position_organization((aliases or {}).get(organization, organization))
+
+
+def normalize_position_organization_link(block: str, aliases: dict[str, str]) -> str:
+    """Replace a recognized position organization link with its canonical Wikilink."""
+    match = re.search(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]|\[([^\]]+)\]\([^)]*\)", block)
+    if not match:
+        return block
+    organization = normalized_position_organization(match.group(1) or match.group(2))
+    canonical = aliases.get(organization)
+    if not canonical:
+        return block
+    return block[:match.start()] + f"[[{canonical}]]" + block[match.end():]
+
+
+def position_title(block: str) -> str:
+    first_line = block.splitlines()[0] if block else ""
+    title = re.split(r"\[\[[^\]]+\]\]|\[[^\]]+\]\([^)]*\)", first_line, maxsplit=1)[0]
+    return normalized_position_organization(title)
+
+
+def is_undated_education(block: str) -> bool:
+    first_line = block.splitlines()[0] if block else ""
+    return not position_dates(block) and bool(re.search(r"\b(?:b\.?sc|m\.?sc|bachelor|master|ph\.?d|diploma|certificate)\b", first_line, re.I))
 
 
 def position_dates(block: str) -> list[str]:
@@ -267,9 +347,36 @@ def quoted_description(block: str) -> list[str]:
 
 
 def sort_position_blocks(blocks: list[str]) -> list[str]:
-    indexed_blocks = list(enumerate(blocks))
-    indexed_blocks.sort(key=lambda item: (position_dates(item[1])[0] if position_dates(item[1]) else "9999-99-99", item[0]))
-    return [block for _, block in indexed_blocks]
+    dated_blocks = sorted(
+        (block for block in blocks if position_dates(block)),
+        key=lambda block: position_dates(block)[0],
+    )
+    dated_iterator = iter(dated_blocks)
+    return [next(dated_iterator) if position_dates(block) else block for block in blocks]
+
+
+def normalize_single_bullet_description(block: str) -> str:
+    bullet_lines = list(re.finditer(r"(?m)^(?P<prefix>[ \t]*>)[ \t]*-[ \t]*(?P<text>.+)\r?$", block))
+    return bullet_lines[0].group("prefix") + " " + bullet_lines[0].group("text") + block[bullet_lines[0].end():] if len(bullet_lines) == 1 else block
+
+
+def deduplicate_position_blocks(blocks: list[str], aliases: dict[str, str]) -> list[str]:
+    deduplicated: list[str] = []
+    for block in blocks:
+        normalized = normalize_position_organization_link(block, aliases)
+        duplicate = any(
+            existing.strip() == normalized.strip()
+            or (
+                position_title(existing) == position_title(normalized)
+                and position_organization(existing, aliases)
+                and position_organization(existing, aliases) == position_organization(normalized, aliases)
+                and dates_overlap(position_dates(existing), position_dates(normalized))
+            )
+            for existing in deduplicated
+        )
+        if not duplicate:
+            deduplicated.append(normalized)
+    return deduplicated
 
 
 class SyncStore:
@@ -310,6 +417,7 @@ class SyncStore:
 class PersonSynchronizer:
     def __init__(self, args: argparse.Namespace):
         self.args = args
+        self.organization_aliases = load_organization_aliases(Path(getattr(args, "organizations_config", DEFAULT_ORGANIZATIONS_PATH)))
         self.store = SyncStore(Path(args.state_dir), args.dry_run)
         self.changes: list[dict[str, Any]] = []
         self.reviews: list[dict[str, Any]] = []
@@ -319,7 +427,10 @@ class PersonSynchronizer:
     def record_change(self, person: PersonDocument, field: str, old_value: Any, new_value: Any, action: str = "updated") -> None:
         if old_value == new_value:
             return
+        timestamp = dt.datetime.now()
         self.changes.append({
+            "date": timestamp.date().isoformat(),
+            "time": timestamp.strftime("%H:%M:%S"),
             "slug": person.slug,
             "name": person.name,
             "path": str(person.path),
@@ -334,6 +445,8 @@ class PersonSynchronizer:
             return
         if self.args.dry_run:
             return
+        updated_document = document_from_raw(person.path, updated)
+        updated = replace_field(updated_document, "last_updated", dt.date.today())
         backup_root = Path(self.args.state_dir) / "backups" / dt.date.today().isoformat()
         backup_root.mkdir(parents=True, exist_ok=True)
         filename = f"{safe_filename(person.name)}.md"
@@ -357,11 +470,22 @@ class PersonSynchronizer:
 
     def merge_positions(self, person: PersonDocument, other: PersonDocument, raw: str) -> str:
         personal_content, other_content = section_content(raw, "## Positions"), section_content(other.raw, "## Positions")
-        personal_blocks, other_blocks = position_blocks(personal_content), position_blocks(other_content)
+        personal_blocks = deduplicate_position_blocks(position_blocks(personal_content), self.organization_aliases)
+        other_blocks = [normalize_position_organization_link(block, self.organization_aliases) for block in position_blocks(other_content)]
         used: set[int] = set()
         for other_block in other_blocks:
-            organization, other_dates = position_organization(other_block), position_dates(other_block)
-            matched_index = next((index for index, block in enumerate(personal_blocks) if index not in used and organization and position_organization(block) == organization and dates_overlap(position_dates(block), other_dates)), None)
+            organization, other_dates = position_organization(other_block, self.organization_aliases), position_dates(other_block)
+            other_title = position_title(other_block)
+            matched_index = next(
+                (
+                    index for index, block in enumerate(personal_blocks)
+                    if index not in used and (
+                        organization and position_organization(block, self.organization_aliases) == organization and dates_overlap(position_dates(block), other_dates)
+                        or is_undated_education(block) and is_undated_education(other_block) and position_title(block) == other_title
+                    )
+                ),
+                None,
+            )
             if matched_index is None:
                 personal_blocks.append(other_block)
                 continue
@@ -377,8 +501,9 @@ class PersonSynchronizer:
                 line_end = "\r\n" if "\r\n" in raw else "\n"
                 append = line_end + line_end.join(f"  {line.lstrip()}" for line in quoted_description(other_block)) + line_end
                 personal_blocks[matched_index] = personal_block.rstrip("\r\n") + append
-        merged = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(personal_blocks))
-        return replace_section(raw, "## Positions", merged)
+        merged_blocks = deduplicate_position_blocks(personal_blocks, self.organization_aliases)
+        merged = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(merged_blocks))
+        return replace_section(raw, "## Positions", merged, trailing_blank_line=True)
 
     def merge_pair(self, person: PersonDocument, other: PersonDocument) -> None:
         raw = person.raw
@@ -436,7 +561,8 @@ class PersonSynchronizer:
             folder.mkdir(parents=True, exist_ok=True)
             target.write_text(raw, encoding="utf-8", newline="")
         self.store.matches[slug] = {"other_path": str(other.path), "method": "created", "updated_at": dt.datetime.now().isoformat()}
-        self.changes.append({"slug": slug, "name": other.name, "path": str(target), "action": "created_file", "field": "file", "old_value": "", "new_value": str(other.path)})
+        timestamp = dt.datetime.now()
+        self.changes.append({"date": timestamp.date().isoformat(), "time": timestamp.strftime("%H:%M:%S"), "slug": slug, "name": other.name, "path": str(target), "action": "created_file", "field": "file", "old_value": "", "new_value": str(other.path)})
 
     def match_and_sync(self, personal: list[PersonDocument], other: list[PersonDocument], blocked_existing_slugs: set[str] | None = None, known_existing_slugs: set[str] | None = None) -> None:
         by_slug, by_linkedin = {person.slug: person for person in personal}, {str(person.frontmatter.get("linkedin_id")): person for person in personal if person.frontmatter.get("linkedin_id")}
@@ -489,13 +615,27 @@ class PersonSynchronizer:
         for person in people:
             def convert(match: re.Match[str]) -> str:
                 line_end = "\r\n" if "\r\n" in match.group(0) else "\n"
-                text = [line.strip() for line in match.group("body").splitlines()]
-                quoted = "".join(f"  > - {line}{line_end}" for line in text if line)
+                paragraphs: list[str] = []
+                lines: list[str] = []
+                for line in match.group("body").splitlines():
+                    text = line.strip()
+                    if text:
+                        lines.append(text)
+                    elif lines:
+                        paragraphs.append(" ".join(lines))
+                        lines = []
+                if lines:
+                    paragraphs.append(" ".join(lines))
+                if len(paragraphs) == 1:
+                    quoted = f"  > {paragraphs[0]}{line_end}"
+                else:
+                    quoted = "".join(f"  > - {paragraph}{line_end}" for paragraph in paragraphs)
                 return match.group("bullet") + (match.group("blank") or line_end) + quoted
             positions = section_content(person.raw, "## Positions")
             normalized = pattern.sub(convert, positions)
-            ordered = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(position_blocks(normalized)))
-            updated = replace_section(person.raw, "## Positions", ordered) if positions else person.raw
+            blocks = [normalize_single_bullet_description(block) for block in position_blocks(normalized)]
+            ordered = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(blocks))
+            updated = replace_section(person.raw, "## Positions", ordered, trailing_blank_line=True) if positions else person.raw
             self.record_change(person, "Positions", positions, section_content(updated, "## Positions"), "normalized_positions")
             self.backup_and_write(person, updated)
 
@@ -518,7 +658,7 @@ class PersonSynchronizer:
                 if change_date < cutoff:
                     continue
                 title = block.splitlines()[0][2:] if block.splitlines() else ""
-                organization = position_organization(block)
+                organization = position_organization(block, self.organization_aliases)
                 change_type = "education" if re.search(r"\b(degree|university|college|school|certificate|education)\b", title, re.I) else "job"
                 last_interaction = max((value for value in interaction_dates if value >= change_date), default=None)
                 if last_interaction:
@@ -531,8 +671,13 @@ class PersonSynchronizer:
         state_root.mkdir(parents=True, exist_ok=True)
         changes_report = "changes_proposed.csv" if self.args.dry_run else "changes_applied.csv"
         for name, rows in (("match_report.csv", self.matches), ("manual_review.csv", self.reviews), (changes_report, self.changes), ("reconnect_with.csv", self.reconnect_rows(people))):
-            keys = ("action", "field", "name", "old_value", "new_value", "path", "slug") if name == changes_report else sorted({key for row in rows for key in row}) or ["status"]
-            with (state_root / name).open("w", newline="", encoding="utf-8") as file:
+            keys = CHANGE_REPORT_FIELDS if name == changes_report else sorted({key for row in rows for key in row}) or ["status"]
+            report_path = state_root / name
+            if name == "changes_applied.csv" and report_path.exists():
+                with report_path.open(newline="", encoding="utf-8") as file:
+                    existing_rows = list(csv.DictReader(file))
+                rows = [*existing_rows, *rows]
+            with report_path.open("w", newline="", encoding="utf-8") as file:
                 writer = csv.DictWriter(file, fieldnames=keys)
                 writer.writeheader()
                 writer.writerows(rows)
@@ -605,6 +750,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-e", "--existing", help="Existing Person-file folder, modified in place")
     parser.add_argument("-i", "--incoming", help="Read-only Person-file folder to merge from")
     parser.add_argument("-t", "--state-dir", default=DEFAULT_STATE_DIR)
+    parser.add_argument("--organizations-config", default=str(DEFAULT_ORGANIZATIONS_PATH), help="Organization registry used to resolve position aliases")
     parser.add_argument("-c", "--config", help="Optional JSON configuration")
     parser.add_argument("--editor")
     parser.add_argument("-d", "--debug", action="store_true")

@@ -82,10 +82,19 @@ import yaml
 # ---------------------------------------------------------------------------
 
 ORGANIZATIONS_FILENAME = 'organizations.json'
+DEFAULT_CONFIG_DIR = os.environ.get(
+    'HAL_MD_CONFIG_DIR',
+    (r'C:\data\dev-output\config' if os.name == 'nt' else '/mnt/c/data/dev-output/config'),
+)
 MAX_ORGANIZATION_NAME_WORDS = 10
 
 CANONICAL_ORGANIZATION_NAMES = {
     'school of continuing studies': 'McGill University',
+    'wheelabrator canada': 'Wheelabrator',
+    'wheelabrator group': 'Wheelabrator',
+}
+CANONICAL_ORGANIZATION_ALIASES = {
+    'wheelabrator': ('Wheelabrator Group', 'Wheelabrator Canada'),
 }
 
 IGNORED_ORGANIZATION_NAMES = {
@@ -477,13 +486,19 @@ def normalize_existing_record(org, preferred_name=None):
     if preferred_name:
         preferred_name = preferred_name.strip()
 
-    if 'name' not in org:
-        org['name'] = preferred_name or current_name
+    canonical_name = canonicalize_organization_name(preferred_name or current_name)
+    if canonical_name:
+        org['name'] = canonical_name
 
     if 'organization' in org:
         org.pop('organization', None)
 
     org.setdefault('aliases', [])
+    if current_name and current_name.casefold() != canonical_name.casefold() and current_name not in org['aliases']:
+        org['aliases'].append(current_name)
+    for alias in CANONICAL_ORGANIZATION_ALIASES.get(canonical_name.casefold(), ()):
+        if alias not in org['aliases']:
+            org['aliases'].append(alias)
     org.setdefault('url', '')
     org.setdefault('linkedin_id', '')
     org.setdefault('x_id', '')
@@ -672,8 +687,8 @@ def main():
     )
     parser.add_argument('-s', '--source', required=True,
                          help='Folder to recursively scan for Person markdown files')
-    parser.add_argument('-c', '--config', required=True,
-                         help='Folder containing (or to contain) organizations.json')
+    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG_DIR,
+                         help=f'Folder containing (or to contain) organizations.json (default: {DEFAULT_CONFIG_DIR})')
     parser.add_argument('-d', '--debug', action='store_true',
                          help='Print extra info as files/bullets/aliases are processed')
     parser.add_argument('-v', '--verbose', action='store_true',

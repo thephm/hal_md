@@ -1,10 +1,14 @@
 import datetime as dt
+import csv
 import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
 
-from sync_person_files import PersonSynchronizer, SyncStore, discover_people, main, source_hash
+from sync_person_files import (
+    PersonSynchronizer, SyncStore, default_config_dir, default_dev_output_dir,
+    discover_people, main, source_hash,
+)
 
 
 class SyncPersonFilesTests(unittest.TestCase):
@@ -19,6 +23,12 @@ class SyncPersonFilesTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp_directory.cleanup()
+
+    def test_default_registry_paths_support_windows_and_wsl(self):
+        self.assertEqual(default_dev_output_dir("nt", {}), Path(r"C:\data\dev-output"))
+        self.assertEqual(default_dev_output_dir("posix", {}), Path("/mnt/c/data/dev-output"))
+        self.assertEqual(default_config_dir("posix", {}), Path("/mnt/c/data/dev-output/config"))
+        self.assertEqual(default_config_dir("posix", {"HAL_MD_CONFIG_DIR": "/data/config"}), Path("/data/config"))
 
     def arguments(self, dry_run=False):
         return Namespace(
@@ -58,6 +68,31 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(skills_change["old_value"], '["Python"]')
         self.assertEqual(skills_change["new_value"], '["Python", "Rust"]')
 
+    def test_merge_updates_last_updated_only_when_content_changes(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\nlast_updated: 2020-01-01\nskills:\n  - Python\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\nskills:\n  - Python\n  - Rust\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn(f"last_updated: {dt.date.today().isoformat()}\n", updated)
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        self.assertEqual(personal_path.read_text(encoding="utf-8"), updated)
+
     def test_normalize_positions_converts_only_fenced_description(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -69,10 +104,36 @@ class SyncPersonFilesTests(unittest.TestCase):
         synchronizer.normalize_positions(discover_people(self.personal_root))
 
         updated = personal_path.read_text(encoding="utf-8")
-        self.assertIn("  > - Built systems\n  > - Led projects\n", updated)
-        self.assertIn("  > - Managed teams\n", updated)
+        self.assertIn("  > Built systems Led projects\n", updated)
+        self.assertIn("  > Managed teams\n", updated)
         self.assertNotIn("```", updated.split("## Notes", 1)[0])
         self.assertIn("## Notes\n- A code sample\n\n  ```\n  remain unchanged\n  ```\n", updated)
+
+    def test_normalize_positions_renders_single_paragraph_without_bullet(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2024-01\n```\nDesigned systems\nand led projects.\n```\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("  > Designed systems and led projects.\n", updated)
+        self.assertNotIn("  > - Designed systems", updated)
+
+    def test_normalize_positions_removes_legacy_single_bullet_description(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2024-01\n\n  > - Designed systems.\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("  > Designed systems.\n", updated)
+        self.assertNotIn("  > - Designed systems.", updated)
 
     def test_normalize_positions_orders_entries_chronologically(self):
         personal_path = self.write_person(
@@ -85,6 +146,25 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         updated = personal_path.read_text(encoding="utf-8")
         self.assertLess(updated.index("Engineer, [[Acme]], 2023-01"), updated.index("Manager, [[Acme]], 2024-01"))
+
+    def test_normalize_positions_leaves_undated_entries_in_place(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- The world of hard knocks - tough experience, [[Swansea University / Prifysgol Abertawe]]\n- B.Sc - Economics, [[Swansea University]]\n- Manager, [[Acme]], 2024-01\n- Engineer, [[Acme]], 2023-01\n## Notes\nKeep this note.\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        hard_knocks = "The world of hard knocks - tough experience"
+        economics = "B.Sc - Economics"
+        engineer = "Engineer, [[Acme]], 2023-01"
+        manager = "Manager, [[Acme]], 2024-01"
+        self.assertLess(updated.index(hard_knocks), updated.index(economics))
+        self.assertLess(updated.index(economics), updated.index(engineer))
+        self.assertLess(updated.index(engineer), updated.index(manager))
+        self.assertIn("- Manager, [[Acme]], 2024-01\n\n## Notes", updated)
 
     def test_combined_merge_and_normalize_imports_skills_and_bio(self):
         personal_path = self.write_person(
@@ -129,7 +209,27 @@ class SyncPersonFilesTests(unittest.TestCase):
         )
 
         updated = personal_path.read_text(encoding="utf-8")
-        self.assertIn("first_name: Jane\n---\n", updated)
+        self.assertIn("first_name: Jane\n", updated)
+
+    def test_missing_skills_is_inserted_in_template_order(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nfirst_name: Jane\nlast_name: Doe\nprivate_field: preserve\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nfirst_name: Jane\nlast_name: Doe\nskills:\n  - Python\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertLess(updated.index("last_name: Doe"), updated.index("skills:"))
+        self.assertLess(updated.index("skills:"), updated.index("private_field: preserve"))
 
     def test_merge_inserts_missing_bio_after_optional_photo(self):
         personal_path = self.write_person(
@@ -209,6 +309,94 @@ class SyncPersonFilesTests(unittest.TestCase):
         updated = personal_path.read_text(encoding="utf-8")
         self.assertEqual(updated.count("Information Officer"), 1)
 
+    def test_position_matches_organization_registry_aliases(self):
+        registry_path = self.root / "organizations.json"
+        registry_path.write_text(
+            '[{"name": "Wheelabrator", "aliases": ["Wheelabrator Group", "Wheelabrator Canada"]}]',
+            encoding="utf-8",
+        )
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Assistant Controller, [[Wheelabrator Group]], 1974-01 to 1980-01\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Assistant Controller, [[Wheelabrator Canada]], 1974-01 to 1980-01\n",
+        )
+        args = self.arguments()
+        args.organizations_config = str(registry_path)
+
+        PersonSynchronizer(args).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        self.assertEqual(personal_path.read_text(encoding="utf-8").count("Assistant Controller"), 1)
+
+    def test_existing_equivalent_organization_alias_positions_are_deduplicated(self):
+        registry_path = self.root / "organizations.json"
+        registry_path.write_text(
+            '[{"name": "Wheelabrator", "aliases": ["Wheelabrator Group", "Wheelabrator Canada"]}]',
+            encoding="utf-8",
+        )
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Assistant Controller, [Wheelabrator Group](Wheelabrator Group), 1974-01 to 1980-01\n- Assistant Controller, [Wheelabrator Canada](Wheelabrator Canada), 1974-01 to 1980-01\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+        args = self.arguments()
+        args.organizations_config = str(registry_path)
+
+        PersonSynchronizer(args).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("Assistant Controller"), 1)
+        self.assertIn("[[Wheelabrator]]", updated)
+
+    def test_undated_equivalent_education_positions_are_merged(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- B.Sc - Economics, [Swansea University](Swansea University)\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- B.Sc, Economics, [University of Wales](University of Wales), Swansea, Wales\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        self.assertEqual(personal_path.read_text(encoding="utf-8").count("B.Sc"), 1)
+
+    def test_identical_undated_positions_are_not_appended_from_incoming(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Independent consultant, [[Acme]]\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Independent consultant, [[Acme]]\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        self.assertEqual(personal_path.read_text(encoding="utf-8").count("Independent consultant"), 1)
+
     def test_other_only_person_is_created_in_folder_per_person_layout(self):
         self.write_person(
             self.other_root,
@@ -261,6 +449,26 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         self.assertTrue((self.state_root / "changes_proposed.csv").exists())
         self.assertTrue((self.state_root / "changes_applied.csv").exists())
+
+    def test_applied_changes_report_appends_timestamped_rows(self):
+        person_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+        person = discover_people(self.personal_root)[0]
+        first = PersonSynchronizer(self.arguments())
+        first.record_change(person, "skills", [], ["Python"])
+        first.write_reports([])
+        second = PersonSynchronizer(self.arguments())
+        second.record_change(person, "Bio", "", "A software engineer.")
+        second.write_reports([])
+
+        with (self.state_root / "changes_applied.csv").open(newline="", encoding="utf-8") as file:
+            rows = list(csv.DictReader(file))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual([row["field"] for row in rows], ["skills", "Bio"])
+        self.assertTrue(all(row["date"] and row["time"] for row in rows))
 
     def test_reconnect_report_flags_recent_position_without_interaction(self):
         recent_date = (dt.date.today() - dt.timedelta(days=7)).isoformat()

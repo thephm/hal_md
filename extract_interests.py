@@ -65,6 +65,10 @@ DATED_FILE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$", re.IGNORECASE)
 MEDIA_FOLDER_NAME = "media"
 INTERESTS_FILENAME = "interests.json"
 FIELD_INTERESTS = "interests"
+DEFAULT_CONFIG_DIR = os.environ.get(
+    "HAL_MD_CONFIG_DIR",
+    (r"C:\data\dev-output\config" if os.name == "nt" else "/mnt/c/data/dev-output/config"),
+)
 
 
 def is_dated_file(filename):
@@ -144,6 +148,14 @@ def slug_to_name(slug):
          "volleyball"      -> "Volleyball"
     """
     return slug.replace("-", " ").replace("_", " ").strip().title()
+
+
+def new_interest(slug):
+    return {
+        "name": slug_to_name(slug),
+        "slug": slug,
+        "aliases": [],
+    }
 
 
 def find_markdown_files_in(start_dir, source_dir, debug=False):
@@ -247,7 +259,8 @@ def main():
         description="Scan .md files for 'interests' slugs and update interests.json"
     )
     parser.add_argument("-s", "--source", required=True, help="Folder to recursively scan for .md files")
-    parser.add_argument("-c", "--config", required=True, help="Folder containing (or to contain) interests.json")
+    parser.add_argument("-c", "--config", default=DEFAULT_CONFIG_DIR,
+                        help=f"Folder containing (or to contain) interests.json (default: {DEFAULT_CONFIG_DIR})")
     parser.add_argument("-x", "--max", type=int, default=None, help="Maximum number of person slug folders to scan")
     parser.add_argument("-n", "--dry-run", action="store_true", help="Show what would change without writing the file")
     parser.add_argument("-d", "--debug", action="store_true", help="Print extra info while processing")
@@ -284,11 +297,7 @@ def main():
     new_slugs = sorted(found_slugs - existing_slugs)
 
     for slug in new_slugs:
-        interests.append({
-            "name": slug_to_name(slug),
-            "slug": slug,
-            "alias_slugs": [],
-        })
+        interests.append(new_interest(slug))
 
     interests.sort(key=lambda entry: entry.get("name", "").lower())
 
