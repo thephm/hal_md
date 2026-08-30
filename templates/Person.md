@@ -20,7 +20,6 @@ mobile:
 phone: 
 x_id: 
 linkedin_id: 
-linkedin_url:
 city: 
 province: 
 country: 
@@ -32,9 +31,9 @@ country:
 
 > 
 
-## Quotes
+## References
 
-> 
+1.
 
 ## Life Events
 
@@ -43,10 +42,6 @@ country:
 ## People
 
 - 
-
-## References
-
-1.
 
 ## Positions
 

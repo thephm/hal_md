@@ -43,6 +43,7 @@ FRONTMATTER_FIELD_ORDER = (
     "skills", "interests", "organizations", "url", "email", "mobile", "phone",
     "x_id", "linkedin_id", "linkedin_url", "city", "province", "country",
 )
+SECTION_ORDER = ("## Bio", "## References", "## Life Events", "## People", "## Positions", "## Notes")
 H2_PATTERN = re.compile(r"(?m)^## [^\r\n]+\r?$")
 DATE_PATTERN = re.compile(r"\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b")
 DATED_FILE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}(?:\D.*)?\.md$", re.I)
@@ -181,6 +182,17 @@ def replace_section(raw: str, heading: str, content: str, insert_before_first_se
         first_section = H2_PATTERN.search(raw)
         if first_section:
             return raw[:first_section.start()] + heading + line_end + content + line_end + raw[first_section.start():]
+    try:
+        later_sections = SECTION_ORDER[SECTION_ORDER.index(heading) + 1:]
+    except ValueError:
+        later_sections = ()
+    insert_at = next(
+        (match.start() for candidate in later_sections if (match := re.search(rf"(?m)^{re.escape(candidate)}\r?$", raw))),
+        None,
+    )
+    if insert_at is not None:
+        separator = "" if trailing_blank_line else line_end
+        return raw[:insert_at] + heading + line_end + content + separator + raw[insert_at:]
     separator = "" if raw.endswith(("\n", "\r")) else line_end
     return raw + separator + line_end + heading + line_end + content
 
@@ -567,7 +579,9 @@ class PersonSynchronizer:
         profile_url = linkedin_profile_url(other_values)
         references = section_content(raw, "## References")
         if profile_url and profile_url not in references:
-            references = f"{references.rstrip()}\n\n[LinkedIn]({profile_url})"
+            reference_number = max((int(value) for value in re.findall(r"(?m)^\s*(\d+)\.\s", references)), default=0) + 1
+            references = f"{references.rstrip()}\n\n" if references.strip() else ""
+            references += f"{reference_number}. [LinkedIn]({profile_url})"
             raw = replace_section(raw, "## References", references, trailing_blank_line=True)
             self.record_change(person, "References", section_content(person.raw, "## References"), references)
         personal_bio, other_bio = section_content(raw, "## Bio").strip(), section_content(other.raw, "## Bio").strip()

@@ -261,6 +261,49 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn(reference, updated)
         self.assertEqual(updated.count(reference), 1)
 
+    def test_merge_inserts_missing_references_in_template_order(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Bio\n\nA software engineer.\n\n## People\n\n- Colleague\n\n## Positions\n\n- Engineer, [[Acme]], 2024-01\n\n## Notes\n\n- Keep this note.\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\nlinkedin_id: jane-doe-123\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertLess(updated.index("## Bio"), updated.index("## References"))
+        self.assertLess(updated.index("## References"), updated.index("## People"))
+        self.assertIn(
+            "A software engineer.\n\n## References\n\n1. [LinkedIn](https://www.linkedin.com/in/jane-doe-123)\n\n## People",
+            updated,
+        )
+
+    def test_merge_numbers_subsequent_linkedin_reference(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## References\n\n1. [Website](https://example.com)\n\n## Notes\n\n- Keep this note.\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\nlinkedin_id: jane-doe-123\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("2. [LinkedIn](https://www.linkedin.com/in/jane-doe-123)", updated)
+
     def test_sync_repairs_mojibake_in_existing_and_incoming_content(self):
         personal_path = self.write_person(
             self.personal_root,
