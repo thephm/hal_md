@@ -338,6 +338,14 @@ def normalize_position_organization_link(block: str, aliases: dict[str, str]) ->
     return block[:match.start()] + f"[[{canonical}]]" + block[match.end():]
 
 
+def replace_position_organization_link(block: str, source: str) -> str:
+    pattern = r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]|\[([^\]]+)\]\([^)]*\)"
+    target_match, source_match = re.search(pattern, block), re.search(pattern, source)
+    if not target_match or not source_match:
+        return block
+    return block[:target_match.start()] + source_match.group(0) + block[target_match.end():]
+
+
 def position_title(block: str) -> str:
     first_line = block.splitlines()[0] if block else ""
     title = re.split(r"\[\[[^\]]+\]\]|\[[^\]]+\]\([^)]*\)", first_line, maxsplit=1)[0]
@@ -367,6 +375,20 @@ def has_description(block: str) -> bool:
 
 def quoted_description(block: str) -> list[str]:
     return [line for line in block.splitlines()[1:] if line.lstrip().startswith(">")]
+
+
+def description_word_count(block: str) -> int:
+    return len(re.findall(r"\w+", "\n".join(block.splitlines()[1:])))
+
+
+def replace_position_description(block: str, source: str) -> str:
+    source_description = quoted_description(source)
+    if not source_description:
+        return block
+    line_end = "\r\n" if "\r\n" in block else "\n"
+    first_line = block.splitlines()[0] if block else ""
+    description = line_end.join(f"  {line.lstrip()}" for line in source_description)
+    return f"{first_line}{line_end}{line_end}{description}{line_end}"
 
 
 def sort_position_blocks(blocks: list[str]) -> list[str]:
@@ -530,6 +552,8 @@ class PersonSynchronizer:
             personal_block = personal_blocks[matched_index]
             personal_lines = personal_block.splitlines(keepends=True)
             other_lines = other_block.splitlines(keepends=True)
+            personal_block = replace_position_organization_link(personal_block, other_block)
+            personal_blocks[matched_index] = personal_block
             if (
                 personal_lines
                 and other_lines
@@ -548,6 +572,8 @@ class PersonSynchronizer:
                 line_end = "\r\n" if "\r\n" in raw else "\n"
                 append = line_end + line_end.join(f"  {line.lstrip()}" for line in quoted_description(other_block)) + line_end
                 personal_blocks[matched_index] = personal_block.rstrip("\r\n") + append
+            elif quoted_description(other_block) and description_word_count(other_block) < description_word_count(personal_block):
+                personal_blocks[matched_index] = replace_position_description(personal_block, other_block)
         merged_blocks = deduplicate_position_blocks(personal_blocks, self.organization_aliases)
         merged = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(merged_blocks))
         return replace_section(raw, "## Positions", merged, trailing_blank_line=True)
@@ -556,14 +582,15 @@ class PersonSynchronizer:
         raw = person.raw
         personal_values = person.frontmatter
         other_values = other.frontmatter
-        skills = list(personal_values.get("skills") or [])
-        for skill in other_values.get("skills") or []:
-            if skill not in skills:
-                skills.append(skill)
-        if skills != list(personal_values.get("skills") or []):
-            old_skills = list(personal_values.get("skills") or [])
-            raw = replace_field(document_from_raw(person.path, raw), "skills", skills)
-            self.record_change(person, "skills", old_skills, skills)
+        for field in ("skills", "organizations"):
+            personal_items = list(personal_values.get(field) or [])
+            merged_items = [*personal_items]
+            for item in other_values.get(field) or []:
+                if item not in merged_items:
+                    merged_items.append(item)
+            if merged_items != personal_items:
+                raw = replace_field(document_from_raw(person.path, raw), field, merged_items)
+                self.record_change(person, field, personal_items, merged_items)
         for field in ("first_name", "last_name"):
             if not personal_values.get(field) and other_values.get(field):
                 old_value = personal_values.get(field)
@@ -845,7 +872,22 @@ def main(argv: list[str] | None = None) -> int:
             for key, value in json.load(file).items():
                 if hasattr(args, key):
                     setattr(args, key, value)
-    discovered_existing = discover_people(Path(args.existing))
+    existing_root = Path(args.existing).resolve()
+    incoming_root = Path(args.incoming).resolve() if args.incoming else None
+    state_root = Path(args.state_dir).resolve()
+
+    def discover_existing_people() -> list[PersonDocument]:
+        people = discover_people(existing_root)
+        return [
+            person for person in people
+            if not (
+                (incoming_root and incoming_root.is_relative_to(existing_root) and person.path.resolve().is_relative_to(incoming_root))
+                or (state_root.is_relative_to(existing_root) and person.path.resolve().is_relative_to(state_root))
+                or person.path.resolve().relative_to(existing_root).parts[0].casefold().startswith("people-")
+            )
+        ]
+
+    discovered_existing = discover_existing_people()
     personal = scope_people(discovered_existing, args)
     duplicates = duplicate_slugs(personal)
     all_existing_duplicates = duplicate_slugs(discovered_existing)
@@ -856,11 +898,11 @@ def main(argv: list[str] | None = None) -> int:
     synchronizer = PersonSynchronizer(args)
     synchronizer.repair_mojibake_in_people(personal)
     if not args.dry_run:
-        discovered_existing = discover_people(Path(args.existing))
+        discovered_existing = discover_existing_people()
         personal = scope_people(discovered_existing, args)
     synchronizer.normalize_markdown_in_people(personal)
     if not args.dry_run:
-        discovered_existing = discover_people(Path(args.existing))
+        discovered_existing = discover_existing_people()
         personal = scope_people(discovered_existing, args)
     if args.incoming:
         other = discover_people(Path(args.incoming))
@@ -878,7 +920,7 @@ def main(argv: list[str] | None = None) -> int:
             other = [person for person in other if person.slug not in duplicate_other]
         synchronizer.match_and_sync(personal, other, set(all_existing_duplicates), {person.slug for person in discovered_existing if person.slug})
         if args.normalize_positions and not args.dry_run:
-            personal = scope_people(discover_people(Path(args.existing)), args)
+            personal = scope_people(discover_existing_people(), args)
     elif not args.normalize_positions:
         build_parser().error("--incoming is required unless --normalize-positions or --review is used")
     if args.normalize_positions:

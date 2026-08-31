@@ -100,6 +100,67 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         self.assertEqual(personal_path.read_text(encoding="utf-8"), updated)
 
+    def test_merge_adds_incoming_organizations_without_removing_personal_ones(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\norganizations:\n  - acme\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\norganizations:\n  - acme\n  - globex\n---\n",
+        )
+
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("organizations:\n  - acme\n  - globex\n", updated)
+        change = next(change for change in synchronizer.changes if change["field"] == "organizations")
+        self.assertEqual(change["old_value"], '["acme"]')
+        self.assertEqual(change["new_value"], '["acme", "globex"]')
+
+    def test_nested_incoming_directory_is_excluded_from_existing_people(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\norganizations:\n  - acme\n---\n",
+        )
+        incoming_root = self.personal_root / "People-LinkedIn"
+        incoming_root.mkdir()
+        self.write_person(
+            incoming_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\norganizations:\n  - globex\n---\n",
+        )
+        source_root = self.personal_root / "People-Source"
+        source_root.mkdir()
+        self.write_person(
+            source_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+        state_root = self.personal_root / "people_sync_state"
+        backup_root = state_root / "backups" / "2026-08-30"
+        backup_root.mkdir(parents=True)
+        self.write_person(
+            backup_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+
+        self.assertEqual(main([
+            "--existing", str(self.personal_root),
+            "--incoming", str(incoming_root),
+            "--state-dir", str(state_root),
+            "--slug", "jane-doe",
+        ]), 0)
+
+        self.assertIn("organizations:\n  - acme\n  - globex\n", personal_path.read_text(encoding="utf-8"))
+
     def test_normalize_positions_converts_only_fenced_description(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -513,6 +574,45 @@ class SyncPersonFilesTests(unittest.TestCase):
         updated = personal_path.read_text(encoding="utf-8")
         self.assertIn("Original description", updated)
         self.assertNotIn("Incoming description", updated)
+
+    def test_more_concise_incoming_position_description_replaces_existing_description(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2024-01\n\n  > Led several complex engineering projects, coordinated numerous teams, and delivered detailed technical solutions for customers.\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2024-01\n\n  > Delivered technical solutions.\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("- Engineer, [[Acme]], 2024-01\n\n  > Delivered technical solutions.", updated)
+        self.assertNotIn("Led several complex engineering projects", updated)
+
+    def test_matched_position_uses_incoming_organization_wikilink(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [Acme](Acme), 2024-01\n\n  > Personal description\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2024-01\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("- Engineer, [[Acme]], 2024-01\n\n  > Personal description", updated)
 
     def test_position_matches_organization_with_accented_alias(self):
         personal_path = self.write_person(
