@@ -37,7 +37,7 @@ def default_config_dir(platform: str | None = None, environment: dict[str, str] 
 
 DEFAULT_STATE_DIR = default_dev_output_dir() / "people_sync_state"
 DEFAULT_ORGANIZATIONS_PATH = default_config_dir() / "organizations.json"
-CONTACT_FIELDS = ("mobile", "emails", "linkedin_id")
+CONTACT_FIELDS = ("mobile", "email", "linkedin_id")
 FRONTMATTER_FIELD_ORDER = (
     "tags", "first_name", "last_name", "aliases", "slug", "birthday", "title",
     "skills", "interests", "organizations", "url", "email", "mobile", "phone",
@@ -528,6 +528,16 @@ class PersonSynchronizer:
                 continue
             used.add(matched_index)
             personal_block = personal_blocks[matched_index]
+            personal_lines = personal_block.splitlines(keepends=True)
+            other_lines = other_block.splitlines(keepends=True)
+            if (
+                personal_lines
+                and other_lines
+                and re.search(r"(?:^|\s)#current\b", personal_lines[0], re.I)
+                and len(other_dates) > 1
+            ):
+                personal_block = other_lines[0] + "".join(personal_lines[1:])
+                personal_blocks[matched_index] = personal_block
             for personal_date, other_date in zip(position_dates(personal_block), other_dates):
                 if shared_month(personal_date) != shared_month(other_date):
                     self.conflict(person, f"position:{organization}:date", personal_date, other_date, "position_date")
@@ -770,15 +780,17 @@ def read_review_command(prompt: str) -> str:
     return command.lower()
 
 
-def review_pending(args: argparse.Namespace) -> int:
+def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> int:
     store = SyncStore(Path(args.state_dir), False)
+    pending = [item for item in store.pending if slugs is None or item["slug"] in slugs]
+    untouched = [item for item in store.pending if slugs is not None and item["slug"] not in slugs]
     remaining: list[dict[str, Any]] = []
-    for index, item in enumerate(store.pending, 1):
-        print(f"\nReviewing {index} of {len(store.pending)} - {item['name']} ({item['slug']}) - {item['field']}")
+    for index, item in enumerate(pending, 1):
+        print(f"\nReviewing {index} of {len(pending)} - {item['name']} ({item['slug']}) - {item['field']}")
         print(f"\033[31m- {item.get('personal', '')}\033[0m\n\033[32m+ {item.get('other', '')}\033[0m")
         command = read_review_command("[a]ccept  [r]eject  [i]gnore  [e]dit  [q]uit: ")
         if command == "q":
-            remaining.extend(store.pending[index - 1:])
+            remaining.extend(pending[index - 1:])
             break
         if command == "e":
             editor = args.editor or os.environ.get("EDITOR") or os.environ.get("VISUAL") or "code"
@@ -793,7 +805,7 @@ def review_pending(args: argparse.Namespace) -> int:
             store.save("field_decisions.json", store.decisions)
         else:
             remaining.append(item)
-    store.pending = remaining
+    store.pending = [*untouched, *remaining]
     store.save("pending_review.json", store.pending)
     return 0
 
@@ -873,6 +885,9 @@ def main(argv: list[str] | None = None) -> int:
         synchronizer.normalize_positions(personal)
     synchronizer.write_reports(personal, slug_conflicts)
     print(f"Processed {len(personal)} people; {len(synchronizer.changes)} changes; {len(synchronizer.reviews)} new reviews; {synchronizer.reused_decisions} reused decisions.")
+    pending_slugs = {item["slug"] for item in synchronizer.store.pending} & {person.slug for person in personal}
+    if pending_slugs and not args.dry_run:
+        return review_pending(args, pending_slugs)
     return 0
 
 

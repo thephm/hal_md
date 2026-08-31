@@ -1,9 +1,11 @@
 import datetime as dt
 import csv
+import json
 import tempfile
 import unittest
 from argparse import Namespace
 from pathlib import Path
+from unittest.mock import patch
 
 from sync_person_files import (
     PersonSynchronizer, SyncStore, default_config_dir, default_dev_output_dir,
@@ -237,6 +239,77 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("linkedin_id: jane-doe-123\n", updated)
         self.assertFalse(synchronizer.reviews)
 
+    def test_merge_queues_changed_email_for_review(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "mark-leonard",
+            "---\ntags: [person]\nslug: mark-leonard\nfirst_name: Mark\nlast_name: Leonard\nemail: old@example.com\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "mark-leonard",
+            "---\ntags: [person]\nslug: mark-leonard\nfirst_name: Mark\nlast_name: Leonard\nemail: new@example.com\n---\n",
+        )
+
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        self.assertIn("email: old@example.com\n", personal_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(synchronizer.reviews), 1)
+        self.assertEqual(synchronizer.reviews[0]["field"], "email")
+        self.assertEqual(synchronizer.reviews[0]["type"], "contact_info")
+        self.assertEqual(synchronizer.reviews[0]["personal"], "old@example.com")
+        self.assertEqual(synchronizer.reviews[0]["other"], "new@example.com")
+
+    def test_sync_opens_interactive_review_for_changed_email(self):
+        self.write_person(
+            self.personal_root,
+            "mark-li",
+            "---\ntags: [person]\nslug: mark-li\nfirst_name: Mark\nlast_name: Li\nemail: old@example.com\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "mark-li",
+            "---\ntags: [person]\nslug: mark-li\nfirst_name: Mark\nlast_name: Li\nemail: new@example.com\n---\n",
+        )
+
+        with patch("sync_person_files.review_pending", return_value=0) as review_pending:
+            self.assertEqual(main([
+                "--existing", str(self.personal_root),
+                "--incoming", str(self.other_root),
+                "--state-dir", str(self.state_root),
+                "--slug", "mark-li",
+            ]), 0)
+
+        review_pending.assert_called_once()
+
+    def test_sync_opens_interactive_review_for_existing_pending_email(self):
+        self.write_person(
+            self.personal_root,
+            "mark-li",
+            "---\ntags: [person]\nslug: mark-li\nfirst_name: Mark\nlast_name: Li\nemail: new@example.com\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "mark-li",
+            "---\ntags: [person]\nslug: mark-li\nfirst_name: Mark\nlast_name: Li\nemail: new@example.com\n---\n",
+        )
+        pending = [{"slug": "mark-li", "name": "Mark Li", "field": "email", "personal": "old@example.com", "other": "new@example.com", "other_hash": source_hash("new@example.com"), "type": "contact_info", "path": ""}]
+        self.state_root.mkdir(exist_ok=True)
+        (self.state_root / "pending_review.json").write_text(json.dumps(pending), encoding="utf-8")
+
+        with patch("sync_person_files.review_pending", return_value=0) as review_pending:
+            self.assertEqual(main([
+                "--existing", str(self.personal_root),
+                "--incoming", str(self.other_root),
+                "--state-dir", str(self.state_root),
+                "--slug", "mark-li",
+            ]), 0)
+
+        review_pending.assert_called_once_with(unittest.mock.ANY, {"mark-li"})
+
     def test_merge_adds_linkedin_profile_to_references_once(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -400,6 +473,26 @@ class SyncPersonFilesTests(unittest.TestCase):
         )
 
         self.assertIn("2024-01-15 to 2024-05-20", personal_path.read_text(encoding="utf-8"))
+
+    def test_closed_source_position_replaces_stale_current_position(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "mark-leonard",
+            "---\ntags: [person]\nslug: mark-leonard\nfirst_name: Mark\nlast_name: Leonard\n---\n## Positions\n- Vice President Development, [RDM](RDM), Waterloo, Ontario, 2014-09 #current\n",
+        )
+        self.write_person(
+            self.other_root,
+            "mark-leonard",
+            "---\ntags: [person]\nslug: mark-leonard\nfirst_name: Mark\nlast_name: Leonard\n---\n## Positions\n- Vice President Development, [[RDM]], [[Waterloo]], 2014-09 to 2017-06\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("- Vice President Development, [[RDM]], [[Waterloo]], 2014-09 to 2017-06", updated)
+        self.assertNotIn("#current", updated)
 
     def test_position_with_fenced_description_does_not_get_duplicate_source_description(self):
         personal_path = self.write_person(
