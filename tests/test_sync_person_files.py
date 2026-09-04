@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from tools.sync_person_files import (
     PersonSynchronizer, SyncStore, default_config_dir, default_dev_output_dir,
-    discover_people, main, review_context, source_hash,
+    discover_people, main, normalize_city, review_context, review_pending, source_hash,
 )
 from text_encoding import repair_mojibake
 
@@ -32,6 +32,11 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(default_dev_output_dir("posix", {}), Path("/mnt/c/data/dev-output"))
         self.assertEqual(default_config_dir("posix", {}), Path("/mnt/c/data/dev-output/config"))
         self.assertEqual(default_config_dir("posix", {"HAL_MD_CONFIG_DIR": "/data/config"}), Path("/data/config"))
+
+    def test_normalize_city_removes_metropolitan_suffixes(self):
+        self.assertEqual(normalize_city("Ottawa Metropolitan"), "Ottawa")
+        self.assertEqual(normalize_city("Toronto Metropolitan Area"), "Toronto")
+        self.assertEqual(normalize_city("Fort Lauderdale"), "Fort Lauderdale")
 
     def test_repair_mojibake_is_available_as_shared_utility(self):
         self.assertEqual(repair_mojibake("SecrÃ©tariat"), "Secrétariat")
@@ -250,6 +255,30 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertLess(updated.index(engineer), updated.index(manager))
         self.assertIn("- Manager, [[Acme]], 2024-01\n\n## Notes", updated)
 
+    def test_merge_orders_undated_education_by_qualification_before_dated_positions(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Director, [[Acme]], 2024-01\n- Engineer, [[Acme]], 2023-01\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Doctorate in Computer Science, [[University D]]\n- Masters of Engineering, [[University M]]\n- BEng, Engineering, [[University B]]\n- Ph.D., Computer Science, [[University D2]]\n- MASc, Applied Science, [[University M2]]\n- Bachelor of Arts, [[University B2]]\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertLess(updated.index("BEng, Engineering"), updated.index("Masters of Engineering"))
+        self.assertLess(updated.index("Bachelor of Arts"), updated.index("MASc, Applied Science"))
+        self.assertLess(updated.index("Masters of Engineering"), updated.index("Doctorate in Computer Science"))
+        self.assertLess(updated.index("MASc, Applied Science"), updated.index("Ph.D., Computer Science"))
+        self.assertLess(updated.index("Ph.D., Computer Science"), updated.index("Engineer, [[Acme]], 2023-01"))
+        self.assertLess(updated.index("Engineer, [[Acme]], 2023-01"), updated.index("Director, [[Acme]], 2024-01"))
+
     def test_combined_merge_and_normalize_imports_skills_and_bio(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -357,6 +386,7 @@ class SyncPersonFilesTests(unittest.TestCase):
             discover_people(self.personal_root), discover_people(self.other_root)
         )
 
+        self.assertEqual(len(synchronizer.reviews), 1)
         review = synchronizer.reviews[0]
         self.assertEqual(review["existing_line"], "- Engineer, [[Acme]], 2002-03 to 2003-10")
         self.assertEqual(review["incoming_line"], "- Engineer, [[Acme]], 2002-04 to 2003-11")
@@ -412,6 +442,31 @@ class SyncPersonFilesTests(unittest.TestCase):
             ]), 0)
 
         review_pending.assert_called_once_with(unittest.mock.ANY, {"mark-li"})
+
+    def test_review_can_apply_the_suggested_position_line(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2000-06 to 2002-02\n",
+        )
+        pending = [{
+            "slug": "jane-doe", "name": "Jane Doe", "path": str(personal_path),
+            "field": "position:acme:date", "type": "position_date",
+            "existing_line": "- Engineer, [[Acme]], 2000-06 to 2002-02",
+            "incoming_line": "- Engineer, [[Acme]], 2002-02 to 2007-04",
+            "suggested_line": "- Engineer, [[Acme]], 2002-02 to 2002-02",
+            "other_hash": source_hash("2002-02"),
+        }]
+        self.state_root.mkdir(exist_ok=True)
+        (self.state_root / "pending_review.json").write_text(json.dumps(pending), encoding="utf-8")
+
+        with patch("tools.sync_person_files.read_review_command", return_value="s"):
+            self.assertEqual(review_pending(self.arguments()), 0)
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("- Engineer, [[Acme]], 2002-02 to 2002-02", updated)
+        self.assertNotIn("2000-06 to 2002-02", updated)
+        self.assertEqual(json.loads((self.state_root / "pending_review.json").read_text(encoding="utf-8")), [])
 
     def test_merge_adds_linkedin_profile_to_references_once(self):
         personal_path = self.write_person(
@@ -764,6 +819,26 @@ class SyncPersonFilesTests(unittest.TestCase):
         updated = personal_path.read_text(encoding="utf-8")
         self.assertEqual(updated.count("BASc"), 1)
         self.assertIn("1985 to 1988", updated)
+
+    def test_dated_bs_education_replaces_undated_equivalent(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- BS, Public Relations, [University of Florida](University of Florida)\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- BS, Public Relations, [University of Florida](University of Florida), 1988 to 1993\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("BS, Public Relations"), 1)
+        self.assertIn("1988 to 1993", updated)
 
     def test_dated_and_undated_education_with_shared_degree_are_merged(self):
         personal_path = self.write_person(

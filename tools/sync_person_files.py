@@ -9,9 +9,7 @@ import json
 import logging
 import os
 import re
-import shlex
 import shutil
-import subprocess
 import sys
 import unicodedata
 from dataclasses import dataclass
@@ -55,6 +53,7 @@ DATED_FILE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}(?:\D.*)?\.md$", re.I)
 WIKILINK_DATE_PATTERN = re.compile(r"!\[\[[^\]]*/(\d{4}-\d{2}-\d{2})\.md\]\]")
 INLINE_DATE_PATTERN = re.compile(r"(?m)^\s*[-*]?\s*(\d{4}-\d{2}-\d{2}):")
 CHANGE_REPORT_FIELDS = ("date", "time", "action", "field", "name", "old_value", "new_value", "path", "slug")
+METROPOLITAN_CITY_SUFFIX = re.compile(r"\s+metropolitan(?:\s+area)?\s*$", re.I)
 
 
 @dataclass
@@ -177,6 +176,16 @@ def remove_empty_deprecated_sections(raw: str) -> str:
             heading_start = raw.rfind("\n", 0, span[0] - len(heading) - 1) + 1
             raw = raw[:heading_start] + raw[span[1]:]
     return raw
+
+
+def normalize_city(value: str) -> str:
+    return METROPOLITAN_CITY_SUFFIX.sub("", value).strip()
+
+
+def normalize_document_city(document: PersonDocument) -> str:
+    city = str(document.frontmatter.get("city") or "")
+    normalized = normalize_city(city)
+    return replace_field(document, "city", normalized) if city and normalized != city else document.raw
 
 
 def linkedin_profile_url(values: dict[str, Any]) -> str:
@@ -444,20 +453,31 @@ def position_title(block: str) -> str:
     return normalized_position_organization(title)
 
 
+EDUCATION_QUALIFICATION_PATTERNS = (
+    ("bachelor", re.compile(
+        r"\b(?:b\.?\s*(?:a(?:\s*s\.?\s*c\.?)?|s\.?\s*c\.?|s\.?|eng(?:g)?|tech|com|ed|fa|arch|mus)|bachelor(?:'?s|s)?(?:\s+of)?)\b",
+        re.I,
+    )),
+    ("master", re.compile(
+        r"\b(?:m\.?\s*(?:a(?:\s*s\.?\s*c\.?)?|s\.?\s*c\.?|s\.?|eng(?:g)?|tech|ed|phil|arch|fa|b\.?\s*a\.?)|master(?:'?s|s)?(?:\s+of)?)\b",
+        re.I,
+    )),
+    ("doctorate", re.compile(r"\b(?:ph\.?\s*d\.?|d\.?\s*phil\.?|doctor(?:ate|al)?)\b", re.I)),
+    ("other", re.compile(r"\b(?:diploma|certificate)\b", re.I)),
+)
+
+
 def is_education(block: str) -> bool:
     first_line = block.splitlines()[0] if block else ""
-    return bool(re.search(r"\b(?:b\.?a\.?sc|b\.?sc|m\.?sc|bachelor|master|ph\.?d|diploma|certificate)\b", first_line, re.I))
+    return any(pattern.search(first_line) for _, pattern in EDUCATION_QUALIFICATION_PATTERNS)
 
 
 def education_qualifications(block: str) -> set[str]:
     first_line = block.splitlines()[0] if block else ""
     return {
-        qualification.casefold().replace(".", "")
-        for qualification in re.findall(
-            r"\b(?:b\.?a\.?sc|b\.?sc|m\.?sc|bachelor|master|ph\.?d|diploma|certificate)\b",
-            first_line,
-            re.I,
-        )
+        qualification
+        for qualification, pattern in EDUCATION_QUALIFICATION_PATTERNS
+        if pattern.search(first_line)
     }
 
 
@@ -508,12 +528,20 @@ def replace_position_description(block: str, source: str) -> str:
 
 
 def sort_position_blocks(blocks: list[str]) -> list[str]:
+    undated_blocks = [block for block in blocks if not position_dates(block)]
+    education_blocks = [block for block in undated_blocks if is_education(block)]
+    other_undated_blocks = [block for block in undated_blocks if not is_education(block)]
+    education_blocks.sort(
+        key=lambda block: next(
+            (index for index, (_, pattern) in enumerate(EDUCATION_QUALIFICATION_PATTERNS) if pattern.search(block.splitlines()[0] if block else "")),
+            len(EDUCATION_QUALIFICATION_PATTERNS),
+        )
+    )
     dated_blocks = sorted(
         (block for block in blocks if position_dates(block)),
         key=lambda block: position_dates(block)[0],
     )
-    dated_iterator = iter(dated_blocks)
-    return [next(dated_iterator) if position_dates(block) else block for block in blocks]
+    return [*education_blocks, *other_undated_blocks, *dated_blocks]
 
 
 def normalize_single_bullet_description(block: str) -> str:
@@ -634,6 +662,14 @@ class PersonSynchronizer:
                 self.record_change(person, "heading_spacing", "inconsistent", "normalized", "normalized_markdown")
                 self.backup_and_write(person, normalized)
 
+    def normalize_cities_in_people(self, people: list[PersonDocument]) -> None:
+        for person in people:
+            city = str(person.frontmatter.get("city") or "")
+            normalized = normalize_city(city)
+            if city and normalized != city:
+                self.record_change(person, "city", city, normalized, "normalized_city")
+                self.backup_and_write(person, replace_field(person, "city", normalized))
+
     def conflict(self, person: PersonDocument, field: str, personal: Any, other: Any, kind: str = "contact_info", context: dict[str, str] | None = None) -> None:
         decision = self.store.decision(person.slug, field, other)
         if decision:
@@ -695,6 +731,10 @@ class PersonSynchronizer:
                 personal_block = other_lines[0] + "".join(personal_lines[1:])
                 personal_blocks[matched_index] = personal_block
             for personal_date, other_date in zip(position_dates(personal_block), other_dates):
+                if shared_month(personal_date) == shared_month(other_date) and date_precision(other_date) > date_precision(personal_date):
+                    personal_block = personal_block.replace(personal_date, other_date, 1)
+                    personal_blocks[matched_index] = personal_block
+                    continue
                 if shared_month(personal_date) != shared_month(other_date):
                     existing_line = personal_block.splitlines()[0] if personal_block else ""
                     self.conflict(
@@ -709,9 +749,7 @@ class PersonSynchronizer:
                             "suggested_line": existing_line.replace(personal_date, other_date, 1),
                         },
                     )
-                elif date_precision(other_date) > date_precision(personal_date):
-                    personal_block = personal_block.replace(personal_date, other_date, 1)
-                    personal_blocks[matched_index] = personal_block
+                    break
             if not has_description(personal_block) and quoted_description(other_block):
                 line_end = "\r\n" if "\r\n" in raw else "\n"
                 append = line_end + line_end.join(f"  {line.lstrip()}" for line in quoted_description(other_block)) + line_end
@@ -799,7 +837,10 @@ class PersonSynchronizer:
         other = [
             document_from_raw(
                 person.path,
-                remove_invalid_position_place_links(remove_empty_deprecated_sections(repair_mojibake(person.raw))),
+                normalize_document_city(document_from_raw(
+                    person.path,
+                    remove_invalid_position_place_links(remove_empty_deprecated_sections(repair_mojibake(person.raw))),
+                )),
             )
             for person in other
         ]
@@ -959,12 +1000,51 @@ def read_review_command(prompt: str) -> str:
 
 def review_context(item: dict[str, Any]) -> str:
     if not item.get("existing_line"):
-        return f"\033[31m- {item.get('personal', '')}\033[0m\n\033[32m+ {item.get('other', '')}\033[0m"
+        return f"\033[38;5;214m- {item.get('personal', '')}\033[0m\n\033[38;5;46m+ {item.get('other', '')}\033[0m"
     return (
-        f"Existing:  \033[31m{item['existing_line']}\033[0m\n"
-        f"Incoming:  \033[32m{item.get('incoming_line', '')}\033[0m\n"
+        f"Existing:  \033[38;5;214m{item['existing_line']}\033[0m\n"
+        f"Incoming:  \033[38;5;46m{item.get('incoming_line', '')}\033[0m\n"
         f"Suggested: \033[36m{item.get('suggested_line', '')}\033[0m"
     )
+
+
+def review_value(item: dict[str, Any], choice: str) -> str:
+    values = {
+        "x": item.get("existing_line", item.get("personal", "")),
+        "i": item.get("incoming_line", item.get("other", "")),
+        "s": item.get("suggested_line", item.get("other", "")),
+    }
+    return str(values[choice])
+
+
+def apply_review_value(item: dict[str, Any], value: str) -> bool:
+    document = read_document(Path(item["path"]))
+    if not document:
+        return False
+    if item.get("existing_line"):
+        positions = section_content(document.raw, "## Positions")
+        existing_line = str(item["existing_line"])
+        if existing_line not in positions:
+            return False
+        updated = replace_section(
+            document.raw,
+            "## Positions",
+            positions.replace(existing_line, value, 1),
+            trailing_blank_line=True,
+        )
+    else:
+        updated = replace_field(document, item["field"], value)
+    if updated == document.raw:
+        return True
+    updated = replace_field(document_from_raw(document.path, updated), "last_updated", dt.date.today())
+    document.path.write_text(updated, encoding="utf-8", newline="")
+    return True
+
+
+def read_review_value(prompt: str, default: str | None = None) -> str:
+    suffix = f" [{default}]" if default else ""
+    value = input(f"{prompt}{suffix}: ").strip()
+    return value or default or ""
 
 
 def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> int:
@@ -975,20 +1055,21 @@ def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> i
     for index, item in enumerate(pending, 1):
         print(f"\nReviewing {index} of {len(pending)} - {item['name']} ({item['slug']}) - {item['field']}")
         print(review_context(item))
-        command = read_review_command("[a]ccept  [r]eject  [i]gnore  [e]dit  [q]uit: ")
+        command = read_review_command("e[x]isting  [i]ncoming  [s]uggested  [n]ew  [e]dit suggested  [q]uit: ")
         if command == "q":
             remaining.extend(pending[index - 1:])
             break
-        if command == "e":
-            editor = args.editor or os.environ.get("EDITOR") or os.environ.get("VISUAL") or "code"
-            subprocess.run([*shlex.split(editor), item["path"]], check=False)
-            edited = read_document(Path(item["path"]))
-            field = item["field"]
-            resolved = edited and field in (*CONTACT_FIELDS, "birthday") and edited.frontmatter.get(field) == item["other"]
-            if not resolved:
-                remaining.append(item)
-        elif command in ("a", "r"):
-            store.decisions[f"{item['slug']}:{item['field']}"] = {"decision": "accepted_other" if command == "a" else "kept_personal", "other_hash": item["other_hash"], "timestamp": dt.datetime.now().isoformat()}
+        if command in ("x", "i", "s"):
+            value = review_value(item, command)
+        elif command == "n":
+            value = read_review_value("New value")
+        elif command == "e":
+            value = read_review_value("Edit suggested", review_value(item, "s"))
+        else:
+            remaining.append(item)
+            continue
+        if value and apply_review_value(item, value):
+            store.decisions[f"{item['slug']}:{item['field']}"] = {"decision": "resolved", "selected_value": value, "other_hash": item["other_hash"], "timestamp": dt.datetime.now().isoformat()}
             store.save("field_decisions.json", store.decisions)
         else:
             remaining.append(item)
@@ -1057,6 +1138,10 @@ def main(argv: list[str] | None = None) -> int:
         personal = [person for person in personal if person.slug not in duplicates]
     synchronizer = PersonSynchronizer(args)
     synchronizer.repair_mojibake_in_people(personal)
+    if not args.dry_run:
+        discovered_existing = discover_existing_people()
+        personal = scope_people(discovered_existing, args)
+    synchronizer.normalize_cities_in_people(personal)
     if not args.dry_run:
         discovered_existing = discover_existing_people()
         personal = scope_people(discovered_existing, args)
