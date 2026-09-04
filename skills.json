@@ -3,5 +3,10 @@
     "Internet Protocol Suite (TCP/IP)",
     "TCP/IP",
     "tcp/ip"
+  ],
+  "nlp": [
+    "Natural Language Processing (NLP)",
+    "NLP",
+    "nlp"
   ]
 }

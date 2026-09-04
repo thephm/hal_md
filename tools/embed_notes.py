@@ -6,13 +6,16 @@ under `## Notes` so you can see the entire communication history with them.
 import os
 from argparse import ArgumentParser
 import datetime
+from pathlib import Path
 
 import sys
-sys.path.insert(1, '../hal/')
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+HAL_ROOT = PROJECT_ROOT.parent / "hal"
+sys.path.insert(1, str(HAL_ROOT))
+sys.path.insert(1, str(PROJECT_ROOT))
 import person
 import identity
 
-sys.path.insert(1, './') 
 import md_lookup
 import md_person
 import md_frontmatter

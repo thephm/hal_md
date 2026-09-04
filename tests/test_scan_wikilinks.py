@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from contextlib import redirect_stdout
 
-from scan_wikilinks import (
+from tools.scan_wikilinks import (
     build_index_frontmatter,
     build_missing_files_body,
     normalize_wikilink_target,

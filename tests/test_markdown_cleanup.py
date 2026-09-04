@@ -1,6 +1,6 @@
 import unittest
 
-from markdown_cleanup import normalize_heading_spacing
+from tools.markdown_cleanup import normalize_heading_spacing
 
 
 class MarkdownCleanupTests(unittest.TestCase):

@@ -9,7 +9,7 @@ interest slugs into `interests.json` in --config.
 Skips:
   - Files whose name matches the dated-interaction pattern YYYY-MM-DD.md
     (e.g. 2024-03-24.md), same convention used elsewhere in hal_md
-    (see most_contacted.py / embed_notes.py).
+    (see tools/most_contacted.py / tools/embed_notes.py).
   - Any file located under a folder named "media" anywhere in its path
     (hal_md convention for photo/attachment subfolders).
 

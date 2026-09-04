@@ -4,14 +4,15 @@ import os
 from argparse import ArgumentParser
 import datetime
 import calendar
+from pathlib import Path
 
 import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(1, '../hal/')
 import person
 import identity
 import life_events
 
-sys.path.insert(1, './') 
 import md_lookup
 import md_date
 

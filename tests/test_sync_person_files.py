@@ -7,9 +7,9 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
-from sync_person_files import (
+from tools.sync_person_files import (
     PersonSynchronizer, SyncStore, default_config_dir, default_dev_output_dir,
-    discover_people, main, source_hash,
+    discover_people, main, review_context, source_hash,
 )
 from text_encoding import repair_mojibake
 
@@ -203,6 +203,22 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("  > Designed systems.\n", updated)
         self.assertNotIn("  > - Designed systems.", updated)
 
+    def test_normalize_positions_repairs_quoted_position_and_unclosed_fence(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Research Intern, [[OUSA]], 2016-05 to 2016-08\n\n> Transition & Mentorship Program Manager, [[McMaster University]], [[Hamilton]], 2017-05 to 2019-04\n>\n> Courses developed communication skills\n- Developed arguments through theoretical frameworks\n- Facilitated group dynamics\n\n```\n- Master of Education, [[University of Toronto]], 2018 to 2020\n- Alumni Engagement Officer, [[University of Toronto]], [[Toronto]], 2023-02 #current\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("- Transition & Mentorship Program Manager, [[McMaster University]], [[Hamilton]], 2017-05 to 2019-04", updated)
+        self.assertIn("  > - Developed arguments through theoretical frameworks", updated)
+        self.assertIn("- Master of Education, [[University of Toronto]], 2018 to 2020", updated)
+        self.assertIn("- Alumni Engagement Officer, [[University of Toronto]], [[Toronto]], 2023-02 #current", updated)
+        self.assertNotIn("```", updated)
+
     def test_normalize_positions_orders_entries_chronologically(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -323,6 +339,32 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(synchronizer.reviews[0]["type"], "contact_info")
         self.assertEqual(synchronizer.reviews[0]["personal"], "old@example.com")
         self.assertEqual(synchronizer.reviews[0]["other"], "new@example.com")
+
+    def test_position_date_review_includes_existing_incoming_and_suggested_lines(self):
+        self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2002-03 to 2003-10\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2002-04 to 2003-11\n",
+        )
+
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        review = synchronizer.reviews[0]
+        self.assertEqual(review["existing_line"], "- Engineer, [[Acme]], 2002-03 to 2003-10")
+        self.assertEqual(review["incoming_line"], "- Engineer, [[Acme]], 2002-04 to 2003-11")
+        self.assertEqual(review["suggested_line"], "- Engineer, [[Acme]], 2002-04 to 2003-10")
+        prompt = review_context(review)
+        self.assertIn("Existing:", prompt)
+        self.assertIn("Incoming:", prompt)
+        self.assertIn("Suggested:", prompt)
 
     def test_sync_opens_interactive_review_for_changed_email(self):
         self.write_person(
@@ -703,6 +745,46 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         self.assertEqual(personal_path.read_text(encoding="utf-8").count("B.Sc"), 1)
 
+    def test_dated_and_undated_equivalent_education_positions_are_merged(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- BASc - Engineering Science -- Computer Engineering, [University of Toronto](University of Toronto)\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- BASc, Engineering Science -- Computer Engineering, [University of Toronto](University of Toronto), 1985 to 1988\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("BASc"), 1)
+        self.assertIn("1985 to 1988", updated)
+
+    def test_dated_and_undated_education_with_shared_degree_are_merged(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- PhD, Electrical/Computer Engineering, [University of Toronto](University of Toronto), 1981 to 1991\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- PhD, MEng, Computer/Electrical Engineering, [University of Toronto](University of Toronto)\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("University of Toronto"), 1)
+        self.assertIn("1981 to 1991", updated)
+
     def test_identical_undated_positions_are_not_appended_from_incoming(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -734,6 +816,52 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         self.assertTrue((self.personal_root / "jane-doe" / "Jane Doe.md").exists())
         self.assertFalse((self.personal_root / "jane-doe" / "media").exists())
+
+    def test_other_only_person_omits_empty_deprecated_sections(self):
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n# Jane Doe\n\n## Interests\n\n## Communications\n\n## Notes\nKeep this note.\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = (self.personal_root / "jane-doe" / "Jane Doe.md").read_text(encoding="utf-8")
+        self.assertNotIn("## Interests", updated)
+        self.assertNotIn("## Communications", updated)
+        self.assertIn("## Notes\nKeep this note.\n", updated)
+
+    def test_other_only_person_retains_populated_deprecated_sections(self):
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n# Jane Doe\n\n## Interests\n- Reading\n\n## Communications\n\n## Notes\nKeep this note.\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = (self.personal_root / "jane-doe" / "Jane Doe.md").read_text(encoding="utf-8")
+        self.assertIn("## Interests\n- Reading\n", updated)
+        self.assertNotIn("## Communications", updated)
+
+    def test_other_only_person_removes_invalid_single_character_place_link(self):
+        self.write_person(
+            self.other_root,
+            "lisa-hotchkiss",
+            "---\ntags: [person]\nslug: lisa-hotchkiss\nfirst_name: Lisa\nlast_name: Hotchkiss\n---\n## Positions\n- Marketing Communications Manager, [[Nortel]], [[• Developed collateral]], 2007-01 to 2009-12\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = (self.personal_root / "lisa-hotchkiss" / "Lisa Hotchkiss.md").read_text(encoding="utf-8")
+        self.assertIn("Marketing Communications Manager, [[Nortel]], 2007-01 to 2009-12", updated)
+        self.assertNotIn("[[• Developed collateral]]", updated)
 
     def test_conflicted_existing_slug_is_never_overwritten_or_created(self):
         for folder in ("jane-doe", "jane-doe-original"):

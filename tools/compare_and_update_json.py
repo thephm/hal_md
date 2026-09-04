@@ -211,6 +211,6 @@ def main(original_file, modified_file):
 if __name__ == "__main__":
     import sys
     if len(sys.argv) != 3:
-        print("Usage: python compare_by_slug.py original.json modified.json")
+        print("Usage: python tools/compare_and_update_json.py original.json modified.json")
     else:
         main(sys.argv[1], sys.argv[2])

@@ -1,7 +1,7 @@
 import unittest
 
-import extract_interests
-import extract_skills
+from tools import extract_interests
+from tools import extract_skills
 
 
 class RegistryUpdateTests(unittest.TestCase):

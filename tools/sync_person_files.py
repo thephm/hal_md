@@ -20,7 +20,11 @@ from typing import Any, Iterable
 
 import yaml
 
-from markdown_cleanup import normalize_heading_spacing
+# Allow `python tools/sync_person_files.py` as well as package imports.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.markdown_cleanup import normalize_heading_spacing
 from text_encoding import repair_mojibake
 
 
@@ -44,6 +48,7 @@ FRONTMATTER_FIELD_ORDER = (
     "x_id", "linkedin_id", "linkedin_url", "city", "province", "country",
 )
 SECTION_ORDER = ("## Bio", "## References", "## Life Events", "## People", "## Positions", "## Notes")
+DEPRECATED_EMPTY_SECTIONS = ("## Interests", "## Communications")
 H2_PATTERN = re.compile(r"(?m)^## [^\r\n]+\r?$")
 DATE_PATTERN = re.compile(r"\b(\d{4}(?:-\d{2}(?:-\d{2})?)?)\b")
 DATED_FILE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}(?:\D.*)?\.md$", re.I)
@@ -164,6 +169,16 @@ def section_content(raw: str, heading: str) -> str:
     return raw[span[0]:span[1]] if span else ""
 
 
+def remove_empty_deprecated_sections(raw: str) -> str:
+    """Remove deprecated H2 sections that contain only whitespace."""
+    for heading in DEPRECATED_EMPTY_SECTIONS:
+        span = section_span(raw, heading)
+        if span and not raw[span[0]:span[1]].strip():
+            heading_start = raw.rfind("\n", 0, span[0] - len(heading) - 1) + 1
+            raw = raw[:heading_start] + raw[span[1]:]
+    return raw
+
+
 def linkedin_profile_url(values: dict[str, Any]) -> str:
     url = str(values.get("linkedin_url") or "").strip()
     if url:
@@ -277,6 +292,59 @@ def normalized_name(person: PersonDocument) -> str:
     return re.sub(r"[^a-z]", "", person.name.casefold())
 
 
+def is_position_heading(line: str) -> bool:
+    """Identify a list or quoted line that has the required position date."""
+    heading = re.sub(r"^\s*(?:>\s*)?[*-]\s+|^\s*>\s*", "", line).strip()
+    return bool(DATE_PATTERN.search(heading))
+
+
+def is_recognizable_position(line: str) -> bool:
+    return bool(
+        is_position_heading(line)
+        or re.search(r"\[\[[^\]]+\]\]|\[[^\]]+\]\([^)]*\)", line)
+        or re.search(r"\b(?:b\.?(?:a|sc)\.?|bachelor|master|ph\.?d|diploma|certificate)\b", line, re.I)
+    )
+
+
+def repair_malformed_positions(content: str) -> str:
+    """Recover position entries accidentally rendered as quotes or fenced Markdown."""
+    line_end = "\r\n" if "\r\n" in content else "\n"
+    fence_pattern = re.compile(r"(?ms)^[ \t]*```\r?\n(?P<body>.*?)(?:^[ \t]*```[ \t]*$|\Z)")
+
+    def remove_position_fence(match: re.Match[str]) -> str:
+        body = match.group("body")
+        return body if any(is_position_heading(line) for line in body.splitlines()) else match.group(0)
+
+    content = fence_pattern.sub(remove_position_fence, content)
+    lines = content.splitlines()
+    repaired: list[str] = []
+    description_position = False
+    in_fence = False
+    for line in lines:
+        if re.match(r"^\s*```\s*$", line):
+            in_fence = not in_fence
+            repaired.append(line)
+            continue
+        if in_fence:
+            repaired.append(line)
+            continue
+        quoted = re.match(r"^(?P<indent>\s*)>\s?(?P<text>.*)$", line)
+        if quoted and is_position_heading(line):
+            repaired.append(f"- {quoted.group('text').strip()}")
+            description_position = True
+        elif quoted:
+            repaired.append(line)
+        elif description_position and re.match(r"^\s*[*-]\s+", line) and not is_recognizable_position(line):
+            repaired.append(f"  > {line.strip()}")
+        elif description_position and line.strip() and not is_recognizable_position(line):
+            repaired.append(f"  > {line.strip()}")
+        else:
+            repaired.append(line)
+            if is_recognizable_position(line):
+                description_position = True
+    return line_end.join(repaired) + (line_end if content.endswith(("\n", "\r")) else "")
+
+
 def position_blocks(content: str) -> list[str]:
     starts = list(re.finditer(r"(?m)^[*-] .*$", content))
     if not starts:
@@ -326,6 +394,30 @@ def position_organization(block: str, aliases: dict[str, str] | None = None) -> 
     return normalized_position_organization((aliases or {}).get(organization, organization))
 
 
+def remove_invalid_position_place_link(block: str) -> str:
+    """Remove a second position link that cannot be a valid place name."""
+    first_line = block.splitlines()[0] if block else ""
+    matches = list(re.finditer(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]|\[([^\]]+)\]\([^)]*\)", first_line))
+    if len(matches) < 2:
+        return block
+    place = (matches[1].group(1) or matches[1].group(2)).strip()
+    if not re.match(r"^\S\s", place):
+        return block
+    remove_start = matches[1].start()
+    prefix = block[:remove_start]
+    if prefix.rstrip().endswith(","):
+        remove_start = len(prefix.rstrip()) - 1
+    return block[:remove_start] + block[matches[1].end():]
+
+
+def remove_invalid_position_place_links(raw: str) -> str:
+    positions = section_content(raw, "## Positions")
+    if not positions:
+        return raw
+    cleaned = "".join(remove_invalid_position_place_link(block) for block in position_blocks(positions))
+    return replace_section(raw, "## Positions", cleaned, trailing_blank_line=True) if cleaned != positions else raw
+
+
 def normalize_position_organization_link(block: str, aliases: dict[str, str]) -> str:
     """Replace a recognized position organization link with its canonical Wikilink."""
     match = re.search(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]|\[([^\]]+)\]\([^)]*\)", block)
@@ -352,9 +444,33 @@ def position_title(block: str) -> str:
     return normalized_position_organization(title)
 
 
-def is_undated_education(block: str) -> bool:
+def is_education(block: str) -> bool:
     first_line = block.splitlines()[0] if block else ""
-    return not position_dates(block) and bool(re.search(r"\b(?:b\.?sc|m\.?sc|bachelor|master|ph\.?d|diploma|certificate)\b", first_line, re.I))
+    return bool(re.search(r"\b(?:b\.?a\.?sc|b\.?sc|m\.?sc|bachelor|master|ph\.?d|diploma|certificate)\b", first_line, re.I))
+
+
+def education_qualifications(block: str) -> set[str]:
+    first_line = block.splitlines()[0] if block else ""
+    return {
+        qualification.casefold().replace(".", "")
+        for qualification in re.findall(
+            r"\b(?:b\.?a\.?sc|b\.?sc|m\.?sc|bachelor|master|ph\.?d|diploma|certificate)\b",
+            first_line,
+            re.I,
+        )
+    }
+
+
+def education_matches(left: str, right: str, aliases: dict[str, str]) -> bool:
+    left_organization = position_organization(left, aliases)
+    right_organization = position_organization(right, aliases)
+    return bool(
+        left_organization
+        and left_organization == right_organization
+        and is_education(left)
+        and is_education(right)
+        and education_qualifications(left).intersection(education_qualifications(right))
+    )
 
 
 def position_dates(block: str) -> list[str]:
@@ -518,17 +634,20 @@ class PersonSynchronizer:
                 self.record_change(person, "heading_spacing", "inconsistent", "normalized", "normalized_markdown")
                 self.backup_and_write(person, normalized)
 
-    def conflict(self, person: PersonDocument, field: str, personal: Any, other: Any, kind: str = "contact_info") -> None:
+    def conflict(self, person: PersonDocument, field: str, personal: Any, other: Any, kind: str = "contact_info", context: dict[str, str] | None = None) -> None:
         decision = self.store.decision(person.slug, field, other)
         if decision:
             self.reused_decisions += 1
             return
         item = {"slug": person.slug, "name": person.name, "path": str(person.path), "field": field, "type": kind, "personal": personal, "other": other, "other_hash": source_hash(other)}
+        if context:
+            item.update(context)
         if self.store.queue(item):
             self.reviews.append(item)
 
     def merge_positions(self, person: PersonDocument, other: PersonDocument, raw: str) -> str:
         personal_content, other_content = section_content(raw, "## Positions"), section_content(other.raw, "## Positions")
+        personal_content, other_content = repair_malformed_positions(personal_content), repair_malformed_positions(other_content)
         personal_blocks = deduplicate_position_blocks(position_blocks(personal_content), self.organization_aliases)
         other_blocks = [normalize_position_organization_link(block, self.organization_aliases) for block in position_blocks(other_content)]
         used: set[int] = set()
@@ -540,7 +659,14 @@ class PersonSynchronizer:
                     index for index, block in enumerate(personal_blocks)
                     if index not in used and (
                         organization and position_organization(block, self.organization_aliases) == organization and dates_overlap(position_dates(block), other_dates)
-                        or is_undated_education(block) and is_undated_education(other_block) and position_title(block) == other_title
+                        or (
+                            is_education(block)
+                            and is_education(other_block)
+                            and (
+                                position_title(block) == other_title
+                                or education_matches(block, other_block, self.organization_aliases)
+                            )
+                        )
                     )
                 ),
                 None,
@@ -554,6 +680,12 @@ class PersonSynchronizer:
             other_lines = other_block.splitlines(keepends=True)
             personal_block = replace_position_organization_link(personal_block, other_block)
             personal_blocks[matched_index] = personal_block
+            if not position_dates(personal_block) and other_dates:
+                line_end = "\r\n" if "\r\n" in personal_block else "\n"
+                first_line, *remaining_lines = personal_block.splitlines()
+                dates = " to ".join(other_dates)
+                personal_block = f"{first_line.rstrip(', ')}, {dates}{line_end}{line_end.join(remaining_lines)}"
+                personal_blocks[matched_index] = personal_block
             if (
                 personal_lines
                 and other_lines
@@ -564,7 +696,19 @@ class PersonSynchronizer:
                 personal_blocks[matched_index] = personal_block
             for personal_date, other_date in zip(position_dates(personal_block), other_dates):
                 if shared_month(personal_date) != shared_month(other_date):
-                    self.conflict(person, f"position:{organization}:date", personal_date, other_date, "position_date")
+                    existing_line = personal_block.splitlines()[0] if personal_block else ""
+                    self.conflict(
+                        person,
+                        f"position:{organization}:date",
+                        personal_date,
+                        other_date,
+                        "position_date",
+                        {
+                            "existing_line": existing_line,
+                            "incoming_line": other_block.splitlines()[0] if other_block else "",
+                            "suggested_line": existing_line.replace(personal_date, other_date, 1),
+                        },
+                    )
                 elif date_precision(other_date) > date_precision(personal_date):
                     personal_block = personal_block.replace(personal_date, other_date, 1)
                     personal_blocks[matched_index] = personal_block
@@ -652,7 +796,13 @@ class PersonSynchronizer:
     def match_and_sync(self, personal: list[PersonDocument], other: list[PersonDocument], blocked_existing_slugs: set[str] | None = None, known_existing_slugs: set[str] | None = None) -> None:
         original_personal = personal
         personal = [document_from_raw(person.path, repair_mojibake(person.raw)) for person in personal]
-        other = [document_from_raw(person.path, repair_mojibake(person.raw)) for person in other]
+        other = [
+            document_from_raw(
+                person.path,
+                remove_invalid_position_place_links(remove_empty_deprecated_sections(repair_mojibake(person.raw))),
+            )
+            for person in other
+        ]
         by_slug, by_linkedin = {person.slug: person for person in personal}, {str(person.frontmatter.get("linkedin_id")): person for person in personal if person.frontmatter.get("linkedin_id")}
         persisted_paths = {
             str(Path(entry.get("other_path", "")).resolve()): by_slug[slug]
@@ -721,7 +871,7 @@ class PersonSynchronizer:
                 else:
                     quoted = "".join(f"  > - {paragraph}{line_end}" for paragraph in paragraphs)
                 return match.group("bullet") + (match.group("blank") or line_end) + quoted
-            positions = section_content(person.raw, "## Positions")
+            positions = repair_malformed_positions(section_content(person.raw, "## Positions"))
             normalized = pattern.sub(convert, positions)
             blocks = [normalize_single_bullet_description(block) for block in position_blocks(normalized)]
             ordered = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(blocks))
@@ -807,6 +957,16 @@ def read_review_command(prompt: str) -> str:
     return command.lower()
 
 
+def review_context(item: dict[str, Any]) -> str:
+    if not item.get("existing_line"):
+        return f"\033[31m- {item.get('personal', '')}\033[0m\n\033[32m+ {item.get('other', '')}\033[0m"
+    return (
+        f"Existing:  \033[31m{item['existing_line']}\033[0m\n"
+        f"Incoming:  \033[32m{item.get('incoming_line', '')}\033[0m\n"
+        f"Suggested: \033[36m{item.get('suggested_line', '')}\033[0m"
+    )
+
+
 def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> int:
     store = SyncStore(Path(args.state_dir), False)
     pending = [item for item in store.pending if slugs is None or item["slug"] in slugs]
@@ -814,7 +974,7 @@ def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> i
     remaining: list[dict[str, Any]] = []
     for index, item in enumerate(pending, 1):
         print(f"\nReviewing {index} of {len(pending)} - {item['name']} ({item['slug']}) - {item['field']}")
-        print(f"\033[31m- {item.get('personal', '')}\033[0m\n\033[32m+ {item.get('other', '')}\033[0m")
+        print(review_context(item))
         command = read_review_command("[a]ccept  [r]eject  [i]gnore  [e]dit  [q]uit: ")
         if command == "q":
             remaining.extend(pending[index - 1:])

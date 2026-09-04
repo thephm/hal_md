@@ -11,7 +11,7 @@ Requires: pyyaml
     pip install pyyaml
 
 Usage:
-    python extract_skills.py --folder /path/to/People
+    python tools/extract_skills.py --folder /path/to/People
 
 Options:
     --folder    Root folder to search recursively for .md files (required)

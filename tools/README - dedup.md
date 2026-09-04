@@ -1,4 +1,4 @@
-# dedup.py - Markdown File Deduplication Tool
+# tools/dedup.py - Markdown File Deduplication Tool
 
 A Python utility for removing duplicate content from markdown files while preserving context, with special handling for email threads and conversation logs.
 
@@ -6,7 +6,7 @@ A Python utility for removing duplicate content from markdown files while preser
 
 ## Overview
 
-`dedup.py` is designed to clean up markdown files containing email threads, conversations, or notes that often contain duplicate content. It identifies and removes redundant information while preserving the context and structure of the original document.
+`tools/dedup.py` is designed to clean up markdown files containing email threads, conversations, or notes that often contain duplicate content. It identifies and removes redundant information while preserving the context and structure of the original document.
 
 ## Features
 
@@ -22,7 +22,7 @@ A Python utility for removing duplicate content from markdown files while preser
 ## Installation
 
 1. Ensure you have Python 3.6+ installed
-2. Download `dedup.py` to your preferred location
+2. Run `tools/dedup.py` from the repository root
 3. No external dependencies required (uses Python standard library only)
 
 ## Usage
@@ -30,7 +30,7 @@ A Python utility for removing duplicate content from markdown files while preser
 ### Basic Usage
 
 ```bash
-python dedup.py <folder_or_file_path>
+python tools/dedup.py <folder_or_file_path>
 ```
 
 This will process all dated markdown files (format: YYYY-MM-DD*.md) in the specified folder and its subfolders interactively.
@@ -38,7 +38,7 @@ This will process all dated markdown files (format: YYYY-MM-DD*.md) in the speci
 ### Command Line Arguments
 
 ```bash
-python dedup.py [options] <folder_or_file_path>
+python tools/dedup.py [options] <folder_or_file_path>
 ```
 
 Options:
@@ -66,22 +66,22 @@ When run in interactive mode, the tool will:
 
 Process a single file interactively:
 ```bash
-python dedup.py path/to/file.md
+python tools/dedup.py path/to/file.md
 ```
 
 Process all files in a folder automatically (with same-sender duplicates):
 ```bash
-python dedup.py --auto path/to/folder
+python tools/dedup.py --auto path/to/folder
 ```
 
 Remove duplicates without any replacement text:
 ```bash
-python dedup.py --no-prompt path/to/folder
+python tools/dedup.py --no-prompt path/to/folder
 ```
 
 Dry run to see what would be detected without making changes:
 ```bash
-python dedup.py --dry-run --verbose path/to/folder
+python tools/dedup.py --dry-run --verbose path/to/folder
 ```
 
 ## What It Detects

@@ -2,12 +2,13 @@
 
 import os
 from argparse import ArgumentParser
+from pathlib import Path
 
 import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(1, '../hal/')
 import person
 
-sys.path.insert(1, './') 
 import md_person
 import md_interactions
 

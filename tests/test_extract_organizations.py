@@ -2,7 +2,7 @@ import unittest
 
 import yaml
 
-import extract_organizations as eo
+from tools import extract_organizations as eo
 
 
 class ExtractOrganizationsTests(unittest.TestCase):

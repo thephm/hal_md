@@ -126,12 +126,12 @@ So far, I've created:
 - [signal_md](https://github.com/thephm/signal_md) for Signal messages using `signald` 
 - [signal_sqlite_md](https://github.com/thephm/signal_sqlite_md) for Signal messages from it's SQLite DB 
 - [sms_backup_md](https://github.com/thephm/sms_backup_md) for SMS messages
-- 2024-03-10: [last_contact](last_contact.py) to see when I last contacted the person
-- 2024-03-10: [md_birthdays](md_birthdays.py) outputs a month-by-month calendar of birthdays
+- 2024-03-10: [last_contact](tools/last_contact.py) to see when I last contacted the person
+- 2024-03-10: [md_birthdays](tools/md_birthdays.py) outputs a month-by-month calendar of birthdays
 - 2024-03-10: [sample](https://github.com/thephm/sample) a sample collection of famous computer science folk
 - 2024-09-22: [comms](comms.py) to show the most recent communications with a person
-- 2024-09-29: [embed_notes](embed_notes.py) to embed dated interaction files into Person profiles
-- [sync_person_files](sync_person_files.py) merges selected frontmatter fields, bios, and positions from another Person-file collection into a personal vault. It modifies matched personal files in place; begin with `--dry-run` and keep the external `--state-dir` (including its backups and review decisions) backed up.
+- 2024-09-29: [embed_notes](tools/embed_notes.py) to embed dated interaction files into Person profiles
+- [sync_person_files](tools/sync_person_files.py) merges selected frontmatter fields, bios, and positions from another Person-file collection into a personal vault. It modifies matched personal files in place; begin with `--dry-run` and keep the external `--state-dir` (including its backups and review decisions) backed up.
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
 
@@ -164,7 +164,7 @@ For this tool you need to install a few libraries:
 
 ### Embed Notes
 
-The `embed_notes.py` script embeds all dated interaction files (e.g., `2023-02-01.md`, `2024-03-24.md`) into each Person's profile under the `## Notes` section. This creates a complete communication history timeline within each person's file.
+The `tools/embed_notes.py` script embeds all dated interaction files (e.g., `2023-02-01.md`, `2024-03-24.md`) into each Person's profile under the `## Notes` section. This creates a complete communication history timeline within each person's file.
 
 The script also ensures that each Person file has a proper H1 title (e.g., `# John Doe`) that matches the filename, adding it if missing.
 
@@ -202,7 +202,7 @@ The script will update `Spongebob Squarepants.md` to include:
 
 ### Most contacted
 
-The `most_contacted.py` script goes through every file dated `YYYY-MM-DD.md` and then shows you who you communicated with the most number of days, over how long, and when was the last contact. Kind of a fun leaderboard that I shared with my siblings. 
+The `tools/most_contacted.py` script goes through every file dated `YYYY-MM-DD.md` and then shows you who you communicated with the most number of days, over how long, and when was the last contact. Kind of a fun leaderboard that I shared with my siblings.
 
 By default, the results are displayed on the command line or you can use the `-o` option to generate a CSV file and then play with it in Excel.
 
@@ -216,7 +216,7 @@ DISCLAIMER: this script was entirely crafted by ChatGPT based on about 40 prompt
 
 ### Wikilink audit
 
-The `scan_wikilinks.py` script walks a vault, indexes every file, resolves Obsidian wikilinks, and writes two reports in the vault root:
+The `tools/scan_wikilinks.py` script walks a vault, indexes every file, resolves Obsidian wikilinks, and writes two reports in the vault root:
 
 - `.wikilink_index.md` with frontmatter for the last scan time plus vault counts and a full link map
 - `missing_files.md` with one clickable line per broken wikilink so you can jump from Obsidian into a Jottacloud search

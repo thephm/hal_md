@@ -18,30 +18,30 @@ run = "python comms.py"
 [tasks.dedup]
 description = "Deduplicate files (POTENTIALLY DESTRUCTIVE, BACKUP FIRST)"
 depends = ["install"]
-run = "python dedup.py"
+run = "python tools/dedup.py"
 
 [tasks.embed_notes]
 description = "Embed notes"
 depends = ["install"]
-run = "python dedup.py"
+run = "python tools/embed_notes.py"
 
 [tasks.last_contact]
 description = "Last contact with someone"
 depends = ["install"]
-run = "python last_contact.py"
+run = "python tools/last_contact.py"
 
 [tasks.md_birthdays]
 description = "Generate a MD calendar of birthdays"
 depends = ["install"]
-run = "python md_birthdays.py"
+run = "python tools/md_birthdays.py"
 
 [tasks.md_body]
 description = "Generate a MD calendar of birthdays"
 depends = ["install"]
-run = "python md_birthdays.py"
+run = "python tools/md_birthdays.py"
 
 [tasks.most_contacted]
 description = "Most contacted people"
 depends = ["install"]
-run = "python most_contacted.py"
+run = "python tools/most_contacted.py"
 

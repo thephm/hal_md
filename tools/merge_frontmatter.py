@@ -8,8 +8,12 @@
 
 import os
 import sys
-import md_person
 from argparse import ArgumentParser
+from pathlib import Path
+
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
+
+import md_person
 
 # Parse the command line arguments
 def get_arguments():

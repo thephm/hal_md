@@ -1,7 +1,7 @@
 import unittest
 
-from compare_and_update_json import normalize_email_fields
-from create_people_json import extract_emails, extract_person_info
+from tools.compare_and_update_json import normalize_email_fields
+from tools.create_people_json import extract_emails, extract_person_info
 
 
 class PeopleJsonEmailsTests(unittest.TestCase):

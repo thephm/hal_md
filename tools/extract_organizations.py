@@ -35,7 +35,7 @@ resolves back to the exact same record next time.
 
 Assumptions (this repo doesn't currently publish a single canonical
 slugify()/dedup helper, so these mirror the conventions used elsewhere
-in hal_md, e.g. create_people_json.py and templates/Organization.md):
+in hal_md, e.g. tools/create_people_json.py and templates/Organization.md):
 
   - organizations.json is either a plain JSON list of organization
     records, or a dict of the form {"organizations": [...]}. Either is

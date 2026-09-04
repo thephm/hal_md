@@ -23,7 +23,7 @@ for dated markdown files and:
      writing changes. Supports --dry-run to preview without modifying files.
 
 CLI usage:
-    python dedupe.py <folder_or_file> [--auto] [--min-chars N] [--verbose]
+    python tools/dedup.py <folder_or_file> [--auto] [--min-chars N] [--verbose]
                       [--dry-run] [--no-format-fix] [--no-context]
 
 Run with no arguments for interactive prompts.
