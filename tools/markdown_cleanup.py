@@ -3,12 +3,12 @@
 import re
 
 
-HEADING_PATTERN = re.compile(r"^#{2,3}(?!#)\s+\S")
+HEADING_PATTERN = re.compile(r"^ {0,3}#{1,6}(?:[ \t]+\S|[ \t]*$)")
 FENCE_PATTERN = re.compile(r"^\s*(`{3,}|~{3,})")
 
 
 def normalize_heading_spacing(markdown: str) -> str:
-    """Ensure level-two and level-three headings have one surrounding blank line."""
+    """Ensure ATX Markdown headings have exactly one surrounding blank line."""
     line_end = "\r\n" if "\r\n" in markdown else "\n"
     lines = markdown.splitlines()
     body_start = _frontmatter_end(lines)
@@ -30,8 +30,7 @@ def normalize_heading_spacing(markdown: str) -> str:
             index += 1
             while index < len(body) and not body[index].strip():
                 index += 1
-            if index < len(body):
-                cleaned.append("")
+            cleaned.append("")
             continue
         cleaned.append(line)
         index += 1

@@ -1,7 +1,9 @@
 # Represents the body of a Markdown file
 
 import sys
-sys.path.insert(1, './') 
+sys.path.insert(1, './')
+
+from tools.markdown_cleanup import normalize_heading_spacing
 
 NEW_LINE = "\n"
 
@@ -107,10 +109,7 @@ class Body:
         # grab the handle to the file from the parent object
         file = self.parent.file
 
-        file.write(NEW_LINE)
-        for section in self.sections:
-            file.write(section[SECTION_HEADING] + NEW_LINE)
-            file.write(section[SECTION_CONTENT])
+        file.write(self.get_text())
 
         return True  
     
@@ -126,12 +125,12 @@ class Body:
         This is used when saving the file to get the updated body content.
         """
         result = NEW_LINE  # Start with a newline like the write() method
-        
+
         for section in self.sections:
             result += section[SECTION_HEADING] + NEW_LINE
             result += section[SECTION_CONTENT]
-        
-        return result
+
+        return normalize_heading_spacing(result)
     
     # get the content from a specific section of the file
     def get_content(self, section_heading):

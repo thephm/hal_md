@@ -12,6 +12,14 @@ class MarkdownCleanupTests(unittest.TestCase):
             "---\ntitle: Example\n---\n\n## First\n\nText\n\n### Second\n\nMore text\n",
         )
 
+    def test_normalizes_all_atx_heading_levels_and_trailing_heading(self):
+        source = "# Title\nIntro\n\n\n#### Details\n"
+
+        self.assertEqual(
+            normalize_heading_spacing(source),
+            "# Title\n\nIntro\n\n#### Details\n\n",
+        )
+
     def test_preserves_frontmatter_and_fenced_code(self):
         source = "---\ntitle: ## Keep\n---\n```markdown\n## Code\nText\n```\n## Heading\nText\n"
 
