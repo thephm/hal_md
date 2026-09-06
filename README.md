@@ -132,6 +132,7 @@ So far, I've created:
 - 2024-09-22: [comms](comms.py) to show the most recent communications with a person
 - 2024-09-29: [embed_notes](tools/embed_notes.py) to embed dated interaction files into Person profiles
 - [sync_person_files](tools/sync_person_files.py) merges selected frontmatter fields, bios, and positions from another Person-file collection into a personal vault. It modifies matched personal files in place; begin with `--dry-run` and keep the external `--state-dir` (including its backups and review decisions) backed up.
+- [dedup_media](tools/dedup_media.py) interactively removes byte-identical files from every `media` folder in a vault and updates their Markdown references.
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
 
@@ -231,6 +232,25 @@ The `tools/scan_wikilinks.py` script walks a vault, indexes every file, resolves
 - `--missing-name` - Broken-link report file name to write in the vault root
 - `--source-extensions` - Comma-separated list of file extensions to scan for wikilinks
 - `-d` or `--debug` - Show one-line progress updates for the folder or file currently being scanned
+
+### Media deduplication
+
+The `tools/dedup_media.py` script recursively indexes files inside every folder named `media` below a vault root. It identifies byte-identical files by their byte count and SHA-256 hash, detects common media types from their file contents, and then asks which copy to keep. It does not delete any file until you select the copy to keep. Before prompting, it writes the structured `media_dedup_index.json` report to `C:\data\dev-output` on Windows or `/mnt/c/data/dev-output` in WSL by default. On a later run, choose `u` to quickly compare current paths, sizes, and modification times against the saved manifest. It reuses hashes for unchanged files and hashes only new or changed same-size candidates. Choose `r` to discard the manifest and hash all same-size candidates again.
+
+For each set of identical files, the script makes every displayed media filename a hyperlink that opens it in VS Code. Enter `s` to skip the set or `q` at any prompt to quit.
+
+If the selected kept file has no filename extension but its contents identify a supported media type, the script offers to add the appropriate extension and update Markdown references to that kept file. This rename happens only after you answer `y`.
+
+After it finds sets of identical files, the script first indexes media filenames so it can safely resolve shorthand Obsidian links such as `![[photo.jpg]]`. It then indexes Obsidian wikilinks and ordinary Markdown links in all `.md` files below the vault root once. Each removal then updates only Markdown files known to reference that media file. It prints every changed Markdown filename as a clickable link with its source line number, showing the old target in red and the replacement in green.
+
+```powershell
+py -3 tools\dedup_media.py -f path\to\vault -o C:\data\dev-output
+```
+
+#### Command line options
+
+- `-f` or `--folder` - The vault root to scan. The tool indexes media files only from folders named `media`, but updates references in every `.md` file below this root.
+- `-o` or `--output` - Folder where `media_dedup_index.json` is written. Defaults to `C:\data\dev-output` on Windows and `/mnt/c/data/dev-output` in WSL.
 
 ## License
 
