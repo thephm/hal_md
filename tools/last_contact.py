@@ -1,5 +1,6 @@
 # Updates the "last_contact" frontmatter field based on atomic dated files.     
 
+import datetime as dt
 import os
 from argparse import ArgumentParser
 from pathlib import Path
@@ -63,11 +64,33 @@ def update_last_contact(folder, the_interactions):
         slug = most_recent_interaction.slug
         the_date = most_recent_interaction.date
 
-        # update their profile
-        if the_date:
+        # Preserve a manually recorded contact date that is newer than any note.
+        if the_date and not has_more_recent_last_contact(folder, slug, the_date):
             result = md_person.update_field(slug, folder, "last_contact", str(the_date))
 
     return result
+
+
+def has_more_recent_last_contact(folder, slug, latest_interaction_date):
+    """Return whether the profile records a later manually entered contact date."""
+    person_file = md_person.read_person_frontmatter(slug, folder)
+    if person_file is None:
+        return False
+    last_contact = parse_date(person_file.last_contact)
+    return last_contact is not None and last_contact > latest_interaction_date
+
+
+def parse_date(value):
+    if isinstance(value, dt.datetime):
+        return value.date()
+    if isinstance(value, dt.date):
+        return value
+    if isinstance(value, str):
+        try:
+            return dt.date.fromisoformat(value.strip())
+        except ValueError:
+            pass
+    return None
 
 def load_interactions(folder, the_interactions):
     """
@@ -114,16 +137,18 @@ def load_interactions(folder, the_interactions):
     
     return count
 
-# main
+def main():
+    global args
+    args = get_arguments()
+    folder = args.folder
+    the_interactions = []
 
-args = get_arguments()
-folder = args.folder
-the_interactions = []
+    if folder and not os.path.exists(folder):
+        print('The folder "' + args.folder + '" could not be found.')
+    elif folder:
+        count = load_interactions(folder, the_interactions)
+        print(str(count) + " people checked" + " "*20)
 
-if folder and not os.path.exists(folder):
-    print('The folder "' + args.folder + '" could not be found.')
 
-elif folder:
-    count = load_interactions(folder, the_interactions)
-
-    print(str(count) + " people checked" + " "*20)
+if __name__ == "__main__":
+    main()
