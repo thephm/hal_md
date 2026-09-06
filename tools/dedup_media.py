@@ -272,7 +272,17 @@ def write_duplicate_index(
 
 
 def load_media_manifest(index_path: Path, vault_root: Path) -> dict[str, MediaFile]:
-    data = json.loads(index_path.read_text(encoding="utf-8"))
+    file_size = index_path.stat().st_size
+    read_size = 0
+    chunks: list[bytes] = []
+    with index_path.open("rb") as handle:
+        while chunk := handle.read(CHUNK_SIZE):
+            chunks.append(chunk)
+            read_size += len(chunk)
+            percentage = 100 if not file_size else read_size * 100 // file_size
+            print(f"\r\033[2KLoading cached media index: {percentage}%", end="", flush=True)
+    print("\r\033[2KParsing cached media index...", flush=True)
+    data = json.loads(b"".join(chunks).decode("utf-8"))
     if data.get("version") != INDEX_VERSION:
         raise ValueError("index format is not compatible")
 
@@ -411,6 +421,28 @@ def rename_extensionless_media(media_file: MediaFile, vault_root: Path) -> Media
     )
 
 
+def relocate_media_file(media_file: MediaFile, target: str | Path, vault_root: Path) -> MediaFile:
+    target_path = Path(str(target).lstrip("/\\"))
+    if target_path.is_absolute():
+        raise ValueError("Destination must be relative to the vault root.")
+    destination = (vault_root / target_path).resolve()
+    try:
+        relative_path = destination.relative_to(vault_root).as_posix()
+    except ValueError as error:
+        raise ValueError("Destination must be inside the vault root.") from error
+    if destination.exists():
+        raise ValueError(f"Destination already exists: {relative_path}")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    media_file.path.rename(destination)
+    return replace(
+        media_file,
+        path=destination,
+        relative_path=relative_path,
+        modified_time_ns=destination.stat().st_mtime_ns,
+    )
+
+
 def print_reference_updates(updates: list[ReferenceUpdate], vault_root: Path) -> None:
     red = "\033[31m"
     green = "\033[32m"
@@ -430,6 +462,18 @@ def describe_group(group: list[MediaFile]) -> None:
         extension_note = "; no filename extension" if not media_file.path.suffix else ""
         linked_path = terminal_link(media_file.path, media_file.relative_path)
         print(f"  [{index}] {linked_path} ({media_file.mime_type}{extension_note})")
+    for index, (location_file, filename_file) in enumerate(cross_location_filename_options(group), start=len(group) + 1):
+        target = Path(location_file.relative_path).parent / filename_file.path.name
+        print(f"  [{index}] {target.as_posix()}")
+
+
+def cross_location_filename_options(group: list[MediaFile]) -> list[tuple[MediaFile, MediaFile]]:
+    return [
+        (location_file, filename_file)
+        for location_file in group
+        for filename_file in group
+        if location_file != filename_file
+    ]
 
 
 def process_groups(
@@ -439,18 +483,41 @@ def process_groups(
     updated_count = 0
     for group in groups:
         describe_group(group)
-        choice = prompt("Keep which file number? [s]kip, [q]uit: ")
-        if choice is None:
+        cross_options = cross_location_filename_options(group)
+        while True:
+            choice = prompt("Choose an option [s]kip, [q]uit: ")
+            if choice is None:
+                return
+            if choice.lower() == "s":
+                break
+            try:
+                choice_index = int(choice) - 1
+            except (ValueError, IndexError):
+                print("Choose a listed option, s, or q.")
+                continue
+            if 0 <= choice_index < len(group):
+                selected_file = group[choice_index]
+                kept = selected_file
+            elif choice_index - len(group) < len(cross_options):
+                selected_file, filename_file = cross_options[choice_index - len(group)]
+                target = selected_file.path.parent / filename_file.path.name
+                try:
+                    kept = relocate_media_file(selected_file, target.relative_to(vault_root), vault_root)
+                except ValueError as error:
+                    print(f"Cannot use that option: {error}")
+                    continue
+                relocation_updates = update_markdown_references(vault_root, selected_file, kept, reference_index)
+                reference_index.media_name_counts[selected_file.path.name.lower()] -= 1
+                reference_index.media_name_counts[kept.path.name.lower()] += 1
+                print(f"Relocated {selected_file.relative_path} to {kept.relative_path}.")
+                print_reference_updates(relocation_updates, vault_root)
+            else:
+                print("Choose a listed option, s, or q.")
+                continue
             break
         if choice.lower() == "s":
             continue
-        try:
-            selected_file = group[int(choice) - 1]
-        except (ValueError, IndexError):
-            print("Choose a valid file number, s, or q.")
-            continue
 
-        kept = selected_file
         if not selected_file.path.suffix and selected_file.mime_type in MIME_EXTENSIONS:
             while True:
                 rename_choice = prompt(
