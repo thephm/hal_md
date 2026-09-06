@@ -1,1 +1,8 @@
-html2text==2025.4.15\nmarkdown==3.8.1\nmarkdown-it-py==3.0.0\nmdurl==0.1.2\nPyYAML==6.0.2\npip==26.1.2\npygments==2.19.1\nrich==14.0.0
+html2text==2025.4.15
+markdown==3.8.1
+markdown-it-py==3.0.0
+mdurl==0.1.2
+PyYAML==6.0.2
+pip==26.1.2
+pygments==2.19.1
+rich==14.0.0
