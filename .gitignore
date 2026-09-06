@@ -1,6 +1,6 @@
 
 *.pyc
-.vs/*
+.vs/
 __pycache__
 *.pyproj
 *.pyperf
