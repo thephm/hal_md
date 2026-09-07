@@ -332,12 +332,19 @@ def relative_target(source_path: Path, target: str, vault_root: Path) -> Path | 
         return None
 
 
-def build_markdown_reference_index(vault_root: Path) -> MarkdownReferenceIndex:
+def build_markdown_reference_index(
+    vault_root: Path, media_files: list[MediaFile] | None = None
+) -> MarkdownReferenceIndex:
     media_name_counts: dict[str, int] = defaultdict(int)
-    media_count = 0
     print("Indexing media filenames for shorthand links...", flush=True)
-    for media_count, media_path in enumerate(media_file_paths(vault_root), start=1):
-        media_name_counts[media_path.name.lower()] += 1
+    if media_files is None:
+        media_files = [
+            MediaFile(path=media_path, relative_path="", size=0, mime_type="", digest="")
+            for media_path in media_file_paths(vault_root)
+        ]
+    media_count = 0
+    for media_count, media_file in enumerate(media_files, start=1):
+        media_name_counts[media_file.path.name.lower()] += 1
         if media_count == 1 or media_count % 100 == 0:
             print(f"\r\033[2KIndexed {media_count:,} media filenames", end="", flush=True)
     if media_count:
@@ -620,7 +627,7 @@ def main() -> int:
         print("No byte-identical media files found.")
         return 0
     print(f"Found {len(groups)} set(s) of identical files. Enter q at any prompt to quit.")
-    reference_index = build_markdown_reference_index(vault_root)
+    reference_index = build_markdown_reference_index(vault_root, media_files)
     process_groups(groups, vault_root, reference_index)
     return 0
 

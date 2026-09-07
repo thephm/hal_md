@@ -8,6 +8,7 @@ from tools.dedup_media import (
     MarkdownReferenceIndex,
     MediaFile,
     build_media_index,
+    build_markdown_reference_index,
     cross_location_filename_options,
     detect_mime_type,
     process_groups,
@@ -16,6 +17,25 @@ from tools.dedup_media import (
 
 
 class DedupMediaTests(unittest.TestCase):
+    def test_markdown_reference_index_reuses_supplied_media_files_for_filename_counts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            vault_root = Path(directory)
+            markdown_path = vault_root / "note.md"
+            markdown_path.write_text("[[portrait.jpg]]", encoding="utf-8")
+            media_file = MediaFile(
+                path=vault_root / "person" / "media" / "portrait.jpg",
+                relative_path="person/media/portrait.jpg",
+                size=1,
+                mime_type="image/jpeg",
+                digest="digest",
+            )
+
+            with patch("tools.dedup_media.media_file_paths") as media_file_paths_mock:
+                reference_index = build_markdown_reference_index(vault_root, [media_file])
+
+            self.assertEqual(reference_index.media_name_counts, {"portrait.jpg": 1})
+            media_file_paths_mock.assert_not_called()
+
     def test_build_media_index_reuses_mime_type_for_unchanged_cached_file(self):
         with tempfile.TemporaryDirectory() as directory:
             vault_root = Path(directory)
