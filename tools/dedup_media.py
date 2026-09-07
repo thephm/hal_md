@@ -96,7 +96,8 @@ def sha256_file(path: Path) -> str:
 
 
 def detect_mime_type(path: Path) -> str:
-    header = path.read_bytes()[:32]
+    with path.open("rb") as handle:
+        header = handle.read(32)
     if header.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
     if header.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -134,14 +135,22 @@ def build_media_index(
         stat_result = path.stat()
         relative_path = path.relative_to(vault_root).as_posix()
         cached_file = cached_files.get(relative_path)
-        digest = ""
-        if cached_file and cached_file.size == stat_result.st_size and cached_file.modified_time_ns == stat_result.st_mtime_ns:
+        is_unchanged = (
+            cached_file is not None
+            and cached_file.size == stat_result.st_size
+            and cached_file.modified_time_ns == stat_result.st_mtime_ns
+        )
+        if is_unchanged:
             digest = cached_file.digest
+            mime_type = cached_file.mime_type
+        else:
+            digest = ""
+            mime_type = detect_mime_type(path)
         media_file = MediaFile(
             path=path,
             relative_path=relative_path,
             size=stat_result.st_size,
-            mime_type=detect_mime_type(path),
+            mime_type=mime_type,
             digest=digest,
             modified_time_ns=stat_result.st_mtime_ns,
         )

@@ -7,13 +7,47 @@ from unittest.mock import patch
 from tools.dedup_media import (
     MarkdownReferenceIndex,
     MediaFile,
+    build_media_index,
     cross_location_filename_options,
+    detect_mime_type,
     process_groups,
     relocate_media_file,
 )
 
 
 class DedupMediaTests(unittest.TestCase):
+    def test_build_media_index_reuses_mime_type_for_unchanged_cached_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            vault_root = Path(directory)
+            path = vault_root / "person" / "media" / "portrait.jpg"
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"image")
+            stat_result = path.stat()
+            relative_path = path.relative_to(vault_root).as_posix()
+            cached_file = MediaFile(
+                path=path,
+                relative_path=relative_path,
+                size=stat_result.st_size,
+                mime_type="image/jpeg",
+                digest="cached-digest",
+                modified_time_ns=stat_result.st_mtime_ns,
+            )
+
+            with patch("tools.dedup_media.detect_mime_type") as detect_mime_type_mock:
+                media_files, _ = build_media_index(vault_root, {relative_path: cached_file})
+
+            self.assertEqual(media_files[0].mime_type, "image/jpeg")
+            self.assertEqual(media_files[0].digest, "cached-digest")
+            detect_mime_type_mock.assert_not_called()
+
+    def test_detect_mime_type_reads_only_the_file_header(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "large.jpg"
+            path.write_bytes(b"\xff\xd8\xff" + b"x" * 1024)
+
+            with patch.object(Path, "read_bytes", side_effect=AssertionError("whole-file read")):
+                self.assertEqual(detect_mime_type(path), "image/jpeg")
+
     def test_relocate_media_file_uses_a_vault_relative_path(self):
         with tempfile.TemporaryDirectory() as directory:
             vault_root = Path(directory)
