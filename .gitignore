@@ -9,6 +9,7 @@ __pycache__
 people.json
 People/*
 .venv/
+.venv-ps/
 output/
 **/.wikilink_index.md
 **/missing_files.md

@@ -21,17 +21,21 @@ import re
 import shutil
 import sys
 from collections import defaultdict
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from urllib.parse import quote
 
 
 WIKILINK_PATTERN = re.compile(r"(!?\[\[)([^\]\n]+)(\]\])")
 MARKDOWN_LINK_PATTERN = re.compile(r"(\]\()([^\s)]+)(?:\s+[^)]*)?(\))")
+CRYPTIC_FILENAME_PATTERN = re.compile(
+    r"(?:[0-9a-f]{12,}|[0-9]{8,}|(?:attachment|document|dsc|file|image|img|media|photo|pxl|video)[ _-]*[0-9][\w _-]*)$",
+    re.IGNORECASE,
+)
 CHUNK_SIZE = 1024 * 1024
 DEFAULT_OUTPUT_DIR = Path(r"C:\data\dev-output") if os.name == "nt" else Path("/mnt/c/data/dev-output")
 DEFAULT_INDEX_NAME = "media_dedup_index.json"
-INDEX_VERSION = 2
+INDEX_VERSION = 3
 MIME_EXTENSIONS = {
     "application/pdf": ".pdf",
     "image/gif": ".gif",
@@ -65,6 +69,14 @@ class MarkdownReferenceIndex:
     wikilink_paths: dict[str, set[Path]]
     markdown_link_paths: dict[str, set[Path]]
     media_name_counts: dict[str, int]
+    markdown_files: dict[str, "MarkdownReferenceFile"] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class MarkdownReferenceFile:
+    modified_time_ns: int
+    wikilink_targets: tuple[str, ...]
+    markdown_link_targets: tuple[str, ...]
 
 
 def prompt(message: str) -> str | None:
@@ -221,6 +233,8 @@ def file_url(path: Path) -> str:
         path_text = f"{parts[2].upper()}:/{'/'.join(parts[3:])}"
     else:
         path_text = resolved_path.as_posix()
+    if path.suffix.lower() == ".3gp":
+        return "file:///" + quote(path_text, safe="/:")
     return "vscode://file/" + quote(path_text, safe="/:")
 
 
@@ -239,7 +253,11 @@ def read_markdown(path: Path) -> tuple[str, str]:
     raise UnicodeDecodeError("utf-8", data, 0, len(data), "Markdown file could not be decoded")
 
 
-def build_index_data(media_files: list[MediaFile], groups: list[list[MediaFile]]) -> dict[str, object]:
+def build_index_data(
+    media_files: list[MediaFile],
+    groups: list[list[MediaFile]],
+    reference_index: MarkdownReferenceIndex | None = None,
+) -> dict[str, object]:
     return {
         "version": INDEX_VERSION,
         "duplicate_group_count": len(groups),
@@ -268,19 +286,38 @@ def build_index_data(media_files: list[MediaFile], groups: list[list[MediaFile]]
             }
             for group in groups
         ],
+        "markdown_references": [
+            {
+                "path": relative_path,
+                "modified_time_ns": cached_file.modified_time_ns,
+                "wikilink_targets": list(cached_file.wikilink_targets),
+                "markdown_link_targets": list(cached_file.markdown_link_targets),
+            }
+            for relative_path, cached_file in sorted(
+                (reference_index.markdown_files if reference_index else {}).items()
+            )
+        ],
     }
 
 
 def write_duplicate_index(
-    output_dir: Path, media_files: list[MediaFile], groups: list[list[MediaFile]]
+    output_dir: Path,
+    media_files: list[MediaFile],
+    groups: list[list[MediaFile]],
+    reference_index: MarkdownReferenceIndex | None = None,
 ) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     index_path = output_dir / DEFAULT_INDEX_NAME
-    index_path.write_text(json.dumps(build_index_data(media_files, groups), indent=2) + "\n", encoding="utf-8")
+    index_path.write_text(
+        json.dumps(build_index_data(media_files, groups, reference_index), indent=2) + "\n",
+        encoding="utf-8",
+    )
     return index_path
 
 
-def load_media_manifest(index_path: Path, vault_root: Path) -> dict[str, MediaFile]:
+def load_media_manifest(
+    index_path: Path, vault_root: Path
+) -> tuple[dict[str, MediaFile], dict[str, MarkdownReferenceFile]]:
     file_size = index_path.stat().st_size
     read_size = 0
     chunks: list[bytes] = []
@@ -313,7 +350,23 @@ def load_media_manifest(index_path: Path, vault_root: Path) -> dict[str, MediaFi
             digest=file_data.get("sha256", ""),
             modified_time_ns=file_data["modified_time_ns"],
         )
-    return cached_files
+    cached_markdown_files: dict[str, MarkdownReferenceFile] = {}
+    for file_data in data.get("markdown_references", []):
+        relative_path = file_data.get("path")
+        if not isinstance(relative_path, str):
+            continue
+        wikilink_targets = file_data.get("wikilink_targets")
+        markdown_link_targets = file_data.get("markdown_link_targets")
+        if not isinstance(wikilink_targets, list) or not isinstance(markdown_link_targets, list):
+            continue
+        if not all(isinstance(target, str) for target in wikilink_targets + markdown_link_targets):
+            continue
+        cached_markdown_files[relative_path] = MarkdownReferenceFile(
+            modified_time_ns=file_data["modified_time_ns"],
+            wikilink_targets=tuple(wikilink_targets),
+            markdown_link_targets=tuple(markdown_link_targets),
+        )
+    return cached_files, cached_markdown_files
 
 
 def normalize_wikilink_target(target: str) -> str:
@@ -333,8 +386,11 @@ def relative_target(source_path: Path, target: str, vault_root: Path) -> Path | 
 
 
 def build_markdown_reference_index(
-    vault_root: Path, media_files: list[MediaFile] | None = None
+    vault_root: Path,
+    media_files: list[MediaFile] | None = None,
+    cached_markdown_files: dict[str, MarkdownReferenceFile] | None = None,
 ) -> MarkdownReferenceIndex:
+    cached_markdown_files = cached_markdown_files or {}
     media_name_counts: dict[str, int] = defaultdict(int)
     print("Indexing media filenames for shorthand links...", flush=True)
     if media_files is None:
@@ -353,23 +409,43 @@ def build_markdown_reference_index(
 
     wikilink_paths: dict[str, set[Path]] = defaultdict(set)
     markdown_link_paths: dict[str, set[Path]] = defaultdict(set)
+    markdown_files: dict[str, MarkdownReferenceFile] = {}
     markdown_count = 0
+    reused_count = 0
     print("Indexing Markdown references...", flush=True)
     for markdown_count, markdown_path in enumerate(vault_root.rglob("*.md"), start=1):
-        text, _ = read_markdown(markdown_path)
-        for match in WIKILINK_PATTERN.finditer(text):
-            wikilink_paths[normalize_wikilink_target(match.group(2))].add(markdown_path)
-        for match in MARKDOWN_LINK_PATTERN.finditer(text):
-            target = relative_target(markdown_path, match.group(2), vault_root)
-            if target:
-                markdown_link_paths[target].add(markdown_path)
+        relative_path = markdown_path.relative_to(vault_root).as_posix()
+        cached_file = cached_markdown_files.get(relative_path)
+        if cached_file and cached_file.modified_time_ns == markdown_path.stat().st_mtime_ns:
+            reference_file = cached_file
+            reused_count += 1
+        else:
+            text, _ = read_markdown(markdown_path)
+            reference_file = MarkdownReferenceFile(
+                modified_time_ns=markdown_path.stat().st_mtime_ns,
+                wikilink_targets=tuple(
+                    normalize_wikilink_target(match.group(2)) for match in WIKILINK_PATTERN.finditer(text)
+                ),
+                markdown_link_targets=tuple(
+                    target
+                    for match in MARKDOWN_LINK_PATTERN.finditer(text)
+                    if (target := relative_target(markdown_path, match.group(2), vault_root))
+                ),
+            )
+        markdown_files[relative_path] = reference_file
+        for target in reference_file.wikilink_targets:
+            wikilink_paths[target].add(markdown_path)
+        for target in reference_file.markdown_link_targets:
+            markdown_link_paths[target].add(markdown_path)
         if markdown_count == 1 or markdown_count % 1000 == 0:
-            relative_path = markdown_path.relative_to(vault_root).as_posix()
             print(f"\r\033[2KIndexed {markdown_count:,} Markdown files: {relative_path}", end="", flush=True)
     if markdown_count:
         print()
-    print(f"Indexed references in {markdown_count:,} Markdown file(s).")
-    return MarkdownReferenceIndex(wikilink_paths, markdown_link_paths, media_name_counts)
+    print(
+        f"Indexed references in {markdown_count - reused_count:,} Markdown file(s); "
+        f"reused {reused_count:,} unchanged file(s)."
+    )
+    return MarkdownReferenceIndex(wikilink_paths, markdown_link_paths, media_name_counts, markdown_files)
 
 
 def update_markdown_references(
@@ -484,11 +560,14 @@ def describe_group(group: list[MediaFile]) -> None:
 
 
 def cross_location_filename_options(group: list[MediaFile]) -> list[tuple[MediaFile, MediaFile]]:
+    if group and all(CRYPTIC_FILENAME_PATTERN.fullmatch(media_file.path.stem) for media_file in group):
+        return []
     return [
         (location_file, filename_file)
         for location_file in group
         for filename_file in group
         if location_file != filename_file
+        and not (location_file.path.parent / filename_file.path.name).exists()
     ]
 
 
@@ -501,15 +580,31 @@ def process_groups(
         describe_group(group)
         cross_options = cross_location_filename_options(group)
         while True:
-            choice = prompt("Choose an option [s]kip, [q]uit: ")
+            choice = prompt("Choose an option, [c]ustom path, [s]kip, [q]uit: ")
             if choice is None:
                 return
             if choice.lower() == "s":
                 break
+            if choice.lower() == "c":
+                target = prompt("Custom relative path and filename [q]uit: ")
+                if target is None:
+                    return
+                selected_file = group[0]
+                try:
+                    kept = relocate_media_file(selected_file, target, vault_root)
+                except ValueError as error:
+                    print(f"Cannot use that path: {error}")
+                    continue
+                relocation_updates = update_markdown_references(vault_root, selected_file, kept, reference_index)
+                reference_index.media_name_counts[selected_file.path.name.lower()] -= 1
+                reference_index.media_name_counts[kept.path.name.lower()] += 1
+                print(f"Relocated {selected_file.relative_path} to {kept.relative_path}.")
+                print_reference_updates(relocation_updates, vault_root)
+                break
             try:
                 choice_index = int(choice) - 1
             except (ValueError, IndexError):
-                print("Choose a listed option, s, or q.")
+                print("Choose a listed option, c, s, or q.")
                 continue
             if 0 <= choice_index < len(group):
                 selected_file = group[choice_index]
@@ -528,7 +623,7 @@ def process_groups(
                 print(f"Relocated {selected_file.relative_path} to {kept.relative_path}.")
                 print_reference_updates(relocation_updates, vault_root)
             else:
-                print("Choose a listed option, s, or q.")
+                print("Choose a listed option, c, s, or q.")
                 continue
             break
         if choice.lower() == "s":
@@ -601,6 +696,7 @@ def main() -> int:
     index_path = output_dir / DEFAULT_INDEX_NAME
     media_files: list[MediaFile]
     groups: list[list[MediaFile]]
+    cached_markdown_files: dict[str, MarkdownReferenceFile] = {}
     if index_path.is_file():
         choice = prompt("Existing media index found. [u]pdate (reuse hashes), [r]egenerate (rehash all), or [q]uit: ")
         if choice is None:
@@ -608,7 +704,7 @@ def main() -> int:
         if choice.lower() in ("", "u"):
             try:
                 print("Loading cached media index...", flush=True)
-                cached_files = load_media_manifest(index_path, vault_root)
+                cached_files, cached_markdown_files = load_media_manifest(index_path, vault_root)
                 print("Checking media files and reusing hashes for unchanged files...", flush=True)
                 media_files, groups = build_media_index(vault_root, cached_files)
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
@@ -621,13 +717,17 @@ def main() -> int:
             return 1
     else:
         media_files, groups = build_media_index(vault_root)
-    index_path = write_duplicate_index(output_dir, media_files, groups)
-    print(f"Duplicate index: {terminal_link(index_path)}")
     if not groups:
+        index_path = write_duplicate_index(output_dir, media_files, groups)
+        print(f"Duplicate index: {terminal_link(index_path)}")
         print("No byte-identical media files found.")
         return 0
     print(f"Found {len(groups)} set(s) of identical files. Enter q at any prompt to quit.")
-    reference_index = build_markdown_reference_index(vault_root, media_files)
+    reference_index = build_markdown_reference_index(
+        vault_root, media_files, cached_markdown_files
+    )
+    index_path = write_duplicate_index(output_dir, media_files, groups, reference_index)
+    print(f"Duplicate index: {terminal_link(index_path)}")
     process_groups(groups, vault_root, reference_index)
     return 0
 

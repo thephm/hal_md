@@ -11,12 +11,22 @@ from tools.dedup_media import (
     build_markdown_reference_index,
     cross_location_filename_options,
     detect_mime_type,
+    file_url,
     process_groups,
     relocate_media_file,
 )
 
 
 class DedupMediaTests(unittest.TestCase):
+    def test_file_url_uses_file_scheme_for_3gp_media(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "clip.3GP"
+
+            url = file_url(path)
+
+            self.assertTrue(url.startswith("file:///"))
+            self.assertTrue(url.endswith("clip.3GP"))
+
     def test_markdown_reference_index_reuses_supplied_media_files_for_filename_counts(self):
         with tempfile.TemporaryDirectory() as directory:
             vault_root = Path(directory)
@@ -35,6 +45,32 @@ class DedupMediaTests(unittest.TestCase):
 
             self.assertEqual(reference_index.media_name_counts, {"portrait.jpg": 1})
             media_file_paths_mock.assert_not_called()
+
+    def test_markdown_reference_index_reuses_unchanged_markdown_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            vault_root = Path(directory)
+            markdown_path = vault_root / "note.md"
+            markdown_path.write_text("[[people/jane/media/portrait.jpg]]", encoding="utf-8")
+            media_file = MediaFile(
+                path=vault_root / "people" / "jane" / "media" / "portrait.jpg",
+                relative_path="people/jane/media/portrait.jpg",
+                size=1,
+                mime_type="image/jpeg",
+                digest="digest",
+            )
+
+            first_index = build_markdown_reference_index(vault_root, [media_file])
+
+            with patch("tools.dedup_media.read_markdown", side_effect=AssertionError("reread unchanged Markdown")):
+                second_index = build_markdown_reference_index(
+                    vault_root,
+                    [media_file],
+                    first_index.markdown_files,
+                )
+
+            self.assertEqual(
+                second_index.wikilink_paths["people/jane/media/portrait.jpg"], {markdown_path}
+            )
 
     def test_build_media_index_reuses_mime_type_for_unchanged_cached_file(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -152,6 +188,44 @@ class DedupMediaTests(unittest.TestCase):
             (third, first),
             (third, second),
         ])
+
+    def test_cross_location_filename_options_are_hidden_for_cryptic_names(self):
+        first = MediaFile(Path("People/jane/media/4f7d9e3b8a2c.jpg"), "People/jane/media/4f7d9e3b8a2c.jpg", 1, "image/jpeg", "digest")
+        second = MediaFile(Path("People/john/media/9384726150.jpg"), "People/john/media/9384726150.jpg", 1, "image/jpeg", "digest")
+
+        self.assertEqual(cross_location_filename_options([first, second]), [])
+
+    def test_cross_location_filename_options_exclude_existing_destinations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            media_directory = Path(directory) / "People" / "bernie" / "media"
+            media_directory.mkdir(parents=True)
+            first_path = media_directory / "first.jpg"
+            second_path = media_directory / "second.jpg"
+            first_path.write_bytes(b"same image")
+            second_path.write_bytes(b"same image")
+            first = MediaFile(first_path, "People/bernie/media/first.jpg", 1, "image/jpeg", "digest")
+            second = MediaFile(second_path, "People/bernie/media/second.jpg", 1, "image/jpeg", "digest")
+
+            self.assertEqual(cross_location_filename_options([first, second]), [])
+
+    def test_custom_path_relocates_first_file_and_removes_other_duplicates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            vault_root = Path(directory)
+            first_path = vault_root / "People" / "jane" / "media" / "4f7d9e3b8a2c.jpg"
+            second_path = vault_root / "People" / "john" / "media" / "9384726150.jpg"
+            for path in (first_path, second_path):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"same image")
+            first = MediaFile(first_path, "People/jane/media/4f7d9e3b8a2c.jpg", 10, "image/jpeg", "digest")
+            second = MediaFile(second_path, "People/john/media/9384726150.jpg", 10, "image/jpeg", "digest")
+            reference_index = MarkdownReferenceIndex(defaultdict(set), defaultdict(set), defaultdict(int))
+
+            with patch("tools.dedup_media.prompt", side_effect=["c", "People/jane/media/portrait.jpg"]):
+                process_groups([[first, second]], vault_root, reference_index)
+
+            self.assertTrue((vault_root / "People/jane/media/portrait.jpg").is_file())
+            self.assertFalse(first_path.exists())
+            self.assertFalse(second_path.exists())
 
 
 if __name__ == "__main__":
