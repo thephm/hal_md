@@ -236,6 +236,20 @@ class SyncPersonFilesTests(unittest.TestCase):
         updated = personal_path.read_text(encoding="utf-8")
         self.assertLess(updated.index("Engineer, [[Acme]], 2023-01"), updated.index("Manager, [[Acme]], 2024-01"))
 
+    def test_normalize_positions_keeps_one_blank_line_between_entries(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n\n\n\n- Manager, [[Acme]], 2024-01\n\n\n- Engineer, [[Acme]], 2023-01\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        positions = personal_path.read_text(encoding="utf-8").split("## Positions", 1)[1]
+        self.assertTrue(positions.startswith("\n\n- Engineer, [[Acme]], 2023-01"))
+        self.assertIn("2023-01\n\n- Manager, [[Acme]], 2024-01", positions)
+        self.assertNotIn("\n\n\n", positions)
+
     def test_normalize_positions_leaves_undated_entries_in_place(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -799,6 +813,27 @@ class SyncPersonFilesTests(unittest.TestCase):
         )
 
         self.assertEqual(personal_path.read_text(encoding="utf-8").count("B.Sc"), 1)
+
+    def test_deduplicates_concise_and_detailed_bachelor_entries_at_same_university(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- BSc, Mathematics, [[University of Toronto]]\n- Honour's B.Sc. Biophysics specialist, Mathematics major, [[University of Toronto]], 1997\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertNotIn("- BSc, Mathematics, [[University of Toronto]]", updated)
+        self.assertEqual(updated.count("University of Toronto"), 1)
+        self.assertIn("Honour's B.Sc. Biophysics specialist, Mathematics major, [[University of Toronto]], 1997", updated)
 
     def test_dated_and_undated_equivalent_education_positions_are_merged(self):
         personal_path = self.write_person(

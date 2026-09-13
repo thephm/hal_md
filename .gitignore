@@ -1,6 +1,8 @@
 
 *.pyc
 .vs/
+.vscode/
+.pytest_cache/
 __pycache__
 *.pyproj
 *.pyperf
@@ -9,7 +11,7 @@ __pycache__
 people.json
 People/*
 .venv/
-.venv-ps/
+.venv-wsl/
 output/
 **/.wikilink_index.md
 **/missing_files.md

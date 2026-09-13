@@ -544,27 +544,44 @@ def sort_position_blocks(blocks: list[str]) -> list[str]:
     return [*education_blocks, *other_undated_blocks, *dated_blocks]
 
 
+def render_position_blocks(blocks: list[str], line_end: str) -> str:
+    return "".join(f"{block.rstrip(chr(13) + chr(10))}{line_end * 2}" for block in blocks)
+
+
 def normalize_single_bullet_description(block: str) -> str:
     bullet_lines = list(re.finditer(r"(?m)^(?P<prefix>[ \t]*>)[ \t]*-[ \t]*(?P<text>.+)\r?$", block))
     return bullet_lines[0].group("prefix") + " " + bullet_lines[0].group("text") + block[bullet_lines[0].end():] if len(bullet_lines) == 1 else block
+
+
+def position_completeness(block: str) -> tuple[int, int, int]:
+    dates = position_dates(block)
+    return bool(dates), sum(date_precision(value) for value in dates), len(block.strip())
 
 
 def deduplicate_position_blocks(blocks: list[str], aliases: dict[str, str]) -> list[str]:
     deduplicated: list[str] = []
     for block in blocks:
         normalized = normalize_position_organization_link(block, aliases)
-        duplicate = any(
-            existing.strip() == normalized.strip()
-            or (
-                position_title(existing) == position_title(normalized)
-                and position_organization(existing, aliases)
-                and position_organization(existing, aliases) == position_organization(normalized, aliases)
-                and dates_overlap(position_dates(existing), position_dates(normalized))
-            )
-            for existing in deduplicated
+        duplicate_index = next(
+            (
+                index for index, existing in enumerate(deduplicated)
+                if (
+                    existing.strip() == normalized.strip()
+                    or (
+                        position_title(existing) == position_title(normalized)
+                        and position_organization(existing, aliases)
+                        and position_organization(existing, aliases) == position_organization(normalized, aliases)
+                        and dates_overlap(position_dates(existing), position_dates(normalized))
+                    )
+                    or education_matches(existing, normalized, aliases)
+                )
+            ),
+            None,
         )
-        if not duplicate:
+        if duplicate_index is None:
             deduplicated.append(normalized)
+        elif position_completeness(normalized) > position_completeness(deduplicated[duplicate_index]):
+            deduplicated[duplicate_index] = normalized
     return deduplicated
 
 
@@ -757,7 +774,8 @@ class PersonSynchronizer:
             elif quoted_description(other_block) and description_word_count(other_block) < description_word_count(personal_block):
                 personal_blocks[matched_index] = replace_position_description(personal_block, other_block)
         merged_blocks = deduplicate_position_blocks(personal_blocks, self.organization_aliases)
-        merged = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(merged_blocks))
+        line_end = "\r\n" if "\r\n" in raw else "\n"
+        merged = render_position_blocks(sort_position_blocks(merged_blocks), line_end)
         return replace_section(raw, "## Positions", merged, trailing_blank_line=True)
 
     def merge_pair(self, person: PersonDocument, other: PersonDocument) -> None:
@@ -915,7 +933,8 @@ class PersonSynchronizer:
             positions = repair_malformed_positions(section_content(person.raw, "## Positions"))
             normalized = pattern.sub(convert, positions)
             blocks = [normalize_single_bullet_description(block) for block in position_blocks(normalized)]
-            ordered = "".join(block if block.endswith(("\n", "\r")) else block + "\n" for block in sort_position_blocks(blocks))
+            line_end = "\r\n" if "\r\n" in positions else "\n"
+            ordered = render_position_blocks(sort_position_blocks(blocks), line_end)
             updated = replace_section(person.raw, "## Positions", ordered, trailing_blank_line=True) if positions else person.raw
             self.record_change(person, "Positions", positions, section_content(updated, "## Positions"), "normalized_positions")
             self.backup_and_write(person, updated)
