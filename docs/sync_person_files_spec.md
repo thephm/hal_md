@@ -70,7 +70,8 @@ The `## Positions` and `## Notes`/`## People` rules are detailed just below, sin
 - **`## Positions`**: Match individual entries by (organization + overlapping date range).
   - **Dates**: same precision rule as `birthday`. The other source typically only provides `YYYY-MM`; your personal entries often have `YYYY-MM-DD`. Whichever side has the finer-grained (more precise) date wins for that start/end date — in practice this usually means personal wins since it's more often `YYYY-MM-DD`, but if personal only has `YYYY-MM` (or is missing a date) and the other file has more precision, take that one. Compare at shared precision to detect disagreement; if the values conflict beyond just precision (e.g. different months, not just missing days), flag it in `manual_review.csv` rather than silently picking one.
   - Keep the personal entry's `reports to [[Name]]` line if present — the other file never has this.
-  - **Prefer concise LinkedIn descriptions.** If a personal Position entry has no description, append the other file's summarized description. If both entries have descriptions and the other file's summary has fewer words, replace the personal description and sub-bullets with the more concise summary; otherwise retain the personal description. When adding or replacing a blockquoted description, indent the `>` with exactly two spaces to nest it under the position bullet, matching the format used elsewhere in this spec.
+  - **Prefer incoming descriptions.** If a matched incoming position has a description, replace the personal description in full; never combine the two, regardless of relative length. If the incoming position has no description, retain the personal description. Keep the position heading and personal-only details such as `reports to` intact. Treat legacy indented child bullets as descriptions, not separate positions, even when their text contains a date or year.
+  - **Format descriptions consistently.** Put one blank line after the position heading, then indent every description line with exactly two spaces before the blockquote marker (`  > `). Put one blank line after the description before the next position. Keep intentional paragraph breaks within descriptions, quoting blank paragraph separators as `  >`.
   - Positions only in the other file (new roles not yet in your personal file) get appended, its formatting (quoted description, etc.) carried over as their own entry.
   - Positions only in personal (older/private/informal roles) are left untouched.
   - **After merging, re-order the full `## Positions` list oldest to newest** by start date, so the final section always reads chronologically regardless of what order entries originally appeared in either source file. Entries with only a `YYYY-MM` start date sort using that month; ties (or missing dates) keep their relative original order.
@@ -134,23 +135,23 @@ Many existing personal files use an older format for Position descriptions — a
 
     ```
     this was the description
-    in sub-bullets
+    a second description line
     ```
 ```
 
-Going forward, descriptions should use blockquoted sub-bullets instead:
+Going forward, descriptions should use indented blockquotes instead:
 
 ```
 * Title, [[Company]], [[City]], 2023-01-02 to 2025-10-02, reported to [[Bill Smith]]
 
-  > - this was the description
-  > - in sub-bullets
+  > this was the description
+  > a second description line
 ```
 
 This migration is **separate from the sync itself** — a one-time cleanup pass, run via its own flag (e.g. `-m / --normalize-positions`), that walks the personal vault independently of any matching/merging against the other source and rewrites old-format description blocks into the new blockquote format wherever it finds them, across every Person file, not just ones touched by a merge this run.
 
 - **Detection**: a fenced code block (```` ``` ````) immediately following a position bullet line, containing the description/sub-bullet lines.
-- **Transformation**: remove the fence markers, convert each line inside the block to a blockquoted bullet (`> - <line text>`), preserving the original text and line order exactly — only the wrapping syntax changes. **Indent the `>` with exactly two spaces**, matching the nesting level of the position bullet above it (this is what makes it render as a sub-item of that bullet in Obsidian rather than a top-level blockquote) — e.g. `  > - this was the description`, not `> - this was the description` flush against the margin.
+- **Transformation**: remove the fence markers, convert each description line to a blockquote (`  > <line text>`), preserving the original text and line order exactly — only the wrapping syntax changes. **Indent the `>` with exactly two spaces**, matching the nesting level of the position bullet above it, and put a blank line before and after the description. For example, use `  > this was the description`, not `> this was the description` flush against the margin.
 - **Idempotent**: entries already in blockquote format are left untouched; running this twice produces no further changes.
 - **Same safety net as the regular sync**: back up each modified file first (same `--state-dir/backups/<YYYY-MM-DD>/<First Last>.md` convention), supports `--dry-run` to preview what would change without writing, and respects `--tag`/`--slug` scoping if you want to test on a subset before running it across the whole vault.
 - Only the description-block syntax is touched — the position bullet line itself (title, company, dates, `reported to`), any other bullets, and all other file content are left exactly as they are.

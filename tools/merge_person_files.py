@@ -40,11 +40,21 @@ def default_config_dir(platform: str | None = None, environment: dict[str, str] 
 DEFAULT_STATE_DIR = default_dev_output_dir() / "people_sync_state"
 DEFAULT_ORGANIZATIONS_PATH = default_config_dir() / "organizations.json"
 CONTACT_FIELDS = ("mobile", "email", "linkedin_id")
-FRONTMATTER_FIELD_ORDER = (
-    "tags", "first_name", "last_name", "aliases", "slug", "birthday", "title",
-    "skills", "interests", "organizations", "url", "email", "mobile", "phone",
-    "x_id", "linkedin_id", "linkedin_url", "city", "province", "country",
-)
+
+
+def person_template_field_order() -> tuple[str, ...]:
+    template_path = Path(__file__).resolve().parents[1] / "templates" / "Person.md"
+    template = template_path.read_text(encoding="utf-8")
+    match = re.match(r"\A(?:\ufeff)?---\r?\n(?P<yaml>.*?)(?P<end>^---\r?\n?)", template, re.S | re.M)
+    if not match:
+        raise ValueError(f"Person template has no YAML frontmatter: {template_path}")
+    frontmatter = yaml.safe_load(match.group("yaml"))
+    if not isinstance(frontmatter, dict):
+        raise ValueError(f"Person template frontmatter must be a YAML mapping: {template_path}")
+    return tuple(frontmatter)
+
+
+FRONTMATTER_FIELD_ORDER = person_template_field_order()
 SECTION_ORDER = ("## Bio", "## References", "## Life Events", "## People", "## Positions", "## Notes")
 DEPRECATED_EMPTY_SECTIONS = ("## Interests", "## Communications")
 H2_PATTERN = re.compile(r"(?m)^## [^\r\n]+\r?$")
@@ -205,7 +215,8 @@ def replace_section(raw: str, heading: str, content: str, insert_before_first_se
     if insert_before_first_section:
         first_section = H2_PATTERN.search(raw)
         if first_section:
-            return raw[:first_section.start()] + heading + line_end + content + line_end + raw[first_section.start():]
+            separator = "" if trailing_blank_line else line_end
+            return raw[:first_section.start()] + heading + line_end + content + separator + raw[first_section.start():]
     try:
         later_sections = SECTION_ORDER[SECTION_ORDER.index(heading) + 1:]
     except ValueError:
@@ -348,22 +359,56 @@ def repair_malformed_positions(content: str) -> str:
             repaired.append("  >")
             continue
         quoted = re.match(r"^(?P<indent>\s*)>\s?(?P<text>.*)$", line)
-        if quoted and is_position_heading(line):
-            repaired.append(f"- {quoted.group('text').strip()}")
+        if (
+            quoted
+            and description_position
+            and len(quoted.group("indent").expandtabs(4)) >= 2
+        ):
+            repaired.append(f"  > {quoted.group('text')}".rstrip())
+            quoted_position = True
+        elif quoted and is_position_heading(line):
+            text = re.sub(r"^\s*[-*]\s+", "", quoted.group("text").strip())
+            repaired.append(f"- {text}")
             description_position = True
             quoted_position = True
         elif quoted:
             repaired.append(f"  > {quoted.group('text')}".rstrip())
-        elif quoted_position and re.match(r"^\s*[*-]\s+", line) and not is_recognizable_position(line):
-            repaired.append(f"  > {line.strip()}")
-        elif quoted_position and line.strip() and not is_recognizable_position(line):
-            repaired.append(f"  > {line.strip()}")
         else:
-            repaired.append(line)
-            if is_recognizable_position(line):
+            bullet = re.match(r"^(?P<indent>[ \t]*)(?P<marker>[-*])\s+(?P<text>.+)$", line)
+            if (
+                bullet
+                and description_position
+                and len(bullet.group("indent").expandtabs(4)) >= 2
+                and not bullet.group("text").startswith(("- ", "* "))
+            ):
+                text = bullet.group("text").strip()
+                repaired.append(f"  > - {text}")
+                quoted_position = True
+            elif bullet and is_position_heading(line):
+                text = re.sub(r"^\s*[-*]\s+", "", bullet.group("text").strip())
+                repaired.append(f"- {text}")
                 description_position = True
-            if re.match(r"^\s*[*-]\s+", line):
                 quoted_position = False
+            elif bullet and is_recognizable_position(line):
+                repaired.append(f"- {bullet.group('text').strip()}")
+                description_position = True
+                quoted_position = False
+            elif bullet and (
+                quoted_position
+                or bullet.group("indent")
+                or bullet.group("text").startswith(("- ", "* "))
+            ) and description_position:
+                text = re.sub(r"^[-*]\s+", "", bullet.group("text").strip())
+                repaired.append(f"  > - {text}")
+                quoted_position = True
+            elif quoted_position and line.strip() and not is_recognizable_position(line):
+                repaired.append(f"  > {line.strip()}")
+            else:
+                repaired.append(line)
+                if is_recognizable_position(line):
+                    description_position = True
+                if re.match(r"^\s*[*-]\s+", line):
+                    quoted_position = False
     return line_end.join(repaired) + (line_end if content.endswith(("\n", "\r")) else "")
 
 
@@ -443,13 +488,28 @@ def remove_invalid_position_place_links(raw: str) -> str:
 def normalize_position_organization_link(block: str, aliases: dict[str, str]) -> str:
     """Replace a recognized position organization link with its canonical Wikilink."""
     match = re.search(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]|\[([^\]]+)\]\([^)]*\)", block)
-    if not match:
+    if match:
+        target = match.group(1) or match.group(2)
+        organization = normalized_position_organization(target)
+        canonical = aliases.get(organization, target.strip())
+        return block[:match.start()] + f"[[{canonical}]]" + block[match.end():]
+
+    first_line = block.splitlines()[0] if block else ""
+    date_match = DATE_PATTERN.search(first_line)
+    if not date_match:
         return block
-    organization = normalized_position_organization(match.group(1) or match.group(2))
-    canonical = aliases.get(organization)
-    if not canonical:
+    before_date = first_line[:date_match.start()].rstrip(" ,")
+    organization_parts = [part.strip() for part in before_date.split(",")[1:] if part.strip()]
+    if not organization_parts:
         return block
-    return block[:match.start()] + f"[[{canonical}]]" + block[match.end():]
+    organization_text = organization_parts[-1]
+    for canonical in sorted(set(aliases.values()), key=len, reverse=True):
+        match = re.search(rf"(?<![\w]){re.escape(canonical)}(?![\w])", organization_text, re.I)
+        if match:
+            start = first_line.find(organization_text) + match.start()
+            end = start + len(match.group())
+            return block[:start] + f"[[{canonical}]]" + block[end:]
+    return block
 
 
 def replace_position_organization_link(block: str, source: str) -> str:
@@ -526,8 +586,47 @@ def quoted_description(block: str) -> list[str]:
     return [line for line in block.splitlines()[1:] if line.lstrip().startswith(">")]
 
 
-def description_word_count(block: str) -> int:
-    return len(re.findall(r"\w+", "\n".join(block.splitlines()[1:])))
+def normalize_position_description(block: str) -> str:
+    """Quote legacy indented description bullets and fold wrapped quote lines."""
+    lines = block.splitlines()
+    if not lines:
+        return block
+    normalized = [lines[0]]
+    for line in lines[1:]:
+        nested_bullet = re.match(r"^[ \t]+[*-]\s+(?P<text>.+)$", line)
+        quote = re.match(r"^[ \t]*>\s?(?P<text>.*)$", line)
+        if nested_bullet:
+            normalized.append(f"  > - {nested_bullet.group('text').strip()}")
+        elif quote:
+            text = quote.group("text").rstrip()
+            normalized.append(f"  > {text}" if text else "  >")
+        else:
+            normalized.append(line)
+
+    folded: list[str] = []
+    for line in normalized:
+        if (
+            line == "  >"
+            and folded
+            and folded[-1].startswith("  > ")
+            and not folded[-1].startswith("  > - ")
+        ):
+            continue
+        if (
+            folded
+            and line.startswith("  > ")
+            and folded[-1].startswith("  > ")
+            and line != "  >"
+            and folded[-1] != "  >"
+            and not line.startswith("  > - ")
+            and not folded[-1].startswith("  > - ")
+        ):
+            folded[-1] += " " + line[4:].strip()
+        else:
+            folded.append(line)
+    while folded and folded[-1] == "  >":
+        folded.pop()
+    return "\n".join(folded) + ("\n" if block.endswith(("\n", "\r")) else "")
 
 
 def replace_position_description(block: str, source: str) -> str:
@@ -557,8 +656,35 @@ def sort_position_blocks(blocks: list[str]) -> list[str]:
     return [*education_blocks, *other_undated_blocks, *dated_blocks]
 
 
+def sort_dated_position_blocks(blocks: list[str]) -> list[str]:
+    """Sort dated entries while leaving undated entries in their original slots."""
+    sorted_dated = iter(sorted(
+        (block for block in blocks if position_dates(block)),
+        key=lambda block: position_dates(block)[0],
+    ))
+    return [next(sorted_dated) if position_dates(block) else block for block in blocks]
+
+
 def render_position_blocks(blocks: list[str], line_end: str) -> str:
-    return "".join(f"{block.rstrip(chr(13) + chr(10))}{line_end * 2}" for block in blocks)
+    rendered: list[str] = []
+    for block in blocks:
+        lines = block.rstrip("\r\n").splitlines()
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        lines = [line.rstrip() for line in lines]
+        if not lines:
+            continue
+        description_start = next(
+            (index for index, line in enumerate(lines[1:], 1) if line.strip()),
+            None,
+        )
+        if description_start is not None and lines[description_start].lstrip().startswith(">"):
+            lines = [lines[0], "", *lines[description_start:]]
+        separator = line_end * (2 if has_description(block) else 1)
+        rendered.append(line_end.join(lines) + separator)
+    return "".join(rendered)
 
 
 def normalize_single_bullet_description(block: str) -> str:
@@ -714,8 +840,14 @@ class PersonSynchronizer:
     def merge_positions(self, person: PersonDocument, other: PersonDocument, raw: str) -> str:
         personal_content, other_content = section_content(raw, "## Positions"), section_content(other.raw, "## Positions")
         personal_content, other_content = repair_malformed_positions(personal_content), repair_malformed_positions(other_content)
-        personal_blocks = deduplicate_position_blocks(position_blocks(personal_content), self.organization_aliases)
-        other_blocks = [normalize_position_organization_link(block, self.organization_aliases) for block in position_blocks(other_content)]
+        personal_blocks = [
+            normalize_position_description(normalize_position_organization_link(block, self.organization_aliases))
+            for block in deduplicate_position_blocks(position_blocks(personal_content), self.organization_aliases)
+        ]
+        other_blocks = [
+            normalize_position_description(normalize_position_organization_link(block, self.organization_aliases))
+            for block in position_blocks(other_content)
+        ]
         used: set[int] = set()
         for other_block in other_blocks:
             organization, other_dates = position_organization(other_block, self.organization_aliases), position_dates(other_block)
@@ -780,11 +912,7 @@ class PersonSynchronizer:
                         },
                     )
                     break
-            if not has_description(personal_block) and quoted_description(other_block):
-                line_end = "\r\n" if "\r\n" in raw else "\n"
-                append = line_end + line_end.join(f"  {line.lstrip()}" for line in quoted_description(other_block)) + line_end
-                personal_blocks[matched_index] = personal_block.rstrip("\r\n") + append
-            elif quoted_description(other_block) and description_word_count(other_block) < description_word_count(personal_block):
+            if quoted_description(other_block):
                 personal_blocks[matched_index] = replace_position_description(personal_block, other_block)
         merged_blocks = deduplicate_position_blocks(personal_blocks, self.organization_aliases)
         line_end = "\r\n" if "\r\n" in raw else "\n"
@@ -837,9 +965,20 @@ class PersonSynchronizer:
         personal_bio, other_bio = section_content(raw, "## Bio").strip(), section_content(other.raw, "## Bio").strip()
         if other_bio:
             if not personal_bio or difflib.SequenceMatcher(None, personal_bio, other_bio).ratio() >= self.args.bio_similarity:
-                raw = replace_section(raw, "## Bio", other_bio, insert_before_first_section=True)
+                raw = replace_section(raw, "## Bio", other_bio, insert_before_first_section=True, trailing_blank_line=True)
             elif other_bio not in personal_bio:
-                raw = replace_section(raw, "## Bio", f"{personal_bio}\n>\n{other_bio}")
+                bio_paragraphs = [
+                    " ".join(
+                        re.sub(r"^>\s?", "", line.strip()).strip()
+                        for line in paragraph.splitlines()
+                        if line.strip()
+                    )
+                    for bio in (personal_bio, other_bio)
+                    for paragraph in re.split(r"\n\s*\n", bio.strip())
+                    if paragraph.strip()
+                ]
+                combined_bio = "\n>\n".join(f"> {paragraph}" for paragraph in bio_paragraphs)
+                raw = replace_section(raw, "## Bio", combined_bio, trailing_blank_line=True)
             self.record_change(person, "Bio", personal_bio, section_content(raw, "## Bio").strip())
         old_positions = section_content(raw, "## Positions")
         raw = self.merge_positions(person, other, raw)
@@ -945,9 +1084,14 @@ class PersonSynchronizer:
                 return match.group("bullet") + (match.group("blank") or line_end) + quoted
             positions = repair_malformed_positions(section_content(person.raw, "## Positions"))
             normalized = pattern.sub(convert, positions)
-            blocks = [normalize_single_bullet_description(block) for block in position_blocks(normalized)]
+            blocks = [
+                normalize_single_bullet_description(normalize_position_description(
+                    normalize_position_organization_link(block, self.organization_aliases)
+                ))
+                for block in position_blocks(normalized)
+            ]
             line_end = "\r\n" if "\r\n" in positions else "\n"
-            ordered = render_position_blocks(sort_position_blocks(blocks), line_end)
+            ordered = render_position_blocks(sort_dated_position_blocks(blocks), line_end)
             updated = replace_section(person.raw, "## Positions", ordered, trailing_blank_line=True) if positions else person.raw
             self.record_change(person, "Positions", positions, section_content(updated, "## Positions"), "normalized_positions")
             self.backup_and_write(person, updated)

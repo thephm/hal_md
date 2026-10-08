@@ -8,5 +8,20 @@
     "Natural Language Processing (NLP)",
     "NLP",
     "nlp"
+  ],
+  "cctv": [
+    "Closed-Circuit Television (CCTV)",
+    "CCTV",
+    "cctv"
+  ],
+  "sdlc": [
+    "Software Development Life Cycle (SDLC)",
+    "SDLC",
+    "sdlc"
+  ],
+  "hris": [
+    "Human Resources Information Systems (HRIS)",
+    "HRIS",
+    "hris"
   ]
 }

@@ -8,8 +8,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tools.merge_person_files import (
-    PersonSynchronizer, SyncStore, default_config_dir, default_dev_output_dir,
-    discover_people, main, normalize_city, review_context, review_pending, source_hash,
+    FRONTMATTER_FIELD_ORDER, PersonSynchronizer, SyncStore,
+    default_config_dir, default_dev_output_dir,
+    discover_people, main, normalize_city, render_position_blocks, review_context, review_pending, source_hash,
 )
 from text_encoding import repair_mojibake
 
@@ -80,6 +81,29 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(skills_change["old_value"], '["Python"]')
         self.assertEqual(skills_change["new_value"], '["Python", "Rust"]')
 
+    def test_merge_formats_appended_bio_as_two_quoted_paragraphs(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Bio\n> A labour and media analyst.\n## Life Events\n- \n## Positions\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Bio\nA journalist and consultant.\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn(
+            "## Bio\n\n> A labour and media analyst.\n>\n> A journalist and consultant.\n\n## Life Events",
+            updated,
+        )
+        self.assertNotIn("\n>\n>\n", updated)
+
     def test_merge_updates_last_updated_only_when_content_changes(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -127,6 +151,38 @@ class SyncPersonFilesTests(unittest.TestCase):
         change = next(change for change in synchronizer.changes if change["field"] == "organizations")
         self.assertEqual(change["old_value"], '["acme"]')
         self.assertEqual(change["new_value"], '["acme", "globex"]')
+
+    def test_merge_inserts_missing_fields_in_person_template_order(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nfirst_name: Jane\nlast_name: Doe\nslug: jane-doe\n---\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nfirst_name: Jane\nlast_name: Doe\nslug: jane-doe\nlinkedin_id: jane-doe\nmobile: 555-0100\nemail: jane@example.com\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        frontmatter = personal_path.read_text(encoding="utf-8").split("---", 2)[1]
+        merged_fields = [
+            line.partition(":")[0]
+            for line in frontmatter.splitlines()
+            if line and not line[0].isspace()
+        ]
+        inserted_fields = [
+            field for field in merged_fields
+            if field in {"email", "mobile", "linkedin_id"}
+        ]
+        self.assertEqual(inserted_fields, ["email", "mobile", "linkedin_id"])
+        self.assertEqual(
+            [field for field in FRONTMATTER_FIELD_ORDER if field in {"email", "mobile", "linkedin_id"}],
+            inserted_fields,
+        )
 
     def test_nested_incoming_directory_is_excluded_from_existing_people(self):
         personal_path = self.write_person(
@@ -224,6 +280,50 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("- Alumni Engagement Officer, [[University of Toronto]], [[Toronto]], 2023-02 #current", updated)
         self.assertNotIn("```", updated)
 
+    def test_normalize_positions_repairs_nested_role_bullets_and_links_plain_organization(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Bio\n> Personal bio.\n"
+            "## Positions\n"
+            "- Bachelor of Arts - BA Journalism, [[Toronto Metropolitan University]]\n"
+            "    \n"
+            "- News Producer, [CBC](CBC), 1983-04 to 2019-06, Toronto\n"
+            "  > Did a wide range of senior journalistic functions.\n"
+            "- Coordinator, Canadian Media Guild/CWA Canada/IATSE, 2017-10 to #current, Toronto\n"
+            "\t - Working to secure a collective voice for factual TV workers.\n"
+            " - - Member (Volunteer), [Federal Labour Standards Advisory Committee](Federal Labour Standards Advisory Committee), 2018-09 to #current\n"
+            "\t - Part of a union-management-government committee to improve labour standards.\n"
+            "- Family Advisory Committee (Volunteer), Kerry's Place Autism Services, 2019-01 to 2019\n"
+            "> Now serving on the organization's Family Advisory Committee.\n"
+            ">\n"
+            "## Life events\n- \n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        positions = updated.split("## Positions\n", 1)[1].split("## Life events", 1)[0]
+        self.assertIn(
+            "- Bachelor of Arts - BA Journalism, [[Toronto Metropolitan University]]\n"
+            "- News Producer, [[CBC]], 1983-04 to 2019-06, Toronto",
+            positions,
+        )
+        self.assertIn(
+            "- Member (Volunteer), [[Federal Labour Standards Advisory Committee]], 2018-09 to #current",
+            positions,
+        )
+        self.assertNotIn("- - Member", positions)
+        self.assertIn("  > Working to secure a collective voice for factual TV workers.", positions)
+        self.assertIn("  > Part of a union-management-government committee", positions)
+        self.assertIn(
+            "- Family Advisory Committee (Volunteer), Kerry's Place Autism Services, 2019-01 to 2019",
+            positions,
+        )
+        self.assertNotIn("Family Advisory Committee.\n  >", positions)
+        self.assertIn("Family Advisory Committee.\n\n## Life events", updated)
+
     def test_normalize_positions_preserves_undated_top_level_position(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -263,7 +363,7 @@ class SyncPersonFilesTests(unittest.TestCase):
         updated = personal_path.read_text(encoding="utf-8")
         self.assertLess(updated.index("Engineer, [[Acme]], 2023-01"), updated.index("Manager, [[Acme]], 2024-01"))
 
-    def test_normalize_positions_keeps_one_blank_line_between_entries(self):
+    def test_normalize_positions_removes_blank_lines_between_plain_entries(self):
         personal_path = self.write_person(
             self.personal_root,
             "jane-doe",
@@ -274,8 +374,64 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         positions = personal_path.read_text(encoding="utf-8").split("## Positions", 1)[1]
         self.assertTrue(positions.startswith("\n\n- Engineer, [[Acme]], 2023-01"))
-        self.assertIn("2023-01\n\n- Manager, [[Acme]], 2024-01", positions)
+        self.assertIn("2023-01\n- Manager, [[Acme]], 2024-01", positions)
         self.assertNotIn("\n\n\n", positions)
+
+    def test_render_positions_keeps_blank_lines_only_around_descriptions(self):
+        for line_end in ("\n", "\r\n"):
+            with self.subTest(line_end=repr(line_end)):
+                blocks = [
+                    "- First, [[Acme]], 2020\n\n\n",
+                    "- Second, [[Acme]], 2021\n\n\n  > Description\n  >\n  > Another paragraph\n\n\n",
+                    "- Third, [[Acme]], 2022\n  > Another description\n",
+                    "- Fourth, [[Acme]], 2023\n\n",
+                    "- Fifth, [[Acme]], 2024\n",
+                ]
+                expected = (
+                    "- First, [[Acme]], 2020\n"
+                    "- Second, [[Acme]], 2021\n\n"
+                    "  > Description\n  >\n  > Another paragraph\n\n"
+                    "- Third, [[Acme]], 2022\n\n"
+                    "  > Another description\n\n"
+                    "- Fourth, [[Acme]], 2023\n"
+                    "- Fifth, [[Acme]], 2024\n"
+                )
+                self.assertEqual(
+                    render_position_blocks(blocks, line_end),
+                    expected.replace("\n", line_end),
+                )
+
+    def test_merge_positions_does_not_add_blank_lines_between_plain_entries(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n- First, [[Acme]], 2020\n\n\n- Second, [[Acme]], 2021\n  > Description\n\n## Notes\nKeep exactly.\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n- Third, [[Globex]], 2022\n\n- Fourth, [[Initech]], 2023\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn(
+            "## Positions\n\n"
+            "- First, [[Acme]], 2020\n"
+            "- Second, [[Acme]], 2021\n\n"
+            "  > Description\n\n"
+            "- Third, [[Globex]], 2022\n"
+            "- Fourth, [[Initech]], 2023\n\n"
+            "## Notes\nKeep exactly.\n",
+            updated,
+        )
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+        self.assertEqual(personal_path.read_text(encoding="utf-8"), updated)
 
     def test_normalize_positions_leaves_undated_entries_in_place(self):
         personal_path = self.write_person(
@@ -710,8 +866,8 @@ class SyncPersonFilesTests(unittest.TestCase):
         )
 
         updated = personal_path.read_text(encoding="utf-8")
-        self.assertIn("Original description", updated)
-        self.assertNotIn("Incoming description", updated)
+        self.assertNotIn("Original description", updated)
+        self.assertIn("- Engineer, [[Acme]], 2024-01\n\n  > Incoming description", updated)
 
     def test_more_concise_incoming_position_description_replaces_existing_description(self):
         personal_path = self.write_person(
@@ -732,6 +888,123 @@ class SyncPersonFilesTests(unittest.TestCase):
         updated = personal_path.read_text(encoding="utf-8")
         self.assertIn("- Engineer, [[Acme]], 2024-01\n\n  > Delivered technical solutions.", updated)
         self.assertNotIn("Led several complex engineering projects", updated)
+
+    def test_incoming_position_description_replaces_existing_even_when_longer(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n"
+            "- Engineer, [[Acme]], 2024-01\n\n  > Built systems.\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n"
+            "- Engineer, [[Acme]], 2024-01\n\n  > Designed and delivered complex systems for customers.\n",
+        )
+
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn(
+            "- Engineer, [[Acme]], 2024-01\n\n  > Designed and delivered complex systems for customers.",
+            updated,
+        )
+        self.assertNotIn("Built systems.", updated)
+
+    def test_indented_position_description_with_date_is_not_a_position(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n"
+            "- Coordinator, [[Guild]], 2017-10 to #current\n"
+            "  > Campaign included committee service from 2018-19.\n"
+            "- Member, [[Advisory Committee]], 2018-09 to #current\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        positions = personal_path.read_text(encoding="utf-8").split("## Positions\n", 1)[1]
+        self.assertIn(
+            "- Coordinator, [[Guild]], 2017-10 to #current\n\n"
+            "  > Campaign included committee service from 2018-19.\n\n"
+            "- Member, [[Advisory Committee]], 2018-09 to #current",
+            positions,
+        )
+        self.assertEqual(positions.count("Campaign included committee service"), 1)
+        self.assertEqual(positions.count("- Member, [[Advisory Committee]]"), 1)
+
+    def test_merge_normalizes_legacy_descriptions_and_matches_unlinked_organization(self):
+        registry_path = self.root / "organizations.json"
+        registry_path.write_text(
+            '[{"name": "CBC"}, {"name": "Canadian Media Guild"}]',
+            encoding="utf-8",
+        )
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Bio\n> Teacher and analyst in labour and media issues.\n"
+            "## Positions\n"
+            "- News Producer, [CBC](CBC), [[Toronto]], 1983-04 to 2019-06, Toronto\n"
+            "  > Did a wide range of senior journalistic functions involving the production of daily news.\n"
+            "  >\n"
+            "  > During final few years I wrote, edited and produced news for CBC TV's News Network, with emphasis on breaking national and provincial politics.\n"
+            "- National President, Canadian Media Guild, 2000 to 2010, Toronto\n"
+            "\t- Led the Canadian Media Guild as CEO, managing a budget over $6M and a staff of 16, and developed strategy for bargaining.\n",
+        )
+        self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Bio\nA journalist and consultant.\n"
+            "## Positions\n"
+            "- News Producer, [[CBC]], [[Toronto]], 1983-04 to 2019-06\n"
+            "  > Did a wide range of senior journalistic functions involving the production of daily news.\n"
+            "  > During final few years I wrote, edited and produced news for CBC TV's News Network, with emphasis on breaking national and provincial politics.\n"
+            "- National President, [[Canadian Media Guild]], [[Toronto]], 2000 to 2010\n"
+            "  > Led the Canadian Media Guild as CEO and developed strategy for bargaining.\n",
+        )
+        args = self.arguments()
+        args.organizations_config = str(registry_path)
+
+        self.assertEqual(main([
+            "--existing", str(self.personal_root),
+            "--incoming", str(self.other_root),
+            "--state-dir", str(self.state_root),
+            "--organizations-config", str(registry_path),
+            "--slug", "jane-doe",
+            "--normalize-positions",
+        ]), 0)
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("News Producer,"), 1)
+        self.assertEqual(updated.count("National President,"), 1)
+        self.assertIn("- News Producer, [[CBC]], [[Toronto]], 1983-04 to 2019-06", updated)
+        self.assertIn("- National President, [[Canadian Media Guild]], 2000 to 2010, Toronto", updated)
+        self.assertIn(
+            "  > Did a wide range of senior journalistic functions involving the production of daily news. "
+            "During final few years I wrote, edited and produced news for CBC TV's News Network, with emphasis on "
+            "breaking national and provincial politics.",
+            updated,
+        )
+        self.assertIn(
+            "  > Led the Canadian Media Guild as CEO and developed strategy for bargaining.",
+            updated,
+        )
+        self.assertNotIn("\t- Led the Canadian Media Guild as CEO", updated)
+        self.assertNotIn("[CBC](CBC)", updated)
+        self.assertIn(
+            "## Bio\n\n> Teacher and analyst in labour and media issues.\n>\n> A journalist and consultant.",
+            updated,
+        )
 
     def test_matched_position_uses_incoming_organization_wikilink(self):
         personal_path = self.write_person(
