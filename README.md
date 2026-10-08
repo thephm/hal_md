@@ -131,7 +131,7 @@ So far, I've created:
 - 2024-03-10: [sample](https://github.com/thephm/sample) a sample collection of famous computer science folk
 - 2024-09-22: [comms](comms.py) to show the most recent communications with a person
 - 2024-09-29: [embed_notes](tools/embed_notes.py) to embed dated interaction files into Person profiles
-- [sync_person_files](tools/sync_person_files.py) merges selected frontmatter fields, bios, and positions from another Person-file collection into a personal vault. It modifies matched personal files in place; begin with `--dry-run` and keep the external `--state-dir` (including its backups and review decisions) backed up.
+- [merge_person_files](tools/merge_person_files.py) merges selected frontmatter fields, bios, and positions from another Person-file collection into a personal vault. It modifies matched personal files in place; begin with `--dry-run` and keep the external `--state-dir` (including its backups and review decisions) backed up.
 - [dedup_media](tools/dedup_media.py) interactively removes byte-identical files from every `media` folder in a vault and updates their Markdown references.
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).

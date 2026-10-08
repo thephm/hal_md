@@ -7,7 +7,7 @@ from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
-from tools.sync_person_files import (
+from tools.merge_person_files import (
     PersonSynchronizer, SyncStore, default_config_dir, default_dev_output_dir,
     discover_people, main, normalize_city, review_context, review_pending, source_hash,
 )
@@ -224,6 +224,33 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("- Alumni Engagement Officer, [[University of Toronto]], [[Toronto]], 2023-02 #current", updated)
         self.assertNotIn("```", updated)
 
+    def test_normalize_positions_preserves_undated_top_level_position(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Consultant/Developer Contractor, [[Sage Computing]], Toronto, 2002-10 to 2004\n- Web Consulting - Define parameters of project with time estimates\n\n> - Client and Server components development in Java\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("- Web Consulting - Define parameters of project with time estimates", updated)
+        self.assertNotIn("  > - Web Consulting", updated)
+        self.assertIn("\n\n  > Client and Server components development in Java\n", updated)
+
+    def test_normalize_positions_quotes_blank_lines_within_description(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- J2EE Systems Developer, [[Navantis]], Toronto, 2003-04 to 2003-07\n\n> - Technical lead in building portal subsystems for Honda Canada\n\n> - Indexed document management administration system\n> - Websphere 5.0, WSAD, DB2 7.2\n",
+        )
+
+        PersonSynchronizer(self.arguments()).normalize_positions(discover_people(self.personal_root))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("  > - Technical lead in building portal subsystems for Honda Canada\n  >\n  > - Indexed document", updated)
+        self.assertNotIn("Honda Canada\n\n  > - Indexed", updated)
+
     def test_normalize_positions_orders_entries_chronologically(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -422,7 +449,7 @@ class SyncPersonFilesTests(unittest.TestCase):
             "---\ntags: [person]\nslug: mark-li\nfirst_name: Mark\nlast_name: Li\nemail: new@example.com\n---\n",
         )
 
-        with patch("sync_person_files.review_pending", return_value=0) as review_pending:
+        with patch("tools.merge_person_files.review_pending", return_value=0) as review_pending:
             self.assertEqual(main([
                 "--existing", str(self.personal_root),
                 "--incoming", str(self.other_root),
@@ -447,7 +474,7 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.state_root.mkdir(exist_ok=True)
         (self.state_root / "pending_review.json").write_text(json.dumps(pending), encoding="utf-8")
 
-        with patch("sync_person_files.review_pending", return_value=0) as review_pending:
+        with patch("tools.merge_person_files.review_pending", return_value=0) as review_pending:
             self.assertEqual(main([
                 "--existing", str(self.personal_root),
                 "--incoming", str(self.other_root),
@@ -474,7 +501,7 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.state_root.mkdir(exist_ok=True)
         (self.state_root / "pending_review.json").write_text(json.dumps(pending), encoding="utf-8")
 
-        with patch("tools.sync_person_files.read_review_command", return_value="s"):
+        with patch("tools.merge_person_files.read_review_command", return_value="s"):
             self.assertEqual(review_pending(self.arguments()), 0)
 
         updated = personal_path.read_text(encoding="utf-8")

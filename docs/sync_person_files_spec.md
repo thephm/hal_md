@@ -1,4 +1,4 @@
-# Spec: `tools/sync_person_files.py`
+# Spec: `tools/merge_person_files.py`
 
 ## Purpose
 

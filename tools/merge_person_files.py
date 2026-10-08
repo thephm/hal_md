@@ -18,7 +18,7 @@ from typing import Any, Iterable
 
 import yaml
 
-# Allow `python tools/sync_person_files.py` as well as package imports.
+# Allow `python tools/merge_person_files.py` as well as package imports.
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -328,8 +328,9 @@ def repair_malformed_positions(content: str) -> str:
     lines = content.splitlines()
     repaired: list[str] = []
     description_position = False
+    quoted_position = False
     in_fence = False
-    for line in lines:
+    for index, line in enumerate(lines):
         if re.match(r"^\s*```\s*$", line):
             in_fence = not in_fence
             repaired.append(line)
@@ -337,20 +338,32 @@ def repair_malformed_positions(content: str) -> str:
         if in_fence:
             repaired.append(line)
             continue
+        if (
+            not line.strip()
+            and repaired
+            and repaired[-1].lstrip().startswith(">")
+            and index + 1 < len(lines)
+            and re.match(r"^\s*>", lines[index + 1])
+        ):
+            repaired.append("  >")
+            continue
         quoted = re.match(r"^(?P<indent>\s*)>\s?(?P<text>.*)$", line)
         if quoted and is_position_heading(line):
             repaired.append(f"- {quoted.group('text').strip()}")
             description_position = True
+            quoted_position = True
         elif quoted:
-            repaired.append(line)
-        elif description_position and re.match(r"^\s*[*-]\s+", line) and not is_recognizable_position(line):
+            repaired.append(f"  > {quoted.group('text')}".rstrip())
+        elif quoted_position and re.match(r"^\s*[*-]\s+", line) and not is_recognizable_position(line):
             repaired.append(f"  > {line.strip()}")
-        elif description_position and line.strip() and not is_recognizable_position(line):
+        elif quoted_position and line.strip() and not is_recognizable_position(line):
             repaired.append(f"  > {line.strip()}")
         else:
             repaired.append(line)
             if is_recognizable_position(line):
                 description_position = True
+            if re.match(r"^\s*[*-]\s+", line):
+                quoted_position = False
     return line_end.join(repaired) + (line_end if content.endswith(("\n", "\r")) else "")
 
 
@@ -550,7 +563,7 @@ def render_position_blocks(blocks: list[str], line_end: str) -> str:
 
 def normalize_single_bullet_description(block: str) -> str:
     bullet_lines = list(re.finditer(r"(?m)^(?P<prefix>[ \t]*>)[ \t]*-[ \t]*(?P<text>.+)\r?$", block))
-    return bullet_lines[0].group("prefix") + " " + bullet_lines[0].group("text") + block[bullet_lines[0].end():] if len(bullet_lines) == 1 else block
+    return block[:bullet_lines[0].start()] + bullet_lines[0].group("prefix") + " " + bullet_lines[0].group("text") + block[bullet_lines[0].end():] if len(bullet_lines) == 1 else block
 
 
 def position_completeness(block: str) -> tuple[int, int, int]:
