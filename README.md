@@ -237,7 +237,15 @@ The `tools/scan_wikilinks.py` script walks a vault, indexes every file, resolves
 
 The `tools/dedup_media.py` script recursively indexes files inside every folder named `media` below a vault root. It identifies byte-identical files by their byte count and SHA-256 hash, detects common media types from their file contents, and then asks which copy to keep. It does not delete any file until you select the copy to keep. Before prompting, it writes the structured `media_dedup_index.json` report to `C:\data\dev-output` on Windows or `/mnt/c/data/dev-output` in WSL by default. On a later run, choose `u` to quickly compare current paths, sizes, and modification times against the saved manifest. It reuses hashes for unchanged files and hashes only new or changed same-size candidates. It also reuses parsed Markdown references for notes whose modification times have not changed, and reads only new or changed notes. Choose `r` to discard the manifest and hash all same-size candidates again.
 
-For each set of identical files, the script makes every displayed media filename a hyperlink that opens it in VS Code. Select an original file number to retain it in place. Further numbered options combine the location from one file with the filename from another: for two files, option `3` is location 1 with filename 2 and option `4` is location 2 with filename 1. Only combinations with an available destination are listed, and none are listed when every filename is an opaque hash, number, or automatic camera/download name. Enter `c` to provide a custom vault-relative path and descriptive filename; the first identical copy is moved there. The selected copy is moved when necessary and all Markdown references are updated. Enter `s` to skip the set or `q` at any prompt to quit.
+For each set of identical files, the script makes every displayed media filename a hyperlink that opens it in VS Code. Select an original file number to retain it in place. The prompt appears after listing the copies; the script no longer automatically generates every location/filename combination, avoiding quadratic filesystem checks for large groups. Enter `c` to provide a custom vault-relative path and descriptive filename (including combining an existing location with another copy's name); the first identical copy is moved there. The selected copy is moved when necessary and all Markdown references are updated. Enter `s` to skip the set or `q` at any prompt to quit.
+
+Ctrl+C also stops scanning or listing without a traceback (exit status 130 outside an input prompt). Completed changes are not undone. The index is saved after scanning and before duplicate selection, not progressively: interruption during the initial scan loses that scan's unsaved work. Once the index has been saved, restart with the same output folder and choose `u` to reuse cached hashes; skipped groups and the selection position are not saved.
+
+Use `--all-folders` to scan the entire root directory, including nested folders not named `media`. This includes all file types, not just media; dot-prefixed filenames and the tool's output index are excluded. Markdown files are not required. Selecting a copy to keep immediately permanently deletes the other copies in that set; back up important files first.
+
+Empty (0-byte) files are never grouped together as duplicates, preventing unrelated empty files from being removed as copies of one another. Instead, if any empty files are detected, the tool offers to delete them all as a cleanup step before duplicate processing.
+
+Each original copy shows its filesystem creation and last-modified dates in local time with a UTC offset. Creation time is shown as `unavailable` when the filesystem/platform does not expose it (common on Linux); Unix metadata-change time is not treated as creation time. These dates are read from the current file even when using cached hashes. They are not embedded EXIF capture dates or video metadata; byte-identical copies have identical embedded metadata. Keeping an original numbered copy retains that file in place without changing its creation or modification dates.
 
 If the selected kept file has no filename extension but its contents identify a supported media type, the script offers to add the appropriate extension and update Markdown references to that kept file. This rename happens only after you answer `y`.
 
@@ -245,11 +253,14 @@ After it finds sets of identical files, the script first indexes media filenames
 
 ```powershell
 py -3 tools\dedup_media.py -f path\to\vault -o C:\data\dev-output
+# Scan an arbitrary server collection:
+py -3 tools\dedup_media.py -f D:\Library --all-folders -o D:\dedup-output
 ```
 
 #### Command line options
 
-- `-f` or `--folder` - The vault root to scan. The tool indexes media files only from folders named `media`, but updates references in every `.md` file below this root.
+- `-f` or `--folder` - The root to scan. By default, the tool indexes files only from folders named `media`, but updates references in every `.md` file below this root.
+- `--all-folders` - Scan files of all types in every folder below the root instead of only `media` folders. Dot-prefixed filenames and the output index are excluded.
 - `-o` or `--output` - Folder where `media_dedup_index.json` is written. Defaults to `C:\data\dev-output` on Windows and `/mnt/c/data/dev-output` in WSL.
 
 ## License

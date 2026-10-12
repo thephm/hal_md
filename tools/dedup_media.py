@@ -5,8 +5,12 @@
 Usage:
     python tools/dedup_media.py -f VAULT_DIRECTORY
 
-The tool scans every folder named ``media`` below the vault directory. With no
-arguments, it prompts for the vault directory. Enter ``q`` at
+The tool scans every folder named ``media`` below the vault directory, or all
+folders with ``--all-folders`` (all file types, excluding dot-prefixed filenames).
+It displays filesystem creation and modification dates for each copy. Empty (0-byte)
+files are never grouped as duplicates; instead, if any are found, the tool offers
+to delete them all as a cleanup step.
+With no arguments, it prompts for the vault directory. Enter ``q`` at
 any prompt to quit without making any further changes.
 """
 
@@ -22,16 +26,13 @@ import shutil
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
 
 WIKILINK_PATTERN = re.compile(r"(!?\[\[)([^\]\n]+)(\]\])")
 MARKDOWN_LINK_PATTERN = re.compile(r"(\]\()([^\s)]+)(?:\s+[^)]*)?(\))")
-CRYPTIC_FILENAME_PATTERN = re.compile(
-    r"(?:[0-9a-f]{12,}|[0-9]{8,}|(?:attachment|document|dsc|file|image|img|media|photo|pxl|video)[ _-]*[0-9][\w _-]*)$",
-    re.IGNORECASE,
-)
 CHUNK_SIZE = 1024 * 1024
 DEFAULT_OUTPUT_DIR = Path(r"C:\data\dev-output") if os.name == "nt" else Path("/mnt/c/data/dev-output")
 DEFAULT_INDEX_NAME = "media_dedup_index.json"
@@ -91,12 +92,18 @@ def prompt(message: str) -> str | None:
     return answer
 
 
-def media_file_paths(vault_root: Path):
+def media_file_paths(
+    vault_root: Path,
+    all_folders: bool = False,
+    excluded_paths: set[Path] | None = None,
+):
+    excluded_paths = excluded_paths or set()
     for path in vault_root.rglob("*"):
-        if path.is_file() and not path.name.startswith(".") and any(
-            parent.name.lower() == "media" for parent in path.parents
+        if path.is_file() and not path.name.startswith(".") and (
+            all_folders or any(parent.name.lower() == "media" for parent in path.parents)
         ):
-            yield path
+            if path.resolve() not in excluded_paths:
+                yield path
 
 
 def sha256_file(path: Path) -> str:
@@ -137,13 +144,18 @@ def shorten_progress_path(prefix: str, path: str) -> str:
 
 
 def build_media_index(
-    vault_root: Path, cached_files: dict[str, MediaFile] | None = None
+    vault_root: Path,
+    cached_files: dict[str, MediaFile] | None = None,
+    all_folders: bool = False,
+    excluded_paths: set[Path] | None = None,
 ) -> tuple[list[MediaFile], list[list[MediaFile]]]:
     cached_files = cached_files or {}
     by_size: dict[int, list[MediaFile]] = defaultdict(list)
     indexed_count = 0
     print("Indexing media files...", flush=True)
-    for indexed_count, path in enumerate(media_file_paths(vault_root), start=1):
+    for indexed_count, path in enumerate(
+        media_file_paths(vault_root, all_folders, excluded_paths), start=1
+    ):
         stat_result = path.stat()
         relative_path = path.relative_to(vault_root).as_posix()
         cached_file = cached_files.get(relative_path)
@@ -177,16 +189,16 @@ def build_media_index(
     media_files = [media_file for files in by_size.values() for media_file in files]
     hash_files = [
         media_file
-        for files in by_size.values()
-        if len(files) > 1
+        for size, files in by_size.items()
+        if size > 0 and len(files) > 1
         for media_file in files
         if not media_file.digest
     ]
     if hash_files:
         print(f"Hashing {len(hash_files):,} new or changed candidate file(s)...", flush=True)
     hashed_count = 0
-    for files in by_size.values():
-        if len(files) < 2:
+    for size, files in by_size.items():
+        if size == 0 or len(files) < 2:
             continue
         for media_file in files:
             if media_file.digest:
@@ -207,7 +219,9 @@ def build_media_index(
                 print(f"\r\033[2KHashed {hashed_count:,} of {len(hash_files):,} candidate files", end="", flush=True)
 
     groups: list[list[MediaFile]] = []
-    for files in by_size.values():
+    for size, files in by_size.items():
+        if size == 0 or len(files) < 2:
+            continue
         by_digest: dict[str, list[MediaFile]] = defaultdict(list)
         for media_file in files:
             if media_file.digest:
@@ -221,8 +235,8 @@ def build_media_index(
     return media_files, sorted(groups, key=lambda group: group[0].relative_path.lower())
 
 
-def find_duplicate_groups(vault_root: Path) -> list[list[MediaFile]]:
-    _, groups = build_media_index(vault_root)
+def find_duplicate_groups(vault_root: Path, all_folders: bool = False) -> list[list[MediaFile]]:
+    _, groups = build_media_index(vault_root, all_folders=all_folders)
     return groups
 
 
@@ -548,27 +562,51 @@ def print_reference_updates(updates: list[ReferenceUpdate], vault_root: Path) ->
         print(f"    {green}+ {update.new_target}{reset}")
 
 
+def format_file_dates(stat_result: os.stat_result) -> str:
+    created_time = getattr(stat_result, "st_birthtime", None)
+    if created_time is None and os.name == "nt":
+        created_time = stat_result.st_ctime
+    created = (
+        datetime.fromtimestamp(created_time).astimezone().isoformat(sep=" ", timespec="seconds")
+        if created_time is not None
+        else "unavailable"
+    )
+    modified = datetime.fromtimestamp(stat_result.st_mtime).astimezone().isoformat(
+        sep=" ", timespec="seconds"
+    )
+    return f"Created: {created}; Last modified: {modified}"
+
+
+def handle_empty_files(empty_files: list[MediaFile]) -> list[MediaFile] | None:
+    if not empty_files:
+        return []
+    print(f"\nFound {len(empty_files):,} empty (0-byte) file(s).")
+    while True:
+        choice = prompt("Delete all empty files? [y]es, [n]o, [q]uit: ")
+        if choice is None:
+            return None
+        if choice.lower() in ("n", "s"):
+            return []
+        if choice.lower() == "y":
+            deleted: list[MediaFile] = []
+            for empty_file in empty_files:
+                try:
+                    empty_file.path.unlink()
+                    deleted.append(empty_file)
+                except OSError as error:
+                    print(f"Failed to delete {empty_file.relative_path}: {error}")
+            print(f"Deleted {len(deleted):,} empty file(s).")
+            return deleted
+        print("Choose y, n, or q.")
+
+
 def describe_group(group: list[MediaFile]) -> None:
     print(f"\nSet of identical files: {len(group)} files, {group[0].size:,} bytes each")
     for index, media_file in enumerate(group, start=1):
         extension_note = "; no filename extension" if not media_file.path.suffix else ""
         linked_path = terminal_link(media_file.path, media_file.relative_path)
         print(f"  [{index}] {linked_path} ({media_file.mime_type}{extension_note})")
-    for index, (location_file, filename_file) in enumerate(cross_location_filename_options(group), start=len(group) + 1):
-        target = Path(location_file.relative_path).parent / filename_file.path.name
-        print(f"  [{index}] {target.as_posix()}")
-
-
-def cross_location_filename_options(group: list[MediaFile]) -> list[tuple[MediaFile, MediaFile]]:
-    if group and all(CRYPTIC_FILENAME_PATTERN.fullmatch(media_file.path.stem) for media_file in group):
-        return []
-    return [
-        (location_file, filename_file)
-        for location_file in group
-        for filename_file in group
-        if location_file != filename_file
-        and not (location_file.path.parent / filename_file.path.name).exists()
-    ]
+        print(f"      {format_file_dates(media_file.path.stat())}")
 
 
 def process_groups(
@@ -578,9 +616,8 @@ def process_groups(
     updated_count = 0
     for group in groups:
         describe_group(group)
-        cross_options = cross_location_filename_options(group)
         while True:
-            choice = prompt("Choose an option, [c]ustom path, [s]kip, [q]uit: ")
+            choice = prompt("Choose a file number to keep, [c]ustom path, [s]kip, [q]uit: ")
             if choice is None:
                 return
             if choice.lower() == "s":
@@ -609,19 +646,6 @@ def process_groups(
             if 0 <= choice_index < len(group):
                 selected_file = group[choice_index]
                 kept = selected_file
-            elif choice_index - len(group) < len(cross_options):
-                selected_file, filename_file = cross_options[choice_index - len(group)]
-                target = selected_file.path.parent / filename_file.path.name
-                try:
-                    kept = relocate_media_file(selected_file, target.relative_to(vault_root), vault_root)
-                except ValueError as error:
-                    print(f"Cannot use that option: {error}")
-                    continue
-                relocation_updates = update_markdown_references(vault_root, selected_file, kept, reference_index)
-                reference_index.media_name_counts[selected_file.path.name.lower()] -= 1
-                reference_index.media_name_counts[kept.path.name.lower()] += 1
-                print(f"Relocated {selected_file.relative_path} to {kept.relative_path}.")
-                print_reference_updates(relocation_updates, vault_root)
             else:
                 print("Choose a listed option, c, s, or q.")
                 continue
@@ -673,7 +697,12 @@ def parse_arguments() -> argparse.Namespace:
         "-f",
         "--folder",
         dest="vault_directory",
-        help="Vault directory containing media folders",
+        help="Root directory to scan (media folders only unless --all-folders is used)",
+    )
+    parser.add_argument(
+        "--all-folders",
+        action="store_true",
+        help="Scan all folders and file types, excluding dot-prefixed filenames and the output index",
     )
     parser.add_argument(
         "-o",
@@ -685,6 +714,18 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main() -> int:
+    try:
+        return run()
+    except KeyboardInterrupt:
+        print(
+            "\nInterrupted. Stopping; changes already made are not undone. "
+            "Any completed index save remains on disk.",
+            file=sys.stderr,
+        )
+        return 130
+
+
+def run() -> int:
     args = parse_arguments()
     vault_text = args.vault_directory or prompt("Vault directory [.]: ") or "."
     vault_root = Path(vault_text).expanduser().resolve()
@@ -694,6 +735,7 @@ def main() -> int:
 
     output_dir = Path(args.output).expanduser().resolve()
     index_path = output_dir / DEFAULT_INDEX_NAME
+    excluded_paths = {index_path.resolve()}
     media_files: list[MediaFile]
     groups: list[list[MediaFile]]
     cached_markdown_files: dict[str, MarkdownReferenceFile] = {}
@@ -706,17 +748,33 @@ def main() -> int:
                 print("Loading cached media index...", flush=True)
                 cached_files, cached_markdown_files = load_media_manifest(index_path, vault_root)
                 print("Checking media files and reusing hashes for unchanged files...", flush=True)
-                media_files, groups = build_media_index(vault_root, cached_files)
+                media_files, groups = build_media_index(
+                    vault_root, cached_files, args.all_folders, excluded_paths
+                )
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
                 print(f"Existing index needs a one-time upgrade ({error}); regenerating it.")
-                media_files, groups = build_media_index(vault_root)
+                media_files, groups = build_media_index(
+                    vault_root, all_folders=args.all_folders, excluded_paths=excluded_paths
+                )
         elif choice.lower() == "r":
-            media_files, groups = build_media_index(vault_root)
+            media_files, groups = build_media_index(
+                vault_root, all_folders=args.all_folders, excluded_paths=excluded_paths
+            )
         else:
             print("Choose u, r, or q.")
             return 1
     else:
-        media_files, groups = build_media_index(vault_root)
+        media_files, groups = build_media_index(
+            vault_root, all_folders=args.all_folders, excluded_paths=excluded_paths
+        )
+    empty_files = [media_file for media_file in media_files if media_file.size == 0]
+    if empty_files:
+        deleted = handle_empty_files(empty_files)
+        if deleted is None:
+            return 0
+        if deleted:
+            deleted_paths = {file.path for file in deleted}
+            media_files = [file for file in media_files if file.path not in deleted_paths]
     if not groups:
         index_path = write_duplicate_index(output_dir, media_files, groups)
         print(f"Duplicate index: {terminal_link(index_path)}")
