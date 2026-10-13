@@ -8,19 +8,30 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from tools.dedup_media import (
+    FolderGroupEntry,
+    FolderPreferenceRule,
     MarkdownReferenceIndex,
     MediaFile,
+    PreferredPathRule,
+    TreePreferenceRule,
     build_media_index,
     build_markdown_reference_index,
     detect_mime_type,
     describe_group,
+    describe_folder_group,
     file_url,
+    find_duplicate_folder_groups,
+    find_path_prefix_difference,
     format_file_dates,
+    handle_bak_files,
     handle_empty_files,
     main,
     parse_arguments,
+    process_folder_groups,
     process_groups,
     relocate_media_file,
+    resolve_group_with_rules,
+    sha256_file,
 )
 
 
@@ -450,6 +461,411 @@ class DedupMediaTests(unittest.TestCase):
             self.assertTrue(dup1.is_file())
             self.assertFalse(dup2.exists())
             self.assertTrue((root / "output" / "media_dedup_index.json").is_file())
+
+    def test_find_duplicate_folder_groups_finds_identical_trees(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder_a = root / "FolderA"
+            folder_b = root / "FolderB"
+            for folder in (folder_a, folder_b):
+                (folder / "sub").mkdir(parents=True)
+                (folder / "file1.txt").write_bytes(b"content one")
+                (folder / "sub" / "file2.txt").write_bytes(b"content two")
+
+            media_files, _ = build_media_index(root, all_folders=True)
+            folder_groups = find_duplicate_folder_groups(root, media_files)
+
+            # Both root-level (FolderA vs FolderB) and subfolder-level (FolderA/sub vs FolderB/sub) match
+            self.assertEqual(len(folder_groups), 2)
+            # Shallowest folder group (depth 1) is first
+            top_group = folder_groups[0]
+            self.assertEqual({entry.path for entry in top_group}, {folder_a, folder_b})
+            self.assertEqual(top_group[0].file_count, 2)
+            self.assertEqual(top_group[0].total_size, len(b"content one") + len(b"content two"))
+
+            child_group = folder_groups[1]
+            self.assertEqual({entry.path for entry in child_group}, {folder_a / "sub", folder_b / "sub"})
+            self.assertEqual(child_group[0].file_count, 1)
+
+    def test_find_duplicate_folder_groups_excludes_unindexed_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder_a = root / "FolderA"
+            folder_b = root / "FolderB"
+            for folder in (folder_a, folder_b):
+                folder.mkdir()
+                (folder / "file1.txt").write_bytes(b"content one")
+            # Extra unindexed file in FolderB
+            (folder_b / "extra.doc").write_bytes(b"extra")
+
+            indexed_files = [
+                MediaFile(folder_a / "file1.txt", "FolderA/file1.txt", 11, "text/plain", "hash1"),
+                MediaFile(folder_b / "file1.txt", "FolderB/file1.txt", 11, "text/plain", "hash1"),
+            ]
+            folder_groups = find_duplicate_folder_groups(root, indexed_files)
+            # FolderB contains extra.doc on disk not in indexed_files, so it should not match FolderA
+            self.assertEqual(folder_groups, [])
+
+    def test_process_folder_groups_deletes_folder_and_updates_markdown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder_a = root / "FolderA"
+            folder_b = root / "FolderB"
+            for folder in (folder_a, folder_b):
+                (folder / "sub").mkdir(parents=True)
+                (folder / "pic.jpg").write_bytes(b"photo data")
+                (folder / "sub" / "clip.mp4").write_bytes(b"video data")
+
+            # Markdown note pointing to FolderB/sub/clip.mp4
+            note = root / "note.md"
+            note.write_text("See [[FolderB/sub/clip.mp4]]", encoding="utf-8")
+
+            media_files, groups = build_media_index(root, all_folders=True)
+            reference_index = build_markdown_reference_index(root, media_files)
+            folder_groups = find_duplicate_folder_groups(root, media_files)
+
+            # Choose option 1 (FolderA) to keep
+            with patch("tools.dedup_media.prompt", return_value="1"):
+                success = process_folder_groups(
+                    folder_groups, root, reference_index, media_files, groups
+                )
+
+            self.assertTrue(success)
+            self.assertTrue(folder_a.is_dir())
+            self.assertFalse(folder_b.exists())
+            self.assertIn("[[FolderA/sub/clip.mp4]]", note.read_text(encoding="utf-8"))
+            # File groups should now be empty because folder dedup resolved them
+            remaining_groups = [g for g in groups if len(g) > 1]
+            self.assertEqual(remaining_groups, [])
+
+    def test_process_folder_groups_skipping_allows_child_level_selection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder_a = root / "FolderA"
+            folder_b = root / "FolderB"
+            for folder in (folder_a, folder_b):
+                (folder / "sub").mkdir(parents=True)
+                (folder / "pic.jpg").write_bytes(b"photo data")
+                (folder / "sub" / "clip.mp4").write_bytes(b"video data")
+
+            media_files, groups = build_media_index(root, all_folders=True)
+            reference_index = build_markdown_reference_index(root, media_files)
+            folder_groups = find_duplicate_folder_groups(root, media_files)
+
+            # Skip parent level ('s'), then select keeper for child level ('1')
+            with patch("tools.dedup_media.prompt", side_effect=["s", "1"]):
+                success = process_folder_groups(
+                    folder_groups, root, reference_index, media_files, groups
+                )
+
+            self.assertTrue(success)
+            # FolderA and FolderB still exist, but FolderB/sub was deleted
+            self.assertTrue(folder_a.is_dir())
+            self.assertTrue((folder_a / "sub").is_dir())
+            self.assertTrue(folder_b.is_dir())
+            self.assertFalse((folder_b / "sub").exists())
+
+    def test_sha256_file_handles_missing_file(self):
+        missing_path = Path("nonexistent_file_path_xyz.bin")
+        self.assertEqual(sha256_file(missing_path), "")
+
+    def test_format_file_dates_handles_missing_file(self):
+        missing_path = Path("nonexistent_file_path_xyz.bin")
+        self.assertEqual(format_file_dates(missing_path), "File or folder no longer exists")
+
+    def test_build_media_index_handles_file_deleted_during_hashing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            file1 = root / "image1.jpg"
+            file2 = root / "image2.jpg"
+            file3 = root / "image3.jpg"
+            file1.write_bytes(b"content")
+            file2.write_bytes(b"content")
+            file3.write_bytes(b"content")
+
+            original_sha = sha256_file
+
+            def simulate_concurrent_delete(path: Path) -> str:
+                if path.name == "image2.jpg":
+                    path.unlink(missing_ok=True)
+                    return ""
+                return original_sha(path)
+
+            with patch("tools.dedup_media.sha256_file", side_effect=simulate_concurrent_delete):
+                media_files, groups = build_media_index(root, all_folders=True)
+
+            self.assertEqual({f.path for f in media_files}, {file1, file3})
+            self.assertEqual(len(groups), 1)
+            self.assertEqual({f.path for f in groups[0]}, {file1, file3})
+
+    def test_find_path_prefix_difference(self):
+        # Case 1: nested prefix vs root with shared common subpath
+        res = find_path_prefix_difference(
+            "projects/janlabs/Phones/MISC/Screenshot.jpg",
+            "janlabs/Phones/MISC/Screenshot.jpg",
+        )
+        self.assertEqual(res, ("projects/janlabs", "janlabs"))
+
+        # Case 2: two differing root prefixes
+        res = find_path_prefix_difference(
+            "backupA/photos/vacation/img.jpg",
+            "backupB/photos/vacation/img.jpg",
+        )
+        self.assertEqual(res, ("backupA", "backupB"))
+
+        # Case 3: same parent, different filenames (no common suffix)
+        res = find_path_prefix_difference("folder/a.jpg", "folder/b.jpg")
+        self.assertIsNone(res)
+
+    def test_resolve_group_with_rules(self):
+        vault_root = Path("/vault")
+        f1 = MediaFile(vault_root / "janlabs" / "photo.jpg", "janlabs/photo.jpg", 10, "image/jpeg", "h1")
+        f2 = MediaFile(vault_root / "projects" / "janlabs" / "photo.jpg", "projects/janlabs/photo.jpg", 10, "image/jpeg", "h1")
+        f3 = MediaFile(vault_root / "other" / "photo.jpg", "other/photo.jpg", 10, "image/jpeg", "h1")
+
+        rule = FolderPreferenceRule("projects/janlabs", "janlabs")
+        # In a 2-file group [f1, f2]: f2 is preferred over f1
+        winner, matched_rule = resolve_group_with_rules([f1, f2], [rule], vault_root)
+        self.assertEqual(winner, f2)
+        self.assertEqual(matched_rule, rule)
+
+        # In a 3-file group [f1, f2, f3]: f3 is unaddressed, so winner is not unique
+        winner3, _ = resolve_group_with_rules([f1, f2, f3], [rule], vault_root)
+        self.assertIsNone(winner3)
+
+    def test_process_groups_auto_learns_repeated_folder_preference(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            # Set 1
+            s1_a = root / "janlabs" / "MISC" / "shot1.jpg"
+            s1_b = root / "projects" / "janlabs" / "MISC" / "shot1.jpg"
+            # Set 2
+            s2_a = root / "janlabs" / "MISC" / "shot2.jpg"
+            s2_b = root / "projects" / "janlabs" / "MISC" / "shot2.jpg"
+            s2_c = root / "projects" / "janlabs" / "shot2.jpg"
+            # Set 3 (should be auto-resolved once rule is learned!)
+            s3_a = root / "janlabs" / "MISC" / "shot3.jpg"
+            s3_b = root / "projects" / "janlabs" / "MISC" / "shot3.jpg"
+
+            for path in (s1_a, s1_b, s2_a, s2_b, s2_c, s3_a, s3_b):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"content")
+
+            m1_a = MediaFile(s1_a, s1_a.relative_to(root).as_posix(), 7, "image/jpeg", "h1")
+            m1_b = MediaFile(s1_b, s1_b.relative_to(root).as_posix(), 7, "image/jpeg", "h1")
+            m2_a = MediaFile(s2_a, s2_a.relative_to(root).as_posix(), 7, "image/jpeg", "h2")
+            m2_b = MediaFile(s2_b, s2_b.relative_to(root).as_posix(), 7, "image/jpeg", "h2")
+            m2_c = MediaFile(s2_c, s2_c.relative_to(root).as_posix(), 7, "image/jpeg", "h2")
+            m3_a = MediaFile(s3_a, s3_a.relative_to(root).as_posix(), 7, "image/jpeg", "h3")
+            m3_b = MediaFile(s3_b, s3_b.relative_to(root).as_posix(), 7, "image/jpeg", "h3")
+
+            groups = [
+                [m1_a, m1_b],
+                [m2_a, m2_b, m2_c],
+                [m3_a, m3_b],
+            ]
+            ref_index = MarkdownReferenceIndex(defaultdict(set), defaultdict(set), defaultdict(int))
+
+            # Prompt sequence:
+            # 1. Group 1: pick "2" (m1_b)
+            # 2. Group 2: pick "2" (m2_b)
+            # 3. Learning prompt triggers because projects/janlabs/MISC was picked over janlabs/MISC twice!
+            #    User answers "1" (always prefer folder projects/janlabs/MISC over janlabs/MISC)
+            # 4. Group 3: auto-selects m3_b without prompting!
+            with patch("tools.dedup_media.prompt", side_effect=["2", "2", "1"]) as prompt_mock:
+                process_groups(groups, root, ref_index)
+
+            # Assert prompt was only called 3 times (the third group required 0 prompts!)
+            self.assertEqual(prompt_mock.call_count, 3)
+
+            # Verify kept files exist and duplicates are removed
+            self.assertTrue(s1_b.is_file())
+            self.assertFalse(s1_a.exists())
+
+            self.assertTrue(s2_b.is_file())
+            self.assertFalse(s2_a.exists())
+            self.assertFalse(s2_c.exists())
+
+            self.assertTrue(s3_b.is_file())
+            self.assertFalse(s3_a.exists())
+
+    def test_process_groups_explicit_remember_option_2a(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            s1_a = root / "janlabs" / "pic1.jpg"
+            s1_b = root / "projects" / "janlabs" / "pic1.jpg"
+            s2_a = root / "janlabs" / "pic2.jpg"
+            s2_b = root / "projects" / "janlabs" / "pic2.jpg"
+
+            for path in (s1_a, s1_b, s2_a, s2_b):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"content")
+
+            m1_a = MediaFile(s1_a, s1_a.relative_to(root).as_posix(), 7, "image/jpeg", "h1")
+            m1_b = MediaFile(s1_b, s1_b.relative_to(root).as_posix(), 7, "image/jpeg", "h1")
+            m2_a = MediaFile(s2_a, s2_a.relative_to(root).as_posix(), 7, "image/jpeg", "h2")
+            m2_b = MediaFile(s2_b, s2_b.relative_to(root).as_posix(), 7, "image/jpeg", "h2")
+
+            groups = [[m1_a, m1_b], [m2_a, m2_b]]
+            ref_index = MarkdownReferenceIndex(defaultdict(set), defaultdict(set), defaultdict(int))
+
+            # User enters "2a" on group 1, then "1" to confirm folder preference.
+            # Group 2 should be auto-resolved!
+            with patch("tools.dedup_media.prompt", side_effect=["2a", "1"]) as prompt_mock:
+                process_groups(groups, root, ref_index)
+
+            self.assertEqual(prompt_mock.call_count, 2)
+            self.assertTrue(s1_b.is_file())
+            self.assertFalse(s1_a.exists())
+            self.assertTrue(s2_b.is_file())
+            self.assertFalse(s2_a.exists())
+
+    def test_process_groups_with_cli_prefer_flag(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            s1_a = root / "janlabs" / "pic1.jpg"
+            s1_b = root / "projects" / "janlabs" / "pic1.jpg"
+
+            for path in (s1_a, s1_b):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"content")
+
+            m1_a = MediaFile(s1_a, s1_a.relative_to(root).as_posix(), 7, "image/jpeg", "h1")
+            m1_b = MediaFile(s1_b, s1_b.relative_to(root).as_posix(), 7, "image/jpeg", "h1")
+
+            groups = [[m1_a, m1_b]]
+            ref_index = MarkdownReferenceIndex(defaultdict(set), defaultdict(set), defaultdict(int))
+            rules = [PreferredPathRule("projects")]
+
+            # Should auto-resolve without asking prompt
+            with patch("tools.dedup_media.prompt") as prompt_mock:
+                process_groups(groups, root, ref_index, rules=rules)
+
+            prompt_mock.assert_not_called()
+            self.assertTrue(s1_b.is_file())
+            self.assertFalse(s1_a.exists())
+
+    def test_handle_bak_files_deletes_by_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bak1 = root / "image.jpg.bak"
+            bak2 = root / "data.sql.BAK"
+            keep1 = root / "image.jpg"
+            bak1.write_bytes(b"content")
+            bak2.write_bytes(b"content")
+            keep1.write_bytes(b"content")
+
+            m_bak1 = MediaFile(bak1, "image.jpg.bak", 7, "application/octet-stream", "h1")
+            m_bak2 = MediaFile(bak2, "data.sql.BAK", 7, "application/octet-stream", "h1")
+
+            deleted = handle_bak_files([m_bak1, m_bak2], keep_bak=False)
+            self.assertEqual(len(deleted), 2)
+            self.assertFalse(bak1.exists())
+            self.assertFalse(bak2.exists())
+            self.assertTrue(keep1.is_file())
+
+    def test_handle_bak_files_preserves_when_keep_bak_is_true(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bak1 = root / "image.jpg.bak"
+            bak1.write_bytes(b"content")
+            m_bak1 = MediaFile(bak1, "image.jpg.bak", 7, "application/octet-stream", "h1")
+
+            deleted = handle_bak_files([m_bak1], keep_bak=True)
+            self.assertEqual(deleted, [])
+            self.assertTrue(bak1.is_file())
+
+    def test_run_deletes_bak_files_by_default(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            photo = root / "photo.jpg"
+            photo_bak = root / "photo.jpg.bak"
+            photo.write_bytes(b"photo content")
+            photo_bak.write_bytes(b"photo content")
+
+            arguments = [
+                "dedup_media.py", "-f", str(root), "--all-folders",
+                "-o", str(root / "output"),
+            ]
+            # Since photo.jpg.bak is deleted automatically, no duplicates remain and no prompt is shown.
+            with patch("sys.argv", arguments), patch("tools.dedup_media.prompt") as prompt_mock:
+                self.assertEqual(main(), 0)
+                prompt_mock.assert_not_called()
+
+            self.assertTrue(photo.is_file())
+            self.assertFalse(photo_bak.exists())
+
+    def test_run_preserves_bak_files_with_keep_bak(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            photo = root / "photo.jpg"
+            photo_bak = root / "photo.jpg.bak"
+            photo.write_bytes(b"photo content")
+            photo_bak.write_bytes(b"photo content")
+
+            arguments = [
+                "dedup_media.py", "-f", str(root), "--all-folders",
+                "-o", str(root / "output"), "--keep-bak",
+            ]
+            # Prompt 1: choose duplicate keeper -> '1' (keeping photo.jpg)
+            with patch("sys.argv", arguments), patch(
+                "tools.dedup_media.prompt", side_effect=["1"]
+            ) as prompt_mock:
+                self.assertEqual(main(), 0)
+                self.assertEqual(prompt_mock.call_count, 1)
+
+            self.assertTrue(photo.is_file())
+            self.assertFalse(photo_bak.exists())
+
+    def test_process_groups_delete_all_option_d(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            f1 = root / "copy1.jpg"
+            f2 = root / "copy2.jpg"
+            f1.write_bytes(b"image bytes")
+            f2.write_bytes(b"image bytes")
+
+            m1 = MediaFile(f1, "copy1.jpg", 11, "image/jpeg", "hash1")
+            m2 = MediaFile(f2, "copy2.jpg", 11, "image/jpeg", "hash1")
+
+            groups = [[m1, m2]]
+            ref_index = MarkdownReferenceIndex(defaultdict(set), defaultdict(set), defaultdict(int))
+            with patch("tools.dedup_media.prompt", side_effect=["d"]):
+                process_groups(groups, root, ref_index)
+
+            self.assertFalse(f1.exists())
+            self.assertFalse(f2.exists())
+
+    def test_process_folder_groups_delete_all_option_d(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder1 = root / "folder1"
+            folder2 = root / "folder2"
+            folder1.mkdir()
+            folder2.mkdir()
+            f1 = folder1 / "item.jpg"
+            f2 = folder2 / "item.jpg"
+            f1.write_bytes(b"content")
+            f2.write_bytes(b"content")
+
+            m1 = MediaFile(f1, "folder1/item.jpg", 7, "image/jpeg", "h")
+            m2 = MediaFile(f2, "folder2/item.jpg", 7, "image/jpeg", "h")
+
+            entry1 = FolderGroupEntry(folder1, 1, 7, (m1,))
+            entry2 = FolderGroupEntry(folder2, 1, 7, (m2,))
+            folder_groups = [[entry1, entry2]]
+
+            ref_index = MarkdownReferenceIndex(defaultdict(set), defaultdict(set), defaultdict(int))
+            media_files = [m1, m2]
+            groups = [[m1, m2]]
+
+            with patch("tools.dedup_media.prompt", side_effect=["d"]):
+                process_folder_groups(folder_groups, root, ref_index, media_files, groups)
+
+            self.assertFalse(folder1.exists())
+            self.assertFalse(folder2.exists())
+            self.assertEqual(media_files, [])
+            self.assertEqual(groups, [[]])
 
 
 if __name__ == "__main__":
