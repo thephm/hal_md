@@ -61,7 +61,7 @@ Usage:
 
 Options:
     -s, --source    Folder to recursively scan for Person markdown files (required)
-    -c, --config    Folder containing (or to contain) organizations.json (required)
+    -c, --config    Folder containing (or to contain) organizations.json (default: C:\\data\\config on Windows, /mnt/c/data/config on WSL)
     -d, --debug     Print extra info as files/bullets/aliases are processed
     -v, --verbose   Print folders and files as they are scanned
     -x, --max       Maximum number of person markdown files to process
@@ -84,9 +84,10 @@ import yaml
 ORGANIZATIONS_FILENAME = 'organizations.json'
 DEFAULT_CONFIG_DIR = os.environ.get(
     'HAL_MD_CONFIG_DIR',
-    (r'C:\data\dev-output\config' if os.name == 'nt' else '/mnt/c/data/dev-output/config'),
+    (r'C:\data\config' if os.name == 'nt' else '/mnt/c/data/config'),
 )
 MAX_ORGANIZATION_NAME_WORDS = 10
+MAX_ORGANIZATION_SLUG_LENGTH = 64
 
 CANONICAL_ORGANIZATION_NAMES = {
     'school of continuing studies': 'McGill University',
@@ -419,6 +420,12 @@ def unique_slug(base_slug, organizations):
     return f"{base_slug}-{i}"
 
 
+def is_valid_organization_slug(slug: str) -> bool:
+    return len(slug) <= MAX_ORGANIZATION_SLUG_LENGTH and not re.match(
+        r'^\d+-educational-experiences(?:-|$)', slug, re.IGNORECASE,
+    )
+
+
 # ---------------------------------------------------------------------------
 # organizations.json read/write + lookup/create
 # ---------------------------------------------------------------------------
@@ -550,6 +557,10 @@ def ensure_organization(organizations, raw_name, debug=False, source_file=None, 
     name = canonicalize_organization_name(raw_name)
     if not name:
         return None
+    if not is_valid_organization_slug(slugify(name)):
+        if debug:
+            print(f"  - skipped invalid organization slug for '{name}'")
+        return None
     if should_ignore_organization(name):
         if debug:
             src = f" (from {source_file})" if source_file else ""
@@ -563,6 +574,10 @@ def ensure_organization(organizations, raw_name, debug=False, source_file=None, 
 
     existing = find_existing(organizations, name)
     if existing:
+        if not is_valid_organization_slug(str(existing.get('slug') or '')):
+            if debug:
+                print(f"  - skipped invalid existing organization slug for '{name}'")
+            return None
         normalize_existing_record(existing, preferred_name=name)
         add_person_to_organization(existing, person_slug)
         aliases = existing.setdefault('aliases', [])
@@ -591,6 +606,10 @@ def ensure_organization(organizations, raw_name, debug=False, source_file=None, 
 
     clean_name = strip_legal_suffix(name) or name
     slug = unique_slug(slugify(clean_name), organizations)
+    if not is_valid_organization_slug(slug):
+        if debug:
+            print(f"  - skipped invalid generated organization slug '{slug}'")
+        return None
 
     aliases = []
     if original_name != clean_name:

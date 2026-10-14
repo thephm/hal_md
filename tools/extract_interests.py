@@ -67,7 +67,7 @@ INTERESTS_FILENAME = "interests.json"
 FIELD_INTERESTS = "interests"
 DEFAULT_CONFIG_DIR = os.environ.get(
     "HAL_MD_CONFIG_DIR",
-    (r"C:\data\dev-output\config" if os.name == "nt" else "/mnt/c/data/dev-output/config"),
+    (r"C:\data\config" if os.name == "nt" else "/mnt/c/data/config"),
 )
 
 

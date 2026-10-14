@@ -14,7 +14,8 @@ Both sets follow the `Person.md` template (YAML frontmatter + defined body secti
 - `-e / --existing` — path to the existing Person-file folder (recursive, folder-per-person). **This is modified in place.**
 - `-i / --incoming` — path to the incoming Person-file folder (e.g. today, your LinkedIn export folder). Read-only, never modified.
 - `-t / --state-dir` — path to the **persistent decision store**, default `C:\data\dev-output\people_sync_state`. This directory lives outside the vault/git repo (personal data, not for GitHub) and is what you back up separately.
-- `-c / --config` — optional config JSON (thresholds, field-rule overrides)
+- `-c / --config` — optional registry directory containing `organizations.json` (e.g. `C:\data\config` or `/mnt/c/data/config`), or a sync settings JSON file (thresholds, field-rule overrides). A directory selects its organization registry unless `--organizations-config` is explicitly supplied; it does not automatically load sync settings.
+- `--organizations-config` — organization registry JSON, default `C:\data\config\organizations.json` on Windows or `/mnt/c/data/config/organizations.json` on WSL. `HAL_MD_CONFIG_DIR` overrides the default registry folder independently of `HAL_MD_DEV_OUTPUT_DIR`.
 - `--editor` — command to launch for the review CLI's Edit action (default: `$EDITOR`/`$VISUAL` env var if set, else `code` if on PATH)
 - `-d / --debug` — verbose logging
 - `-n / --dry-run` — compute and report what *would* change, write nothing, touch no state
@@ -67,7 +68,7 @@ Each field/section has different risk/confidence, so each gets its own rule rath
 
 The `## Positions` and `## Notes`/`## People` rules are detailed just below, since Positions needs more than a one-line rule.
 
-- **`## Positions`**: Match individual entries by (organization + overlapping date range).
+- **`## Positions`**: Match job entries by (organization + normalized title + overlapping date range). Different titles represent separate roles, even at the same organization. Date ranges that only share an end/start month are adjacent positions, not overlapping; entries with the same start month can still match. Use this rule for both merging and deduplication. On re-sync, remove saved date reviews for the processed person when their existing/incoming lines describe separate positions under this rule; leave unrelated reviews and decisions untouched. Equivalent education entries retain their qualification-based matching.
   - **Dates**: same precision rule as `birthday`. The other source typically only provides `YYYY-MM`; your personal entries often have `YYYY-MM-DD`. Whichever side has the finer-grained (more precise) date wins for that start/end date — in practice this usually means personal wins since it's more often `YYYY-MM-DD`, but if personal only has `YYYY-MM` (or is missing a date) and the other file has more precision, take that one. Compare at shared precision to detect disagreement; if the values conflict beyond just precision (e.g. different months, not just missing days), flag it in `manual_review.csv` rather than silently picking one.
   - Keep the personal entry's `reports to [[Name]]` line if present — the other file never has this.
   - **Prefer incoming descriptions.** If a matched incoming position has a description, replace the personal description in full; never combine the two, regardless of relative length. If the incoming position has no description, retain the personal description. Keep the position heading and personal-only details such as `reports to` intact. Treat legacy indented child bullets as descriptions, not separate positions, even when their text contains a date or year.
@@ -76,6 +77,12 @@ The `## Positions` and `## Notes`/`## People` rules are detailed just below, sin
   - Positions only in personal (older/private/informal roles) are left untouched.
   - **After merging, re-order the full `## Positions` list oldest to newest** by start date, so the final section always reads chronologically regardless of what order entries originally appeared in either source file. Entries with only a `YYYY-MM` start date sort using that month; ties (or missing dates) keep their relative original order.
 - **`## Notes`, `## People`, etc.**: personal-only sections, never touched by this tool.
+
+When merging References, remove empty template list markers and renumber surviving numbered entries only when placeholders were removed, including when the LinkedIn link is already present. Positions merging and normalization omit empty placeholder-only bullets but preserve real entries and descriptions. Notes cleanup removes only empty top-level unordered list markers outside fenced code; populated links, image-name text, nested list items, and all other Notes content remain in place. Placeholder bullets in other sections are left untouched.
+
+Ignore incoming organization slugs longer than 64 characters or starting with `<number>-educational-experiences` (a LinkedIn education-summary label, not an organization). This applies to both merging and creating Person files; existing personal organization values are not removed. Organization extraction applies the same limits before linking or creating registry records.
+
+Exclude standalone `Research Skills` labels from position descriptions (case-insensitive), including quoted and legacy nested-bullet forms, before folding paragraphs. Preserve substantive sentences mentioning research skills. Applies during merging, position normalization, and creation of new Person files.
 
 ## Reporting (every run, including dry-run)
 

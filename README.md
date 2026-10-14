@@ -134,6 +134,10 @@ So far, I've created:
 - [merge_person_files](tools/merge_person_files.py) merges selected frontmatter fields, bios, and positions from another Person-file collection into a personal vault. It modifies matched personal files in place; begin with `--dry-run` and keep the external `--state-dir` (including its backups and review decisions) backed up.
 - [dedup_media](tools/dedup_media.py) interactively removes byte-identical files from every `media` folder in a vault and updates their Markdown references.
 
+The organization, interest, and skill tools use `C:\data\config` on Windows or `/mnt/c/data/config` on WSL for their registry files by default. Set `HAL_MD_CONFIG_DIR` to override this folder, or pass the tool's explicit config/output option. [merge_person_files](tools/merge_person_files.py) also reads its default organization registry from this folder. Generated reports, media deduplication indexes, and merge decision state remain under `C:\data\dev-output` (or `/mnt/c/data/dev-output` on WSL); they are not config files.
+
+[merge_person_files](tools/merge_person_files.py) accepts `--config` as either a registry directory (using its `organizations.json`) or a sync settings JSON file. `--organizations-config` explicitly selects a registry file and takes precedence over a registry directory.
+
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
 
 ### Comms

@@ -10,7 +10,7 @@ from unittest.mock import patch
 from tools.merge_person_files import (
     FRONTMATTER_FIELD_ORDER, PersonSynchronizer, SyncStore,
     default_config_dir, default_dev_output_dir,
-    discover_people, main, normalize_city, render_position_blocks, review_context, review_pending, source_hash,
+    dates_overlap, discover_people, main, normalize_city, normalize_position_description, read_document, render_position_blocks, review_context, review_pending, source_hash,
 )
 from text_encoding import repair_mojibake
 
@@ -31,13 +31,47 @@ class SyncPersonFilesTests(unittest.TestCase):
     def test_default_registry_paths_support_windows_and_wsl(self):
         self.assertEqual(default_dev_output_dir("nt", {}), Path(r"C:\data\dev-output"))
         self.assertEqual(default_dev_output_dir("posix", {}), Path("/mnt/c/data/dev-output"))
-        self.assertEqual(default_config_dir("posix", {}), Path("/mnt/c/data/dev-output/config"))
+        self.assertEqual(default_config_dir("nt", {}), Path(r"C:\data\config"))
+        self.assertEqual(default_config_dir("posix", {}), Path("/mnt/c/data/config"))
         self.assertEqual(default_config_dir("posix", {"HAL_MD_CONFIG_DIR": "/data/config"}), Path("/data/config"))
+        self.assertEqual(default_config_dir("nt", {"HAL_MD_DEV_OUTPUT_DIR": r"D:\output"}), Path(r"C:\data\config"))
 
     def test_normalize_city_removes_metropolitan_suffixes(self):
         self.assertEqual(normalize_city("Ottawa Metropolitan"), "Ottawa")
         self.assertEqual(normalize_city("Toronto Metropolitan Area"), "Toronto")
         self.assertEqual(normalize_city("Fort Lauderdale"), "Fort Lauderdale")
+
+    def test_config_directory_selects_organization_registry(self):
+        config_dir = self.root / "config"
+        config_dir.mkdir()
+        with patch("tools.merge_person_files.load_organization_aliases", return_value={}) as loader:
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-t", str(self.state_root),
+                "--config", str(config_dir), "-m", "-n",
+            ]), 0)
+        loader.assert_called_once_with(config_dir / "organizations.json")
+
+    def test_explicit_organization_registry_overrides_config_directory(self):
+        registry_path = self.root / "custom-organizations.json"
+        with patch("tools.merge_person_files.load_organization_aliases", return_value={}) as loader:
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-t", str(self.state_root),
+                "--config", str(self.root), "--organizations-config", str(registry_path),
+                "-m", "-n",
+            ]), 0)
+        loader.assert_called_once_with(registry_path)
+
+    def test_config_json_still_loads_sync_settings(self):
+        config_path = self.root / "sync-settings.json"
+        config_path.write_text('{"bio_similarity": 0.85}', encoding="utf-8")
+        with patch(
+            "tools.merge_person_files.PersonSynchronizer.normalize_positions", autospec=True,
+        ) as normalize:
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-t", str(self.state_root),
+                "--config", str(config_path), "-m", "-n",
+            ]), 0)
+        self.assertEqual(normalize.call_args.args[0].args.bio_similarity, 0.85)
 
     def test_repair_mojibake_is_available_as_shared_utility(self):
         self.assertEqual(repair_mojibake("SecrÃ©tariat"), "Secrétariat")
@@ -56,6 +90,104 @@ class SyncPersonFilesTests(unittest.TestCase):
         file_path = path / "Jane Doe.md"
         file_path.write_text(content, encoding="utf-8")
         return file_path
+
+    def test_slug_run_never_discovers_or_reads_unrelated_person_folders(self):
+        personal_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\nskills: [Rust]\n---\n",
+        )
+        for root in (self.personal_root, self.other_root):
+            self.write_person(root, "unrelated", "---\ntags: [person]\n- malformed\n---\n")
+        registry_path = self.root / "organizations.json"
+        registry_path.write_text("[]", encoding="utf-8")
+        original_rglob = Path.rglob
+
+        def scoped_rglob(path, pattern):
+            self.assertNotIn(path.resolve(), (self.personal_root, self.other_root))
+            return original_rglob(path, pattern)
+
+        with patch.object(Path, "rglob", scoped_rglob), patch(
+            "tools.merge_person_files.read_document", wraps=read_document,
+        ) as reader:
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-i", str(self.other_root),
+                "-t", str(self.state_root), "--organizations-config", str(registry_path),
+                "-p", "jane-doe", "-m",
+            ]), 0)
+
+        self.assertEqual({call.args[0] for call in reader.call_args_list}, {personal_path, other_path})
+        self.assertIn("skills:\n  - Rust\n", personal_path.read_text(encoding="utf-8"))
+
+    def test_slug_normalization_does_not_scan_unrelated_folders(self):
+        personal_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+        self.write_person(self.personal_root, "unrelated", "---\ntags: [person]\n- malformed\n---\n")
+        with patch("tools.merge_person_files.read_document", wraps=read_document) as reader:
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-t", str(self.state_root),
+                "-p", "jane-doe", "-m", "-n",
+            ]), 0)
+        self.assertEqual({call.args[0] for call in reader.call_args_list}, {personal_path})
+
+    def test_slug_discovery_supports_multiple_and_missing_folders(self):
+        paths = [
+            self.write_person(
+                self.personal_root, slug,
+                f"---\ntags: [person]\nslug: {slug}\n---\n",
+            )
+            for slug in ("jane-doe", "john-doe", "unrelated")
+        ]
+        with patch("tools.merge_person_files.read_document", wraps=read_document) as reader:
+            people = discover_people(self.personal_root, {"jane-doe", "john-doe", "missing"})
+            self.assertEqual(discover_people(self.personal_root, {"missing"}), [])
+        self.assertEqual({person.path for person in people}, set(paths[:2]))
+        self.assertEqual({call.args[0] for call in reader.call_args_list}, set(paths[:2]))
+
+    def test_slug_discovery_rejects_paths_outside_person_folders(self):
+        for slug in (".", "..", "../unrelated", str(self.personal_root)):
+            with self.subTest(slug=slug), self.assertRaises(ValueError):
+                discover_people(self.personal_root, {slug})
+
+    def test_combined_slug_and_linkedin_id_still_discovers_both_people(self):
+        for slug, linkedin_id in (("jane-doe", "jane-profile"), ("john-doe", "john-profile")):
+            self.write_person(
+                self.personal_root, slug,
+                f"---\ntags: [person]\nslug: {slug}\nlinkedin_id: {linkedin_id}\n---\n",
+            )
+        with patch(
+            "tools.merge_person_files.discover_people", wraps=discover_people,
+        ) as discovery, patch(
+            "tools.merge_person_files.PersonSynchronizer.normalize_positions",
+        ) as normalize:
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-t", str(self.state_root),
+                "-p", "jane-doe", "--linkedin-id", "john-profile", "-m", "-n",
+            ]), 0)
+        self.assertIsNone(discovery.call_args.args[1])
+        self.assertEqual({person.slug for person in normalize.call_args.args[0]}, {"jane-doe", "john-doe"})
+
+    def test_slug_run_reserves_unscanned_existing_folder_names_when_creating(self):
+        personal_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n",
+        )
+        original = personal_path.read_bytes()
+        self.write_person(
+            self.other_root, "source-slug",
+            "---\ntags: [person]\nslug: source-slug\nfirst_name: Jane\nlast_name: Doe\n---\n",
+        )
+        self.assertEqual(main([
+            "-e", str(self.personal_root), "-i", str(self.other_root),
+            "-t", str(self.state_root), "-p", "source-slug",
+        ]), 0)
+        self.assertEqual(personal_path.read_bytes(), original)
+        self.assertTrue((self.personal_root / "jane-doe-2" / "Jane Doe.md").exists())
 
     def test_merge_changes_only_approved_fields_and_sections(self):
         personal_path = self.write_person(
@@ -151,6 +283,35 @@ class SyncPersonFilesTests(unittest.TestCase):
         change = next(change for change in synchronizer.changes if change["field"] == "organizations")
         self.assertEqual(change["old_value"], '["acme"]')
         self.assertEqual(change["new_value"], '["acme", "globex"]')
+
+    def test_merge_ignores_long_and_educational_summary_organization_slugs(self):
+        ignored = [
+            "a" * 65,
+            "3-educational-experiences-at-university-of-toronto-and-2-other-schools",
+            "2-educational-experiences",
+        ]
+        person_path = self.write_person(
+            self.personal_root, "amelia-cantwell",
+            "---\ntags: [person]\nslug: amelia-cantwell\norganizations: [acme]\n---\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "amelia-cantwell",
+            "---\ntags: [person]\nslug: amelia-cantwell\nlinkedin_id: amelia-cantwell-142880362\n"
+            f"organizations: {json.dumps([*ignored, 'b' * 64, 'university-of-toronto'])}\n---\n",
+        )
+        PersonSynchronizer(self.arguments()).merge_pair(read_document(person_path), read_document(other_path))
+        organizations = read_document(person_path).frontmatter["organizations"]
+        self.assertEqual(organizations, ["acme", "b" * 64, "university-of-toronto"])
+
+    def test_created_person_ignores_invalid_organization_slugs(self):
+        other_path = self.write_person(
+            self.other_root, "amelia-cantwell",
+            "---\ntags: [person]\nslug: amelia-cantwell\nfirst_name: Amelia\nlast_name: Cantwell\n"
+            f"organizations: {json.dumps(['a' * 65, '2-educational-experiences', 'acme'])}\n---\n",
+        )
+        PersonSynchronizer(self.arguments()).create_person(read_document(other_path), set())
+        created = read_document(self.personal_root / "amelia-cantwell" / "Amelia Cantwell.md")
+        self.assertEqual(created.frontmatter["organizations"], ["acme"])
 
     def test_merge_inserts_missing_fields_in_person_template_order(self):
         personal_path = self.write_person(
@@ -593,6 +754,100 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("Incoming:", prompt)
         self.assertIn("Suggested:", prompt)
 
+    def test_distinct_roles_at_same_organization_are_not_merged(self):
+        senior_line = "- Senior Software Engineer, [[Infor]], [[Victoria]], 2018-12 to 2019-05"
+        for index, (existing_line, incoming_line) in enumerate((
+            (senior_line, "- Principal Software Engineer, [[Infor]], [[Victoria]], 2019-05 to 2020-11"),
+            (senior_line, "- Principal Software Engineer, [[Infor]], [[Victoria]], 2019-04 to 2020-11"),
+            (senior_line, "- Senior Software Engineer, [[Infor]], [[Victoria]], 2019-05 to 2020-11"),
+            (
+                "- Development Team Lead, [[Infor]], [[Victoria]], 2020-11 to 2022-02",
+                "- Software Development Manager, [[Infor]], [[Victoria]], 2022-02 to 2026-04",
+            ),
+        )):
+            with self.subTest(existing_line=existing_line, incoming_line=incoming_line):
+                person = read_document(self.write_person(
+                    self.personal_root, f"existing-{index}",
+                    "---\ntags: [person]\nslug: brad-barclay\n---\n## Positions\n"
+                    f"{existing_line}\n\n  > Senior role description.\n",
+                ))
+                other = read_document(self.write_person(
+                    self.other_root, f"incoming-{index}",
+                    "---\ntags: [person]\nslug: brad-barclay\n---\n## Positions\n"
+                    f"{incoming_line}\n\n  > Incoming role description.\n",
+                ))
+                synchronizer = PersonSynchronizer(self.arguments())
+                merged = synchronizer.merge_positions(person, other, person.raw)
+                self.assertIn(existing_line, merged)
+                self.assertIn(incoming_line, merged)
+                self.assertIn("Senior role description.", merged)
+                self.assertIn("Incoming role description.", merged)
+                self.assertEqual(synchronizer.reviews, [])
+                person.path.write_text(merged, encoding="utf-8")
+                synchronizer.normalize_positions([read_document(person.path)])
+                normalized = person.path.read_text(encoding="utf-8")
+                self.assertEqual(normalized.count(existing_line), 1)
+                self.assertEqual(normalized.count(incoming_line), 1)
+
+    def test_position_date_ranges_must_overlap_not_just_touch(self):
+        for left, right, expected in (
+            (["2018-12", "2019-05"], ["2019-05", "2020-11"], False),
+            (["2020-11", "2022-02"], ["2022-02", "2026-04"], False),
+            (["2018-12", "2019-05"], ["2019-06", "2020-11"], False),
+            (["2018-12", "2019-05"], ["2019-04", "2020-11"], True),
+            (["2019-05", "2019-05"], ["2019-05", "2019-05"], True),
+            (["2019-05"], ["2019-05", "2020-11"], True),
+        ):
+            with self.subTest(left=left, right=right):
+                self.assertEqual(dates_overlap(left, right), expected)
+                self.assertEqual(dates_overlap(right, left), expected)
+
+    def test_sync_removes_invalid_stored_position_review_only_for_scoped_person(self):
+        existing_line = "- Senior Software Engineer, [[Infor]], [[Victoria]], 2018-12 to 2019-05"
+        incoming_line = "- Principal Software Engineer, [[Infor]], [[Victoria]], 2019-05 to 2020-11"
+        personal_path = self.write_person(
+            self.personal_root, "brad-barclay",
+            f"---\ntags: [person]\nslug: brad-barclay\n---\n## Positions\n{existing_line}\n",
+        )
+        self.write_person(
+            self.other_root, "brad-barclay",
+            f"---\ntags: [person]\nslug: brad-barclay\n---\n## Positions\n{incoming_line}\n",
+        )
+        invalid_review = {
+            "slug": "brad-barclay", "field": "position:infor:date", "type": "position_date",
+            "existing_line": existing_line, "incoming_line": incoming_line,
+            "other_hash": source_hash("2019-05"),
+        }
+        second_invalid_review = {
+            **invalid_review,
+            "existing_line": "- Development Team Lead, [[Infor]], [[Victoria]], 2020-11 to 2022-02",
+            "incoming_line": "- Software Development Manager, [[Infor]], [[Victoria]], 2022-02 to 2026-04",
+            "other_hash": source_hash("2022-02"),
+        }
+        unrelated_review = {**invalid_review, "slug": "someone-else"}
+        contact_review = {"slug": "brad-barclay", "field": "email", "other_hash": source_hash("email")}
+        self.state_root.mkdir()
+        (self.state_root / "pending_review.json").write_text(
+            json.dumps([invalid_review, second_invalid_review, unrelated_review, contact_review]), encoding="utf-8",
+        )
+        original_pending = (self.state_root / "pending_review.json").read_bytes()
+        self.assertEqual(main([
+            "-e", str(self.personal_root), "-i", str(self.other_root),
+            "-t", str(self.state_root), "-p", "brad-barclay", "-m", "-n",
+        ]), 0)
+        self.assertEqual((self.state_root / "pending_review.json").read_bytes(), original_pending)
+        with patch("tools.merge_person_files.review_pending", return_value=0):
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-i", str(self.other_root),
+                "-t", str(self.state_root), "-p", "brad-barclay", "-m",
+            ]), 0)
+        self.assertEqual(
+            json.loads((self.state_root / "pending_review.json").read_text(encoding="utf-8")),
+            [unrelated_review, contact_review],
+        )
+        self.assertIn(existing_line, personal_path.read_text(encoding="utf-8"))
+        self.assertIn(incoming_line, personal_path.read_text(encoding="utf-8"))
+
     def test_sync_opens_interactive_review_for_changed_email(self):
         self.write_person(
             self.personal_root,
@@ -644,15 +899,15 @@ class SyncPersonFilesTests(unittest.TestCase):
         personal_path = self.write_person(
             self.personal_root,
             "jane-doe",
-            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2000-06 to 2002-02\n",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n## Positions\n- Engineer, [[Acme]], 2002-03 to 2003-10\n",
         )
         pending = [{
             "slug": "jane-doe", "name": "Jane Doe", "path": str(personal_path),
             "field": "position:acme:date", "type": "position_date",
-            "existing_line": "- Engineer, [[Acme]], 2000-06 to 2002-02",
-            "incoming_line": "- Engineer, [[Acme]], 2002-02 to 2007-04",
-            "suggested_line": "- Engineer, [[Acme]], 2002-02 to 2002-02",
-            "other_hash": source_hash("2002-02"),
+            "existing_line": "- Engineer, [[Acme]], 2002-03 to 2003-10",
+            "incoming_line": "- Engineer, [[Acme]], 2002-04 to 2003-11",
+            "suggested_line": "- Engineer, [[Acme]], 2002-04 to 2003-10",
+            "other_hash": source_hash("2002-04"),
         }]
         self.state_root.mkdir(exist_ok=True)
         (self.state_root / "pending_review.json").write_text(json.dumps(pending), encoding="utf-8")
@@ -661,8 +916,8 @@ class SyncPersonFilesTests(unittest.TestCase):
             self.assertEqual(review_pending(self.arguments()), 0)
 
         updated = personal_path.read_text(encoding="utf-8")
-        self.assertIn("- Engineer, [[Acme]], 2002-02 to 2002-02", updated)
-        self.assertNotIn("2000-06 to 2002-02", updated)
+        self.assertIn("- Engineer, [[Acme]], 2002-04 to 2003-10", updated)
+        self.assertNotIn("2002-03 to 2003-10", updated)
         self.assertEqual(json.loads((self.state_root / "pending_review.json").read_text(encoding="utf-8")), [])
 
     def test_merge_adds_linkedin_profile_to_references_once(self):
@@ -688,6 +943,128 @@ class SyncPersonFilesTests(unittest.TestCase):
         reference = "[LinkedIn](https://www.linkedin.com/in/jane-doe-123)"
         self.assertIn(reference, updated)
         self.assertEqual(updated.count(reference), 1)
+
+    def test_merge_removes_empty_reference_and_position_placeholders(self):
+        reference = "[LinkedIn](https://www.linkedin.com/in/brad-barclay-b55218b8)"
+        position = "- Bachelor of Science, Computational Science, [Brock University](Brock University), 1995 to 1999"
+        for index, references in enumerate(("1.\n", "1. \n", f"1. \n2. {reference}\n")):
+            with self.subTest(references=references):
+                person_path = self.write_person(
+                    self.personal_root, f"personal-{index}",
+                    "---\ntags: [person]\nslug: brad-barclay\n---\n"
+                    f"## References\n\n{references}\n## Positions\n\n- \n{position}\n"
+                    "\n## Notes\n\n- \n",
+                )
+                other_path = self.write_person(
+                    self.other_root, f"incoming-{index}",
+                    "---\ntags: [person]\nslug: brad-barclay\nlinkedin_id: brad-barclay-b55218b8\n---\n"
+                    f"## Positions\n\n- \n{position}\n",
+                )
+                synchronizer = PersonSynchronizer(self.arguments())
+                synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+                updated = person_path.read_text(encoding="utf-8")
+                self.assertIn(f"## References\n\n1. {reference}\n\n## Positions", updated)
+                self.assertIn(f"## Positions\n\n{position.replace('[Brock University](Brock University)', '[[Brock University]]')}\n\n## Notes", updated)
+                self.assertEqual(updated.count(reference), 1)
+                self.assertTrue(updated.endswith("## Notes\n\n"))
+                synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+                self.assertEqual(person_path.read_text(encoding="utf-8"), updated)
+
+    def test_position_normalization_removes_only_empty_placeholder_blocks(self):
+        self.assertEqual(render_position_blocks(["- \n", "* \n", "-\n", "*\n"], "\n"), "")
+        self.assertEqual(
+            render_position_blocks(["- \n\n  > Keep this description.\n"], "\n"),
+            "-\n\n  > Keep this description.\n\n",
+        )
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n\n-\n* \n"
+            "- Engineer, [[Acme]], 2024-01\n-\n\n## Notes\n\n- \n",
+        )
+        PersonSynchronizer(self.arguments()).normalize_positions([read_document(person_path)])
+        self.assertIn(
+            "## Positions\n\n- Engineer, [[Acme]], 2024-01\n\n## Notes\n\n- \n",
+            person_path.read_text(encoding="utf-8"),
+        )
+
+    def test_position_descriptions_exclude_standalone_research_skills(self):
+        for description in (
+            "Engineering REU, renewable energy",
+            "Chemical Engineering REU, bioplastics and biocomposites",
+        ):
+            for label in ("> Research Skills", "  > research skills ", "  - Research Skills", "  > - Research Skills"):
+                with self.subTest(description=description, label=label):
+                    block = f"- Undergraduate Research Assistant, [[University]], 2016-06 to 2016-08\n\n> {description}\n>\n{label}\n"
+                    normalized = normalize_position_description(block)
+                    self.assertEqual(
+                        normalized,
+                        f"- Undergraduate Research Assistant, [[University]], 2016-06 to 2016-08\n\n  > {description}\n",
+                    )
+        self.assertIn(
+            "Applied research skills to renewable energy.",
+            normalize_position_description("- Assistant, [[University]], 2016\n> Applied research skills to renewable energy.\n"),
+        )
+
+    def test_created_person_excludes_research_skills_description_label(self):
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Positions\n\n- Assistant, [[University]], 2016\n\n"
+            "> Engineering REU, renewable energy\n>\n> Research Skills\n",
+        )
+        PersonSynchronizer(self.arguments()).create_person(read_document(other_path), set())
+        created = (self.personal_root / "jane-doe" / "Jane Doe.md").read_text(encoding="utf-8")
+        self.assertNotIn("Research Skills", created)
+        self.assertIn("Engineering REU, renewable energy", created)
+
+    def test_reference_placeholder_cleanup_preserves_real_entries_and_continuations(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n"
+            "## References\n\n1. \n2. [Website](https://example.com)\n"
+            "   Keep this annotation.\n\n## Notes\n\n- Keep notes.\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nlinkedin_id: jane-doe-123\n---\n",
+        )
+        PersonSynchronizer(self.arguments()).merge_pair(read_document(person_path), read_document(other_path))
+        updated = person_path.read_text(encoding="utf-8")
+        self.assertIn(
+            "1. [Website](https://example.com)\n   Keep this annotation.\n\n"
+            "2. [LinkedIn](https://www.linkedin.com/in/jane-doe-123)",
+            updated,
+        )
+        self.assertIn("## Notes\n\n- Keep notes.\n", updated)
+
+    def test_merge_preserves_existing_linkedin_reference_and_notes_content(self):
+        link = "[LinkedIn](https://www.linkedin.com/in/brad-barclay-b55218b8)"
+        notes = f"- {link}\n\nBrad Barclay OS2 Warp.png\n"
+        person_path = self.write_person(
+            self.personal_root, "brad-barclay",
+            "---\ntags: [person]\nslug: brad-barclay\n---\n"
+            f"## References\n\n1. {link}\n\n## Notes\n\n- \n{notes}",
+        )
+        other_path = self.write_person(
+            self.other_root, "brad-barclay",
+            "---\ntags: [person]\nslug: brad-barclay\nlinkedin_id: brad-barclay-b55218b8\n---\n",
+        )
+        PersonSynchronizer(self.arguments()).merge_pair(read_document(person_path), read_document(other_path))
+        updated = person_path.read_text(encoding="utf-8")
+        self.assertIn(f"## References\n\n1. {link}\n\n", updated)
+        self.assertIn(f"## Notes\n\n{notes}", updated)
+        self.assertEqual(updated.count(link), 2)
+
+    def test_notes_cleanup_preserves_fenced_and_indented_content(self):
+        notes = "\n- \n- Keep note.\n  - \n\n```\n- \n```\n\n~~~text\n- \n~~~\n"
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            f"---\ntags: [person]\nslug: jane-doe\n---\n## Notes\n{notes}",
+        )
+        PersonSynchronizer(self.arguments()).normalize_markdown_in_people([read_document(person_path)])
+        self.assertTrue(person_path.read_text(encoding="utf-8").endswith(
+            "## Notes\n" + notes.replace("\n- \n- Keep note.", "\n- Keep note.", 1),
+        ))
 
     def test_merge_inserts_missing_references_in_template_order(self):
         personal_path = self.write_person(

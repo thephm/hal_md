@@ -6,6 +6,22 @@ from tools import extract_organizations as eo
 
 
 class ExtractOrganizationsTests(unittest.TestCase):
+    def test_organization_slug_length_limit_is_inclusive(self):
+        self.assertTrue(eo.is_valid_organization_slug("a" * 64))
+        self.assertFalse(eo.is_valid_organization_slug("a" * 65))
+
+    def test_educational_experience_summary_is_not_an_organization(self):
+        for value in (
+            "3-educational-experiences-at-university-of-toronto-and-2-other-schools",
+            "2-educational-experiences",
+            "3 educational experiences at University of Toronto",
+            "a" * 65,
+        ):
+            with self.subTest(value=value):
+                organizations = []
+                self.assertIsNone(eo.ensure_organization(organizations, value))
+                self.assertEqual(organizations, [])
+
     def test_blank_frontmatter_organization_list_item_is_ignored(self):
         frontmatter = yaml.safe_load("organizations:\n  -\n")
 

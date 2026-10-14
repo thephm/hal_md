@@ -23,6 +23,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools.markdown_cleanup import normalize_heading_spacing
+from tools.extract_organizations import is_valid_organization_slug
 from text_encoding import repair_mojibake
 
 
@@ -34,7 +35,8 @@ def default_dev_output_dir(platform: str | None = None, environment: dict[str, s
 
 def default_config_dir(platform: str | None = None, environment: dict[str, str] | None = None) -> Path:
     environment = environment if environment is not None else os.environ
-    return Path(environment.get("HAL_MD_CONFIG_DIR", default_dev_output_dir(platform, environment) / "config"))
+    default = r"C:\data\config" if (platform or os.name) == "nt" else "/mnt/c/data/config"
+    return Path(environment.get("HAL_MD_CONFIG_DIR", default))
 
 
 DEFAULT_STATE_DIR = default_dev_output_dir() / "people_sync_state"
@@ -122,14 +124,20 @@ def document_from_raw(path: Path, raw: str) -> PersonDocument:
     return PersonDocument(path, raw, frontmatter, match.start(), match.end())
 
 
-def discover_people(root: Path) -> list[PersonDocument]:
+def discover_people(root: Path, slugs: set[str] | None = None) -> list[PersonDocument]:
+    if slugs is not None:
+        for slug in slugs:
+            if Path(slug).name != slug or slug in (".", ".."):
+                raise ValueError(f"Slug must be a single person-folder name: {slug}")
     people: list[PersonDocument] = []
-    for path in root.rglob("*.md"):
-        if "media" in path.parts or DATED_FILE_PATTERN.match(path.name):
-            continue
-        document = read_document(path)
-        if document:
-            people.append(document)
+    folders = [root / slug for slug in sorted(slugs)] if slugs is not None else [root]
+    for folder in folders:
+        for path in folder.rglob("*.md"):
+            if "media" in path.parts or DATED_FILE_PATTERN.match(path.name):
+                continue
+            document = read_document(path)
+            if document:
+                people.append(document)
     return people
 
 
@@ -178,6 +186,26 @@ def section_content(raw: str, heading: str) -> str:
     return raw[span[0]:span[1]] if span else ""
 
 
+def remove_empty_notes_bullets(raw: str) -> str:
+    span = section_span(raw, "## Notes")
+    if not span:
+        return raw
+    lines: list[str] = []
+    fence = ""
+    for line in raw[span[0]:span[1]].splitlines(keepends=True):
+        marker = re.match(r"^[ \t]*(`{3,}|~{3,})", line)
+        if marker:
+            delimiter = marker.group(1)
+            if not fence:
+                fence = delimiter
+            elif delimiter[0] == fence[0] and len(delimiter) >= len(fence) and not line[marker.end():].strip():
+                fence = ""
+            lines.append(line)
+        elif fence or not re.fullmatch(r"[-*+][ \t]*(?:\r?\n)?", line):
+            lines.append(line)
+    return raw[:span[0]] + "".join(lines) + raw[span[1]:]
+
+
 def remove_empty_deprecated_sections(raw: str) -> str:
     """Remove deprecated H2 sections that contain only whitespace."""
     for heading in DEPRECATED_EMPTY_SECTIONS:
@@ -204,6 +232,16 @@ def linkedin_profile_url(values: dict[str, Any]) -> str:
         return url
     linkedin_id = str(values.get("linkedin_id") or "").strip()
     return f"https://www.linkedin.com/in/{linkedin_id}" if linkedin_id else ""
+
+
+def incoming_organization_slugs(values: Iterable[str]) -> list[str]:
+    slugs: list[str] = []
+    for value in values:
+        if is_valid_organization_slug(value):
+            slugs.append(value)
+        else:
+            logging.info("Ignoring invalid incoming organization slug: %s", value)
+    return slugs
 
 
 def replace_section(raw: str, heading: str, content: str, insert_before_first_section: bool = False, trailing_blank_line: bool = False) -> str:
@@ -413,7 +451,7 @@ def repair_malformed_positions(content: str) -> str:
 
 
 def position_blocks(content: str) -> list[str]:
-    starts = list(re.finditer(r"(?m)^[*-] .*$", content))
+    starts = list(re.finditer(r"(?m)^[*-](?:[ \t][^\r\n]*|[ \t]*)\r?$", content))
     if not starts:
         return [content] if content.strip() else []
     prefix = content[:starts[0].start()]
@@ -575,7 +613,27 @@ def dates_overlap(left: list[str], right: list[str]) -> bool:
         return False
     left_start, left_end = left[0], left[-1] if len(left) > 1 else "9999-12-31"
     right_start, right_end = right[0], right[-1] if len(right) > 1 else "9999-12-31"
-    return left_start[:7] <= right_end[:7] and right_start[:7] <= left_end[:7]
+    return left_start[:7] == right_start[:7] or (
+        left_start[:7] < right_end[:7] and right_start[:7] < left_end[:7]
+    )
+
+
+def positions_match(left: str, right: str, aliases: dict[str, str]) -> bool:
+    organization = position_organization(left, aliases)
+    same_title = position_title(left) == position_title(right)
+    return bool(
+        (
+            organization
+            and organization == position_organization(right, aliases)
+            and same_title
+            and dates_overlap(position_dates(left), position_dates(right))
+        )
+        or (
+            is_education(left)
+            and is_education(right)
+            and (same_title or education_matches(left, right, aliases))
+        )
+    )
 
 
 def has_description(block: str) -> bool:
@@ -595,6 +653,9 @@ def normalize_position_description(block: str) -> str:
     for line in lines[1:]:
         nested_bullet = re.match(r"^[ \t]+[*-]\s+(?P<text>.+)$", line)
         quote = re.match(r"^[ \t]*>\s?(?P<text>.*)$", line)
+        description = nested_bullet or quote
+        if description and re.sub(r"^[-*]\s+", "", description.group("text").strip()).casefold() == "research skills":
+            continue
         if nested_bullet:
             normalized.append(f"  > - {nested_bullet.group('text').strip()}")
         elif quote:
@@ -674,7 +735,7 @@ def render_position_blocks(blocks: list[str], line_end: str) -> str:
         while lines and not lines[-1].strip():
             lines.pop()
         lines = [line.rstrip() for line in lines]
-        if not lines:
+        if not lines or (len(lines) == 1 and lines[0] in ("-", "*")):
             continue
         description_start = next(
             (index for index, line in enumerate(lines[1:], 1) if line.strip()),
@@ -816,7 +877,10 @@ class PersonSynchronizer:
             normalized = normalize_heading_spacing(person.raw)
             if normalized != person.raw:
                 self.record_change(person, "heading_spacing", "inconsistent", "normalized", "normalized_markdown")
-                self.backup_and_write(person, normalized)
+            cleaned = remove_empty_notes_bullets(normalized)
+            self.record_change(person, "Notes", section_content(normalized, "## Notes"), section_content(cleaned, "## Notes"), "removed_empty_placeholders")
+            if cleaned != person.raw:
+                self.backup_and_write(person, cleaned)
 
     def normalize_cities_in_people(self, people: list[PersonDocument]) -> None:
         for person in people:
@@ -838,6 +902,16 @@ class PersonSynchronizer:
             self.reviews.append(item)
 
     def merge_positions(self, person: PersonDocument, other: PersonDocument, raw: str) -> str:
+        for item in self.store.pending[:]:
+            if (
+                item["slug"] == person.slug
+                and item.get("type") == "position_date"
+                and item.get("existing_line")
+                and item.get("incoming_line")
+                and not positions_match(item["existing_line"], item["incoming_line"], self.organization_aliases)
+            ):
+                logging.info("Removing obsolete position review for %s: entries describe separate positions", person.slug)
+                self.store.pending.remove(item)
         personal_content, other_content = section_content(raw, "## Positions"), section_content(other.raw, "## Positions")
         personal_content, other_content = repair_malformed_positions(personal_content), repair_malformed_positions(other_content)
         personal_blocks = [
@@ -851,21 +925,10 @@ class PersonSynchronizer:
         used: set[int] = set()
         for other_block in other_blocks:
             organization, other_dates = position_organization(other_block, self.organization_aliases), position_dates(other_block)
-            other_title = position_title(other_block)
             matched_index = next(
                 (
                     index for index, block in enumerate(personal_blocks)
-                    if index not in used and (
-                        organization and position_organization(block, self.organization_aliases) == organization and dates_overlap(position_dates(block), other_dates)
-                        or (
-                            is_education(block)
-                            and is_education(other_block)
-                            and (
-                                position_title(block) == other_title
-                                or education_matches(block, other_block, self.organization_aliases)
-                            )
-                        )
-                    )
+                    if index not in used and positions_match(block, other_block, self.organization_aliases)
                 ),
                 None,
             )
@@ -926,7 +989,10 @@ class PersonSynchronizer:
         for field in ("skills", "organizations"):
             personal_items = list(personal_values.get(field) or [])
             merged_items = [*personal_items]
-            for item in other_values.get(field) or []:
+            incoming_items = other_values.get(field) or []
+            if field == "organizations":
+                incoming_items = incoming_organization_slugs(incoming_items)
+            for item in incoming_items:
                 if item not in merged_items:
                     merged_items.append(item)
             if merged_items != personal_items:
@@ -955,13 +1021,25 @@ class PersonSynchronizer:
         if birthday and source_birthday and shared_month(birthday) != shared_month(source_birthday):
             self.conflict(person, "birthday", birthday, source_birthday, "birthday_mismatch")
         profile_url = linkedin_profile_url(other_values)
-        references = section_content(raw, "## References")
+        original_references = section_content(raw, "## References")
+        references = original_references
+        reference_lines = references.splitlines(keepends=True)
+        kept_lines = [line for line in reference_lines if not re.fullmatch(r"[ \t]*(?:\d+[.)]|[-*+])[ \t]*(?:\r?\n)?", line)]
+        if kept_lines != reference_lines:
+            reference_number = 0
+            for index, line in enumerate(kept_lines):
+                match = re.match(r"^([ \t]*)\d+([.)][ \t]+)(?=\S)", line)
+                if match:
+                    reference_number += 1
+                    kept_lines[index] = f"{match.group(1)}{reference_number}{match.group(2)}{line[match.end():]}"
+            references = "".join(kept_lines).strip("\r\n")
         if profile_url and profile_url not in references:
             reference_number = max((int(value) for value in re.findall(r"(?m)^\s*(\d+)\.\s", references)), default=0) + 1
             references = f"{references.rstrip()}\n\n" if references.strip() else ""
             references += f"{reference_number}. [LinkedIn]({profile_url})"
+        if references != original_references:
             raw = replace_section(raw, "## References", references, trailing_blank_line=True)
-            self.record_change(person, "References", section_content(person.raw, "## References"), references)
+            self.record_change(person, "References", original_references, references)
         personal_bio, other_bio = section_content(raw, "## Bio").strip(), section_content(other.raw, "## Bio").strip()
         if other_bio:
             if not personal_bio or difflib.SequenceMatcher(None, personal_bio, other_bio).ratio() >= self.args.bio_similarity:
@@ -983,6 +1061,9 @@ class PersonSynchronizer:
         old_positions = section_content(raw, "## Positions")
         raw = self.merge_positions(person, other, raw)
         self.record_change(person, "Positions", old_positions, section_content(raw, "## Positions"))
+        cleaned = remove_empty_notes_bullets(raw)
+        self.record_change(person, "Notes", section_content(raw, "## Notes"), section_content(cleaned, "## Notes"), "removed_empty_placeholders")
+        raw = cleaned
         self.backup_and_write(person, raw)
 
     def create_person(self, other: PersonDocument, existing_slugs: set[str]) -> None:
@@ -994,6 +1075,15 @@ class PersonSynchronizer:
         folder, target = Path(self.args.existing) / slug, None
         target = folder / f"{safe_filename(other.name)}.md"
         raw = replace_field(other, "slug", slug)
+        organizations = other.frontmatter.get("organizations") or []
+        filtered_organizations = incoming_organization_slugs(organizations)
+        if filtered_organizations != organizations:
+            raw = replace_field(document_from_raw(other.path, raw), "organizations", filtered_organizations)
+        positions = section_content(raw, "## Positions")
+        if re.search(r"(?mi)^[ \t]*(?:>[ \t]*(?:[-*][ \t]+)?|[-*][ \t]+)Research Skills[ \t]*\r?$", positions):
+            blocks = [normalize_position_description(block) for block in position_blocks(repair_malformed_positions(positions))]
+            line_end = "\r\n" if "\r\n" in raw else "\n"
+            raw = replace_section(raw, "## Positions", render_position_blocks(blocks, line_end), trailing_blank_line=True)
         if not self.args.dry_run:
             folder.mkdir(parents=True, exist_ok=True)
             target.write_text(raw, encoding="utf-8", newline="")
@@ -1259,8 +1349,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-e", "--existing", help="Existing Person-file folder, modified in place")
     parser.add_argument("-i", "--incoming", help="Read-only Person-file folder to merge from")
     parser.add_argument("-t", "--state-dir", default=DEFAULT_STATE_DIR)
-    parser.add_argument("--organizations-config", default=str(DEFAULT_ORGANIZATIONS_PATH), help="Organization registry used to resolve position aliases")
-    parser.add_argument("-c", "--config", help="Optional JSON configuration")
+    parser.add_argument("--organizations-config", help=f"Organization registry used to resolve position aliases (default: config directory's organizations.json, otherwise {DEFAULT_ORGANIZATIONS_PATH})")
+    parser.add_argument("-c", "--config", help="Registry directory containing organizations.json, or a JSON file of sync settings")
     parser.add_argument("--editor")
     parser.add_argument("-d", "--debug", action="store_true")
     parser.add_argument("-n", "--dry-run", action="store_true")
@@ -1285,16 +1375,26 @@ def main(argv: list[str] | None = None) -> int:
     if not args.existing:
         build_parser().error("--existing is required unless --review is used")
     if args.config:
-        with Path(args.config).open(encoding="utf-8") as file:
-            for key, value in json.load(file).items():
-                if hasattr(args, key):
-                    setattr(args, key, value)
+        config_path = Path(args.config)
+        if config_path.is_dir():
+            if args.organizations_config is None:
+                args.organizations_config = str(config_path / "organizations.json")
+        else:
+            with config_path.open(encoding="utf-8") as file:
+                for key, value in json.load(file).items():
+                    if hasattr(args, key):
+                        setattr(args, key, value)
+    if args.organizations_config is None:
+        args.organizations_config = str(DEFAULT_ORGANIZATIONS_PATH)
     existing_root = Path(args.existing).resolve()
     incoming_root = Path(args.incoming).resolve() if args.incoming else None
     state_root = Path(args.state_dir).resolve()
+    requested_slugs = split_csv_values(args.slug)
+    requested_linkedin_ids = split_csv_values(args.linkedin_id)
+    discovery_slugs = requested_slugs if requested_slugs and not requested_linkedin_ids else None
 
     def discover_existing_people() -> list[PersonDocument]:
-        people = discover_people(existing_root)
+        people = discover_people(existing_root, discovery_slugs)
         return [
             person for person in people
             if not (
@@ -1326,10 +1426,8 @@ def main(argv: list[str] | None = None) -> int:
         discovered_existing = discover_existing_people()
         personal = scope_people(discovered_existing, args)
     if args.incoming:
-        other = discover_people(Path(args.incoming))
+        other = discover_people(Path(args.incoming), discovery_slugs)
         requested_tags = split_csv_values(args.tag)
-        requested_slugs = split_csv_values(args.slug)
-        requested_linkedin_ids = split_csv_values(args.linkedin_id)
         if requested_slugs or requested_linkedin_ids:
             other = [person for person in other if person.slug in requested_slugs or str(person.frontmatter.get("linkedin_id", "")) in requested_linkedin_ids]
         elif requested_tags:
@@ -1339,7 +1437,10 @@ def main(argv: list[str] | None = None) -> int:
         if duplicate_other:
             logging.error("Skipping duplicate source slugs: %s", ", ".join(duplicate_other))
             other = [person for person in other if person.slug not in duplicate_other]
-        synchronizer.match_and_sync(personal, other, set(all_existing_duplicates), {person.slug for person in discovered_existing if person.slug})
+        known_existing_slugs = {person.slug for person in discovered_existing if person.slug}
+        if discovery_slugs is not None:
+            known_existing_slugs.update(folder.name for folder in existing_root.iterdir() if folder.is_dir())
+        synchronizer.match_and_sync(personal, other, set(all_existing_duplicates), known_existing_slugs)
         if args.normalize_positions and not args.dry_run:
             personal = scope_people(discover_existing_people(), args)
     elif not args.normalize_positions:

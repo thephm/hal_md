@@ -16,7 +16,7 @@ Usage:
 Options:
     --folder    Root folder to search recursively for .md files (required)
     --field     Frontmatter field name to read skills from (default: skills)
-    --output    Path to write the resulting JSON (default: skills.json)
+    --output    Path to write the resulting JSON (default: config directory's skills.json)
     --report    Optional CSV path (skill,file) so you can trace which
                 person file each raw skill string came from
 """
@@ -34,7 +34,7 @@ import yaml
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?\n)---\s*\n", re.DOTALL)
 DEFAULT_SKILLS_PATH = str(Path(os.environ.get(
     "HAL_MD_CONFIG_DIR",
-    (r"C:\data\dev-output\config" if os.name == "nt" else "/mnt/c/data/dev-output/config"),
+    (r"C:\data\config" if os.name == "nt" else "/mnt/c/data/config"),
 )) / "skills.json")
 
 
