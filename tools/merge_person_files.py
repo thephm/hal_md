@@ -24,6 +24,7 @@ if __package__ in (None, ""):
 
 from tools.markdown_cleanup import normalize_heading_spacing
 from tools.extract_organizations import is_valid_organization_slug
+from tools.bio_summary import BioSummarizer, BioSummaryError
 from text_encoding import repair_mojibake
 
 
@@ -323,6 +324,28 @@ def replace_field(document: PersonDocument, field: str, value: Any) -> str:
     return document.raw[:insert_at] + replacement + document.raw[insert_at:]
 
 
+def without_none_placeholders(value: Any) -> Any:
+    if isinstance(value, str):
+        return "" if value.strip() == "None" else value
+    if isinstance(value, list):
+        return [
+            without_none_placeholders(item) for item in value
+            if not (isinstance(item, str) and item.strip() == "None")
+        ]
+    if isinstance(value, dict):
+        return {key: without_none_placeholders(item) for key, item in value.items()}
+    return value
+
+
+def clean_frontmatter_none(document: PersonDocument) -> str:
+    raw = document.raw
+    for field, value in document.frontmatter.items():
+        cleaned = without_none_placeholders(value)
+        if cleaned != value:
+            raw = replace_field(document_from_raw(document.path, raw), field, cleaned)
+    return raw
+
+
 def date_precision(value: str) -> int:
     return len(value) if DATE_PATTERN.fullmatch(value) else 0
 
@@ -465,18 +488,21 @@ def normalized_position_organization(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", ascii_value.casefold())
 
 
+DEFAULT_ORGANIZATION_ALIASES = {"kindryl": "Kyndryl"}
+
+
 def load_organization_aliases(path: Path) -> dict[str, str]:
     """Map organization names and aliases to their canonical registry display name."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         logging.warning("Could not load organization aliases from %s: %s", path, error)
-        return {}
+        return dict(DEFAULT_ORGANIZATION_ALIASES)
     records = data.get("organizations", []) if isinstance(data, dict) else data
     if not isinstance(records, list):
         logging.warning("Ignoring organization aliases with unexpected structure: %s", path)
-        return {}
-    aliases: dict[str, str] = {}
+        return dict(DEFAULT_ORGANIZATION_ALIASES)
+    aliases: dict[str, str] = dict(DEFAULT_ORGANIZATION_ALIASES)
     for record in records:
         if not isinstance(record, dict):
             continue
@@ -566,7 +592,7 @@ def position_title(block: str) -> str:
 
 EDUCATION_QUALIFICATION_PATTERNS = (
     ("bachelor", re.compile(
-        r"\b(?:b\.?\s*(?:a(?:\s*s\.?\s*c\.?)?|s\.?\s*c\.?|s\.?|eng(?:g)?|tech|com|ed|fa|arch|mus)|bachelor(?:'?s|s)?(?:\s+of)?)\b",
+        r"\b(?:b\.?\s*(?:a(?:\s*s\.?\s*c\.?)?|s\.?\s*c\.?|s\.?|eng(?:g)?|e|tech|com|ed|fa|arch|mus)|bachelor(?:'?s|s)?(?:\s+of)?)\b",
         re.I,
     )),
     ("master", re.compile(
@@ -592,15 +618,29 @@ def education_qualifications(block: str) -> set[str]:
     }
 
 
+def normalized_education_heading(block: str) -> str:
+    first_line = block.splitlines()[0] if block else ""
+    heading = re.sub(
+        r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]|\[([^\]]+)\]\([^)]*\)",
+        lambda match: match.group(1) or match.group(2),
+        first_line,
+    )
+    heading = re.sub(r"['\u2019]s\b", "", heading, flags=re.I)
+    heading = re.sub(r"\([A-Z][A-Z0-9]{1,}\)", "", heading)
+    return normalized_position_organization(heading)
+
+
 def education_matches(left: str, right: str, aliases: dict[str, str]) -> bool:
     left_organization = position_organization(left, aliases)
     right_organization = position_organization(right, aliases)
     return bool(
-        left_organization
-        and left_organization == right_organization
-        and is_education(left)
+        is_education(left)
         and is_education(right)
         and education_qualifications(left).intersection(education_qualifications(right))
+        and (
+            (left_organization and left_organization == right_organization)
+            or normalized_education_heading(left) == normalized_education_heading(right)
+        )
     )
 
 
@@ -633,6 +673,20 @@ def positions_match(left: str, right: str, aliases: dict[str, str]) -> bool:
             and is_education(right)
             and (same_title or education_matches(left, right, aliases))
         )
+    )
+
+
+def company_only_position_matches(left: str, right: str, aliases: dict[str, str]) -> bool:
+    left_title, right_title = position_title(left), position_title(right)
+    left_dates, right_dates = position_dates(left), position_dates(right)
+    organization = position_organization(left, aliases)
+    return bool(
+        bool(left_title) != bool(right_title)
+        and organization
+        and organization == position_organization(right, aliases)
+        and left_dates
+        and right_dates
+        and shared_month(left_dates[0]) == shared_month(right_dates[0])
     )
 
 
@@ -773,6 +827,7 @@ def deduplicate_position_blocks(blocks: list[str], aliases: dict[str, str]) -> l
                         and position_organization(existing, aliases) == position_organization(normalized, aliases)
                         and dates_overlap(position_dates(existing), position_dates(normalized))
                     )
+                    or company_only_position_matches(existing, normalized, aliases)
                     or education_matches(existing, normalized, aliases)
                 )
             ),
@@ -780,6 +835,8 @@ def deduplicate_position_blocks(blocks: list[str], aliases: dict[str, str]) -> l
         )
         if duplicate_index is None:
             deduplicated.append(normalized)
+        elif position_title(normalized) and not position_title(deduplicated[duplicate_index]):
+            deduplicated[duplicate_index] = normalized
         elif position_completeness(normalized) > position_completeness(deduplicated[duplicate_index]):
             deduplicated[duplicate_index] = normalized
     return deduplicated
@@ -791,6 +848,7 @@ class SyncStore:
         self.matches = self._load("matches.json", {})
         self.decisions = self._load("field_decisions.json", {})
         self.pending = self._load("pending_review.json", [])
+        self.bio_summaries = self._load("bio_summaries.json", {})
 
     def _load(self, name: str, default: Any) -> Any:
         path = self.root / name
@@ -829,6 +887,41 @@ class PersonSynchronizer:
         self.reviews: list[dict[str, Any]] = []
         self.matches: list[dict[str, Any]] = []
         self.reused_decisions = 0
+        self.bio_summarizer: BioSummarizer | None = None
+
+    def summarize_bio(self, person: PersonDocument, raw: str, incoming_bio: str) -> str:
+        if not getattr(self.args, "summarize_bio", True):
+            return raw
+        bio = section_content(raw, "## Bio").strip()
+        text = "\n".join(
+            re.sub(r"^\s*>\s?", "", line).strip() for line in bio.splitlines()
+        ).strip()
+        try:
+            threshold = getattr(self.args, "summary_max_chars", None)
+            threshold = threshold if threshold is not None else int(os.environ.get("AI_SUMMARY_MAX_CHARS", "300"))
+        except ValueError as error:
+            raise BioSummaryError("AI_SUMMARY_MAX_CHARS must be a positive integer.") from error
+        if threshold <= 0:
+            raise BioSummaryError("Summary character threshold must be a positive integer.")
+        if len(text) <= threshold:
+            return raw
+        cached = self.store.bio_summaries.get(person.slug, {})
+        if cached.get("source_hash") == source_hash(text) and cached.get("incoming_hash") == source_hash(incoming_bio):
+            summary = cached["summary"]
+        else:
+            if self.bio_summarizer is None:
+                self.bio_summarizer = BioSummarizer.from_settings(
+                    getattr(self.args, "summary_api_base", None),
+                    getattr(self.args, "summary_model", None),
+                    getattr(self.args, "summary_timeout", None),
+                )
+                logging.warning("Bio summarization sends merged Bio text to the configured provider; store=false does not guarantee zero retention. Use --do-not-summarize to disable.")
+            summary = self.bio_summarizer.summarize(text)
+            self.store.bio_summaries[person.slug] = {
+                "source_hash": source_hash(text), "incoming_hash": source_hash(incoming_bio),
+                "summary": summary,
+            }
+        return replace_section(raw, "## Bio", summary, insert_before_first_section=True, trailing_blank_line=True)
 
     def record_change(self, person: PersonDocument, field: str, old_value: Any, new_value: Any, action: str = "updated") -> None:
         if old_value == new_value:
@@ -847,6 +940,10 @@ class PersonSynchronizer:
         })
 
     def backup_and_write(self, person: PersonDocument, updated: str) -> None:
+        normalized = normalize_heading_spacing(updated)
+        if normalized != updated:
+            self.record_change(person, "heading_spacing", "inconsistent", "normalized", "normalized_markdown")
+        updated = normalized
         if updated == person.raw:
             return
         if self.args.dry_run:
@@ -874,13 +971,20 @@ class PersonSynchronizer:
 
     def normalize_markdown_in_people(self, people: list[PersonDocument]) -> None:
         for person in people:
-            normalized = normalize_heading_spacing(person.raw)
-            if normalized != person.raw:
+            raw = self.clean_none_in_person(person)
+            normalized = normalize_heading_spacing(raw)
+            if normalized != raw:
                 self.record_change(person, "heading_spacing", "inconsistent", "normalized", "normalized_markdown")
             cleaned = remove_empty_notes_bullets(normalized)
             self.record_change(person, "Notes", section_content(normalized, "## Notes"), section_content(cleaned, "## Notes"), "removed_empty_placeholders")
             if cleaned != person.raw:
                 self.backup_and_write(person, cleaned)
+
+    def clean_none_in_person(self, person: PersonDocument) -> str:
+        cleaned = clean_frontmatter_none(person)
+        for field, value in person.frontmatter.items():
+            self.record_change(person, field, value, without_none_placeholders(value), "removed_none_placeholders")
+        return cleaned
 
     def normalize_cities_in_people(self, people: list[PersonDocument]) -> None:
         for person in people:
@@ -983,8 +1087,9 @@ class PersonSynchronizer:
         return replace_section(raw, "## Positions", merged, trailing_blank_line=True)
 
     def merge_pair(self, person: PersonDocument, other: PersonDocument) -> None:
-        raw = person.raw
-        personal_values = person.frontmatter
+        raw = self.clean_none_in_person(person)
+        other = document_from_raw(other.path, clean_frontmatter_none(other))
+        personal_values = document_from_raw(person.path, raw).frontmatter
         other_values = other.frontmatter
         for field in ("skills", "organizations"):
             personal_items = list(personal_values.get(field) or [])
@@ -1041,8 +1146,17 @@ class PersonSynchronizer:
             raw = replace_section(raw, "## References", references, trailing_blank_line=True)
             self.record_change(person, "References", original_references, references)
         personal_bio, other_bio = section_content(raw, "## Bio").strip(), section_content(other.raw, "## Bio").strip()
-        if other_bio:
-            if not personal_bio or difflib.SequenceMatcher(None, personal_bio, other_bio).ratio() >= self.args.bio_similarity:
+        cached_bio = self.store.bio_summaries.get(person.slug, {})
+        reused_summary = (
+            getattr(self.args, "summarize_bio", True)
+            and cached_bio.get("summary") == personal_bio
+            and cached_bio.get("incoming_hash") == source_hash(other_bio)
+        )
+        if other_bio and not reused_summary:
+            if not personal_bio or (
+                not getattr(self.args, "summarize_bio", True)
+                and difflib.SequenceMatcher(None, personal_bio, other_bio).ratio() >= self.args.bio_similarity
+            ):
                 raw = replace_section(raw, "## Bio", other_bio, insert_before_first_section=True, trailing_blank_line=True)
             elif other_bio not in personal_bio:
                 bio_paragraphs = [
@@ -1057,7 +1171,9 @@ class PersonSynchronizer:
                 ]
                 combined_bio = "\n>\n".join(f"> {paragraph}" for paragraph in bio_paragraphs)
                 raw = replace_section(raw, "## Bio", combined_bio, trailing_blank_line=True)
-            self.record_change(person, "Bio", personal_bio, section_content(raw, "## Bio").strip())
+        if not reused_summary:
+            raw = self.summarize_bio(person, raw, other_bio)
+        self.record_change(person, "Bio", personal_bio, section_content(raw, "## Bio").strip())
         old_positions = section_content(raw, "## Positions")
         raw = self.merge_positions(person, other, raw)
         self.record_change(person, "Positions", old_positions, section_content(raw, "## Positions"))
@@ -1067,6 +1183,7 @@ class PersonSynchronizer:
         self.backup_and_write(person, raw)
 
     def create_person(self, other: PersonDocument, existing_slugs: set[str]) -> None:
+        other = document_from_raw(other.path, clean_frontmatter_none(other))
         base = re.sub(r"[^a-z0-9]+", "-", other.name.casefold()).strip("-") or "person"
         slug, sequence = base, 2
         while slug in existing_slugs:
@@ -1075,6 +1192,7 @@ class PersonSynchronizer:
         folder, target = Path(self.args.existing) / slug, None
         target = folder / f"{safe_filename(other.name)}.md"
         raw = replace_field(other, "slug", slug)
+        raw = self.summarize_bio(document_from_raw(other.path, raw), raw, section_content(other.raw, "## Bio").strip())
         organizations = other.frontmatter.get("organizations") or []
         filtered_organizations = incoming_organization_slugs(organizations)
         if filtered_organizations != organizations:
@@ -1084,6 +1202,7 @@ class PersonSynchronizer:
             blocks = [normalize_position_description(block) for block in position_blocks(repair_malformed_positions(positions))]
             line_end = "\r\n" if "\r\n" in raw else "\n"
             raw = replace_section(raw, "## Positions", render_position_blocks(blocks, line_end), trailing_blank_line=True)
+        raw = normalize_heading_spacing(raw)
         if not self.args.dry_run:
             folder.mkdir(parents=True, exist_ok=True)
             target.write_text(raw, encoding="utf-8", newline="")
@@ -1154,6 +1273,8 @@ class PersonSynchronizer:
     def normalize_positions(self, people: list[PersonDocument]) -> None:
         pattern = re.compile(r"(?m)^(?P<bullet>[*-] [^\r\n]+\r?\n)(?P<blank>\r?\n)?[ \t]*```\r?\n(?P<body>.*?)[ \t]*```(?P<end>\r?\n|$)", re.S)
         for person in people:
+            original = person
+            person = document_from_raw(person.path, self.clean_none_in_person(person))
             def convert(match: re.Match[str]) -> str:
                 line_end = "\r\n" if "\r\n" in match.group(0) else "\n"
                 paragraphs: list[str] = []
@@ -1181,10 +1302,11 @@ class PersonSynchronizer:
                 for block in position_blocks(normalized)
             ]
             line_end = "\r\n" if "\r\n" in positions else "\n"
+            blocks = deduplicate_position_blocks(blocks, self.organization_aliases)
             ordered = render_position_blocks(sort_dated_position_blocks(blocks), line_end)
             updated = replace_section(person.raw, "## Positions", ordered, trailing_blank_line=True) if positions else person.raw
             self.record_change(person, "Positions", positions, section_content(updated, "## Positions"), "normalized_positions")
-            self.backup_and_write(person, updated)
+            self.backup_and_write(original, updated)
 
     def reconnect_rows(self, people: list[PersonDocument]) -> list[dict[str, Any]]:
         cutoff = dt.date.today() - dt.timedelta(days=self.args.lookback_days)
@@ -1237,6 +1359,7 @@ class PersonSynchronizer:
             return
         self.store.save("matches.json", self.store.matches)
         self.store.save("pending_review.json", self.store.pending)
+        self.store.save("bio_summaries.json", self.store.bio_summaries)
         history_path = state_root / "sync_history.json"
         history = self.store._load("sync_history.json", [])
         history.append({"timestamp": dt.datetime.now().isoformat(), "dry_run": self.args.dry_run, "people_processed": len(people), "changes": len(self.changes), "new_reviews": len(self.reviews), "reused_decisions": self.reused_decisions})
@@ -1300,6 +1423,7 @@ def apply_review_value(item: dict[str, Any], value: str) -> bool:
         )
     else:
         updated = replace_field(document, item["field"], value)
+    updated = normalize_heading_spacing(updated)
     if updated == document.raw:
         return True
     updated = replace_field(document_from_raw(document.path, updated), "last_updated", dt.date.today())
@@ -1363,6 +1487,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--auto-match-threshold", type=float, default=0.96)
     parser.add_argument("--review-match-threshold", type=float, default=0.80)
     parser.add_argument("--bio-similarity", type=float, default=0.70)
+    parser.add_argument("--do-not-summarize", "--do-not-summarize-bio", "--no-summarize-bio", dest="summarize_bio", action="store_false", help="Disable summarization and retain merged text (bio summarization is enabled by default)")
+    parser.add_argument("--summary-api-base", help="OpenAI-compatible HTTPS endpoint; uses LinkedIn crawler environment settings")
+    parser.add_argument("--summary-model")
+    parser.add_argument("--summary-max-chars", type=int, help="Summarize bios longer than this threshold (default: 300)")
+    parser.add_argument("--summary-timeout", type=int)
     parser.add_argument("-w", "--lookback-days", type=int, default=365)
     return parser
 
@@ -1440,7 +1569,11 @@ def main(argv: list[str] | None = None) -> int:
         known_existing_slugs = {person.slug for person in discovered_existing if person.slug}
         if discovery_slugs is not None:
             known_existing_slugs.update(folder.name for folder in existing_root.iterdir() if folder.is_dir())
-        synchronizer.match_and_sync(personal, other, set(all_existing_duplicates), known_existing_slugs)
+        try:
+            synchronizer.match_and_sync(personal, other, set(all_existing_duplicates), known_existing_slugs)
+        except BioSummaryError as error:
+            logging.error("%s", error)
+            return 1
         if args.normalize_positions and not args.dry_run:
             personal = scope_people(discover_existing_people(), args)
     elif not args.normalize_positions:

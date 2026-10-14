@@ -16,6 +16,8 @@ Both sets follow the `Person.md` template (YAML frontmatter + defined body secti
 - `-t / --state-dir` — path to the **persistent decision store**, default `C:\data\dev-output\people_sync_state`. This directory lives outside the vault/git repo (personal data, not for GitHub) and is what you back up separately.
 - `-c / --config` — optional registry directory containing `organizations.json` (e.g. `C:\data\config` or `/mnt/c/data/config`), or a sync settings JSON file (thresholds, field-rule overrides). A directory selects its organization registry unless `--organizations-config` is explicitly supplied; it does not automatically load sync settings.
 - `--organizations-config` — organization registry JSON, default `C:\data\config\organizations.json` on Windows or `/mnt/c/data/config/organizations.json` on WSL. `HAL_MD_CONFIG_DIR` overrides the default registry folder independently of `HAL_MD_DEV_OUTPUT_DIR`.
+- `--do-not-summarize` — disable summarization; enabled by default for merged/new bios. `--do-not-summarize-bio` and `--no-summarize-bio` are aliases. Position descriptions are not sent to the summarizer by this tool.
+- `--summary-api-base`, `--summary-model`, `--summary-max-chars`, `--summary-timeout` — override provider settings. Environment defaults are `AI_SUMMARY_API_KEY`, `AI_SUMMARY_API_BASE`, `AI_SUMMARY_MODEL`, `AI_SUMMARY_MAX_CHARS`, and `AI_SUMMARY_TIMEOUT`. Defaults are the OpenAI chat-completions endpoint, `gpt-4o-mini`, 300 characters, and 30 seconds.
 - `--editor` — command to launch for the review CLI's Edit action (default: `$EDITOR`/`$VISUAL` env var if set, else `code` if on PATH)
 - `-d / --debug` — verbose logging
 - `-n / --dry-run` — compute and report what *would* change, write nothing, touch no state
@@ -37,6 +39,7 @@ This is the key new piece that makes repeated syncing over decades practical: on
 - `matches.json` — confirmed personal-slug ↔ other-file identity links (by slug, `linkedin_id`, or manually validated name match). Reused on every run so re-matching only happens for people not yet linked. If a previously-linked `linkedin_id` changes, log it as a flag (possible profile recreation) but keep the existing match rather than silently breaking it.
 - `field_decisions.json` — per-person, per-field record of conflicts already resolved: the two values compared, the decision (`accepted_other` / `kept_personal`), and a timestamp/hash of the source values. On a later run, if the other file's value for that field is unchanged since the decision, skip it silently. If it changed again, re-flag as a new decision. *(Note: "ignore for now" is deliberately **not** stored here — it's a no-op that just leaves the item in the pending queue for next time; only `accepted_other` and `kept_personal` are permanent.)*
 - `sync_history.json` — append-only log of every run: timestamp, files touched, counts, which decisions were newly made vs. reused.
+- `bio_summaries.json` — source/incoming hashes and generated bio per person, avoiding repeated summarization and re-appending the same incoming bio on later runs. Changed incoming text or edited personal bio triggers reconsideration.
 
 ## Matching (unchanged from before, now persisted)
 
@@ -64,7 +67,11 @@ Each field/section has different risk/confidence, so each gets its own rule rath
 
 | Section | Rule |
 |---|---|
-| `## Bio` | **Similarity-gated.** Compare personal vs. other-file bio text similarity (e.g. `difflib.SequenceMatcher` ratio). If ≥ 70% similar, treat as "same bio, refined" and update the personal file to the other file's version. If < 70% similar, treat as separate content worth keeping both — **append** the other file's bio below the existing one, separated by a blank quoted line (i.e. `>` on its own line) so it reads as a distinct block rather than overwriting anything. No manual review needed for this case since nothing is lost either way. |
+| `## Bio` | **Summarize after merging, enabled by default.** Combine personal and incoming content without discarding either source, then summarize when the unquoted text exceeds the character threshold. Request one neutral paragraph without repetition, based only on the supplied facts; write generated prose without a blockquote. Short bios retain merged text. With `--do-not-summarize`, preserve the previous similarity rule: at ≥ 70%, replace with incoming; otherwise append distinct incoming content as a quoted paragraph. |
+
+Bio summarization sends only the merged Bio text to the configured provider (not the whole note). Requests include `store=false`, which is not a guarantee of zero retention or no training; verify provider account controls. Dry runs may make summary requests to produce accurate proposed changes, but do not write notes or cache/state. Missing credentials are an error when a long bio needs summarization; use `--do-not-summarize` to run without credentials. Provider failures or empty/non-shorter/over-100-word results fail explicitly without applying that person's merge. Earlier completed changes in a multi-person run are not rolled back.
+
+Strip response list/quote markers and normalize whitespace before validation. An empty, non-shorter, or over-100-word response is retried once with a tighter word budget; a second invalid response reports the specific failed constraint. Do not truncate sentences or silently apply invalid text.
 
 The `## Positions` and `## Notes`/`## People` rules are detailed just below, since Positions needs more than a one-line rule.
 
@@ -80,9 +87,17 @@ The `## Positions` and `## Notes`/`## People` rules are detailed just below, sin
 
 When merging References, remove empty template list markers and renumber surviving numbered entries only when placeholders were removed, including when the LinkedIn link is already present. Positions merging and normalization omit empty placeholder-only bullets but preserve real entries and descriptions. Notes cleanup removes only empty top-level unordered list markers outside fenced code; populated links, image-name text, nested list items, and all other Notes content remain in place. Placeholder bullets in other sections are left untouched.
 
+Normalize final output to exactly one blank line before and after every ATX Markdown heading (`#` through `######`), including empty sections. Apply after section replacement and before writing merged, normalized, created, or review-edited files. Frontmatter and fenced code content are excluded.
+
 Ignore incoming organization slugs longer than 64 characters or starting with `<number>-educational-experiences` (a LinkedIn education-summary label, not an organization). This applies to both merging and creating Person files; existing personal organization values are not removed. Organization extraction applies the same limits before linking or creating registry records.
 
 Exclude standalone `Research Skills` labels from position descriptions (case-insensitive), including quoted and legacy nested-bullet forms, before folding paragraphs. Preserve substantive sentences mentioning research skills. Applies during merging, position normalization, and creation of new Person files.
+
+Education matching also compares complete headings with link formatting, possessive apostrophes, punctuation, and uppercase parenthetical acronyms removed. This recognizes equivalent plain-text and split-link institution names without matching a different institution merely because the degree is the same. Apply education deduplication during both merges and position normalization.
+
+During merges, education without explicit dates is ordered by qualification: bachelor's (`BE`, `BEng`, `BA`, `BSc`, etc.), master's (`Master`, `Masters`, `MBA`, etc.), then doctorate (`PhD`, etc.). Dated entries retain chronological ordering.
+
+Remove literal `None` string placeholders from all Person frontmatter fields: omit list entries and clear scalar values, including nested values. Preserve meaningful text such as `None of these`, actual YAML null values, and body text. Apply this cleanup to existing notes during merging/normalization and to incoming data in memory, including new-file creation. Incoming files remain read-only.
 
 ## Reporting (every run, including dry-run)
 

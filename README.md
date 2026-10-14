@@ -138,6 +138,8 @@ The organization, interest, and skill tools use `C:\data\config` on Windows or `
 
 [merge_person_files](tools/merge_person_files.py) accepts `--config` as either a registry directory (using its `organizations.json`) or a sync settings JSON file. `--organizations-config` explicitly selects a registry file and takes precedence over a registry directory.
 
+[merge_person_files](tools/merge_person_files.py) summarizes merged/new bios over 300 characters by default using `AI_SUMMARY_API_KEY` and the optional `AI_SUMMARY_API_BASE`, `AI_SUMMARY_MODEL`, `AI_SUMMARY_MAX_CHARS`, and `AI_SUMMARY_TIMEOUT` environment settings. Use `--do-not-summarize` to retain merged text without provider calls. Summary results are cached under `--state-dir` to keep repeated syncs stable. Even `--dry-run` may send Bio text to the configured provider; requests include `store=false`, but provider retention policies still apply. This does not summarize position descriptions.
+
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
 
 ### Comms

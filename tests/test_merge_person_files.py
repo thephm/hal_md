@@ -6,9 +6,13 @@ import unittest
 from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
+from unittest.mock import Mock
+
+from tools.bio_summary import BioSummaryError
+from tools.markdown_cleanup import normalize_heading_spacing
 
 from tools.merge_person_files import (
-    FRONTMATTER_FIELD_ORDER, PersonSynchronizer, SyncStore,
+    FRONTMATTER_FIELD_ORDER, PersonSynchronizer, SyncStore, build_parser,
     default_config_dir, default_dev_output_dir,
     dates_overlap, discover_people, main, normalize_city, normalize_position_description, read_document, render_position_blocks, review_context, review_pending, source_hash,
 )
@@ -16,6 +20,24 @@ from text_encoding import repair_mojibake
 
 
 class SyncPersonFilesTests(unittest.TestCase):
+    def test_final_merge_normalizes_every_heading_and_empty_sections(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n# Jane Doe\n\n\n"
+            "## Positions\n\n\n- \n\n## Notes\n\n\n### Detail\nText\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        updated = person_path.read_text(encoding="utf-8")
+        self.assertEqual(updated, normalize_heading_spacing(updated))
+        self.assertIn("# Jane Doe\n\n## Positions\n\n## Notes\n\n### Detail\n\nText\n", updated)
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(person_path.read_text(encoding="utf-8"), updated)
+
     def setUp(self):
         self.temp_directory = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_directory.name)
@@ -40,6 +62,50 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(normalize_city("Ottawa Metropolitan"), "Ottawa")
         self.assertEqual(normalize_city("Toronto Metropolitan Area"), "Toronto")
         self.assertEqual(normalize_city("Fort Lauderdale"), "Fort Lauderdale")
+
+    def test_frontmatter_none_placeholders_are_removed_without_touching_body(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nskills:\n  - None\n  - Python\n"
+            "interests: [None]\nlabel: \"None\"\nprivate_field: keep exactly\n"
+            "metadata: {label: 'None', keep: None of these}\n---\n## Notes\n\n- None\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nskills: [None, Rust]\nmobile: None\n---\n",
+        )
+        original_incoming = other_path.read_bytes()
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        person = read_document(person_path)
+        self.assertEqual(person.frontmatter["skills"], ["Python", "Rust"])
+        self.assertEqual(person.frontmatter["interests"] or [], [])
+        self.assertFalse(person.frontmatter["label"])
+        self.assertEqual(person.frontmatter["metadata"], {"label": "", "keep": "None of these"})
+        self.assertNotIn("mobile: None", person.raw)
+        self.assertIn("private_field: keep exactly\n", person.raw)
+        self.assertTrue(person.raw.endswith("## Notes\n\n- None\n"))
+        self.assertEqual(other_path.read_bytes(), original_incoming)
+        synchronizer.merge_pair(person, read_document(other_path))
+        self.assertEqual(person_path.read_text(encoding="utf-8"), person.raw)
+
+    def test_frontmatter_none_cleanup_during_normalization_and_creation(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nlabel: None\n---\n## Notes\n\nNone\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.normalize_markdown_in_people([read_document(person_path)])
+        self.assertFalse(read_document(person_path).frontmatter["label"])
+        other_path = self.write_person(
+            self.other_root, "john-doe",
+            "---\ntags: [person]\nslug: john-doe\nfirst_name: John\nlast_name: Doe\n"
+            "organizations: [None, acme]\nlabel: None\n---\n",
+        )
+        synchronizer.create_person(read_document(other_path), set())
+        created = read_document(self.personal_root / "john-doe" / "John Doe.md")
+        self.assertEqual(created.frontmatter["organizations"], ["acme"])
+        self.assertFalse(created.frontmatter["label"])
 
     def test_config_directory_selects_organization_registry(self):
         config_dir = self.root / "config"
@@ -77,11 +143,167 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(repair_mojibake("SecrÃ©tariat"), "Secrétariat")
         self.assertEqual(repair_mojibake("Laurentienne Générale"), "Laurentienne Générale")
 
+    def test_general_do_not_summarize_flag_is_default_enabled_with_opt_out(self):
+        self.assertTrue(build_parser().parse_args([]).summarize_bio)
+        self.assertFalse(build_parser().parse_args(["--do-not-summarize"]).summarize_bio)
+
+    def test_bio_summary_uses_both_sources_and_is_reused_across_runs(self):
+        personal_bio = "Managed worldwide technology projects and budgets of up to $30 million. " * 6
+        incoming_bio = "Senior project manager delivering cloud and analytics projects. " * 6
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            f"---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\n> {personal_bio}\n\n## Notes\n\nKeep notes.\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            f"---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\n{incoming_bio}\n",
+        )
+        summary = "Senior project manager delivering technology, cloud and analytics projects with budgets up to $30 million."
+        args = self.arguments()
+        args.summarize_bio = True
+        fake = Mock()
+        fake.summarize.return_value = summary
+        with patch("tools.merge_person_files.BioSummarizer.from_settings", return_value=fake):
+            synchronizer = PersonSynchronizer(args)
+            synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+            synchronizer.write_reports([read_document(person_path)])
+            source = fake.summarize.call_args.args[0]
+            self.assertIn(personal_bio.strip(), source)
+            self.assertIn(incoming_bio.strip(), source)
+            updated = person_path.read_text(encoding="utf-8")
+            self.assertIn(f"## Bio\n\n{summary}\n\n", updated)
+            self.assertIn("## Notes\n\nKeep notes.\n", updated)
+            second = PersonSynchronizer(args)
+            second.merge_pair(read_document(person_path), read_document(other_path))
+            self.assertEqual(person_path.read_text(encoding="utf-8"), updated)
+            fake.summarize.assert_called_once()
+            other_path.write_text(
+                f"---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\n{incoming_bio}New experience.\n",
+                encoding="utf-8",
+            )
+            second.merge_pair(read_document(person_path), read_document(other_path))
+            self.assertEqual(fake.summarize.call_count, 2)
+
+    def test_bio_summary_failure_does_not_write_person_file(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\nShort bio.\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\n" + "Technology experience. " * 30,
+        )
+        original = person_path.read_bytes()
+        args = self.arguments()
+        args.summarize_bio = True
+        fake = Mock()
+        fake.summarize.side_effect = BioSummaryError("Provider failed")
+        with patch("tools.merge_person_files.BioSummarizer.from_settings", return_value=fake):
+            with self.assertRaises(BioSummaryError):
+                PersonSynchronizer(args).merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(person_path.read_bytes(), original)
+
+    def test_dry_run_bio_summary_reports_result_without_writing_note_or_cache(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\nOriginal bio.\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\n" + "Technology experience. " * 30,
+        )
+        original = person_path.read_bytes()
+        args = self.arguments(dry_run=True)
+        args.summarize_bio = True
+        fake = Mock()
+        fake.summarize.return_value = "Technology professional."
+        with patch("tools.merge_person_files.BioSummarizer.from_settings", return_value=fake):
+            synchronizer = PersonSynchronizer(args)
+            synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+            synchronizer.write_reports([read_document(person_path)])
+        self.assertEqual(person_path.read_bytes(), original)
+        self.assertFalse((self.state_root / "bio_summaries.json").exists())
+        self.assertIn("Technology professional.", (self.state_root / "changes_proposed.csv").read_text(encoding="utf-8"))
+
+    def test_new_person_bio_summary_uses_generated_person_slug(self):
+        other_path = self.write_person(
+            self.other_root, "profile-id",
+            "---\ntags: [person]\nslug: profile-id\nfirst_name: Jane\nlast_name: Doe\n---\n## Bio\n\n" + "Technology experience. " * 30,
+        )
+        args = self.arguments()
+        args.summarize_bio = True
+        fake = Mock()
+        fake.summarize.return_value = "Technology professional."
+        with patch("tools.merge_person_files.BioSummarizer.from_settings", return_value=fake):
+            synchronizer = PersonSynchronizer(args)
+            synchronizer.create_person(read_document(other_path), set())
+        self.assertIn("jane-doe", synchronizer.store.bio_summaries)
+        self.assertIn("Technology professional.", (self.personal_root / "jane-doe" / "Jane Doe.md").read_text(encoding="utf-8"))
+
+    def test_bio_opt_out_and_short_bios_do_not_call_provider(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n",
+        )
+        person = read_document(person_path)
+        with patch("tools.merge_person_files.BioSummarizer.from_settings") as provider:
+            args = self.arguments()
+            synchronizer = PersonSynchronizer(args)
+            long_raw = person.raw + "## Bio\n\n" + "Technology experience. " * 30
+            self.assertEqual(synchronizer.summarize_bio(person, long_raw, ""), long_raw)
+            args.summarize_bio = True
+            short_raw = person.raw + "## Bio\n\nShort bio.\n"
+            self.assertEqual(synchronizer.summarize_bio(person, short_raw, ""), short_raw)
+            provider.assert_not_called()
+
+    def test_bio_summary_threshold_is_strict_and_uses_environment(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n",
+        )
+        person = read_document(person_path)
+        args = self.arguments()
+        args.summarize_bio = True
+        fake = Mock()
+        fake.summarize.return_value = "Brief."
+        with patch.dict("os.environ", {"AI_SUMMARY_MAX_CHARS": "10"}), patch(
+            "tools.merge_person_files.BioSummarizer.from_settings", return_value=fake,
+        ):
+            synchronizer = PersonSynchronizer(args)
+            equal_raw = person.raw + "## Bio\n\n> abcdefghij\n"
+            self.assertEqual(synchronizer.summarize_bio(person, equal_raw, ""), equal_raw)
+            fake.summarize.assert_not_called()
+            long_raw = person.raw + "## Bio\n\n> abcdefghijk\n"
+            self.assertIn("Brief.", synchronizer.summarize_bio(person, long_raw, ""))
+            fake.summarize.assert_called_once_with("abcdefghijk")
+
+    def test_cli_summary_error_returns_failure_without_applying_merge(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n\n## Bio\n\nOriginal bio.\n",
+        )
+        self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Bio\n\n" + "Technology experience. " * 30,
+        )
+        with patch(
+            "tools.merge_person_files.BioSummarizer.from_settings",
+            side_effect=BioSummaryError("Missing credentials; use --do-not-summarize"),
+        ), self.assertLogs(level="ERROR") as logs:
+            self.assertEqual(main([
+                "-e", str(self.personal_root), "-i", str(self.other_root),
+                "-t", str(self.state_root), "-p", "jane-doe",
+            ]), 1)
+        self.assertIn("--do-not-summarize", logs.output[0])
+        self.assertIn("Original bio.", person_path.read_text(encoding="utf-8"))
+        self.assertNotIn("Technology experience.", person_path.read_text(encoding="utf-8"))
+
     def arguments(self, dry_run=False):
         return Namespace(
             existing=str(self.personal_root), state_dir=str(self.state_root), dry_run=dry_run,
             bio_similarity=0.70, auto_match_threshold=0.96, review_match_threshold=0.80,
             lookback_days=365,
+            summarize_bio=False,
         )
 
     def write_person(self, root, folder, content):
@@ -207,7 +429,7 @@ class SyncPersonFilesTests(unittest.TestCase):
 
         updated = personal_path.read_text(encoding="utf-8")
         self.assertIn("  - Python\n  - Rust\nprivate_field: keep exactly\n", updated)
-        self.assertIn("## Notes\nDo not rewrite this section.\n", updated)
+        self.assertIn("## Notes\n\nDo not rewrite this section.\n", updated)
         self.assertIn("## Bio\n\nA software engineer!\n", updated)
         skills_change = next(change for change in synchronizer.changes if change["field"] == "skills")
         self.assertEqual(skills_change["old_value"], '["Python"]')
@@ -397,7 +619,7 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("  > Built systems Led projects\n", updated)
         self.assertIn("  > Managed teams\n", updated)
         self.assertNotIn("```", updated.split("## Notes", 1)[0])
-        self.assertIn("## Notes\n- A code sample\n\n  ```\n  remain unchanged\n  ```\n", updated)
+        self.assertIn("## Notes\n\n- A code sample\n\n  ```\n  remain unchanged\n  ```\n", updated)
 
     def test_normalize_positions_renders_single_paragraph_without_bullet(self):
         personal_path = self.write_person(
@@ -586,7 +808,7 @@ class SyncPersonFilesTests(unittest.TestCase):
             "  > Description\n\n"
             "- Third, [[Globex]], 2022\n"
             "- Fourth, [[Initech]], 2023\n\n"
-            "## Notes\nKeep exactly.\n",
+            "## Notes\n\nKeep exactly.\n",
             updated,
         )
         PersonSynchronizer(self.arguments()).match_and_sync(
@@ -636,6 +858,34 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertLess(updated.index("MASc, Applied Science"), updated.index("Ph.D., Computer Science"))
         self.assertLess(updated.index("Ph.D., Computer Science"), updated.index("Engineer, [[Acme]], 2023-01"))
         self.assertLess(updated.index("Engineer, [[Acme]], 2023-01"), updated.index("Director, [[Acme]], 2024-01"))
+
+    def test_merge_orders_undated_be_ba_bsc_before_masters_and_phd(self):
+        degrees = [
+            "- PhD, Electrical Engineering, [[Doctoral University]]",
+            "- Master of Business Administration, Finance, [[SVKM]], [[Narsee Monjee Institute of Management Studies]]",
+            "- Application of Business Analytics, Business Analytics Certificate Program from [[Dun & Bradstreet]] and [[EduPristine]]",
+            "- BE, Electrical & Electronics, [[Anna University Chennai]]",
+            "- BA, Arts, [[Arts University]]",
+            "- BSc, Science, [[Science University]]",
+            "- Masters, Engineering, [[Masters University]]",
+        ]
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n" + "\n".join(degrees) + "\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        synchronizer.normalize_positions([read_document(person_path)])
+        updated = person_path.read_text(encoding="utf-8")
+        for bachelor in ("BE, Electrical", "BA, Arts", "BSc, Science"):
+            self.assertLess(updated.index(bachelor), updated.index("Master of Business"))
+            self.assertLess(updated.index(bachelor), updated.index("Masters, Engineering"))
+        self.assertLess(updated.index("Master of Business"), updated.index("PhD, Electrical"))
+        self.assertLess(updated.index("Masters, Engineering"), updated.index("PhD, Electrical"))
 
     def test_combined_merge_and_normalize_imports_skills_and_bio(self):
         personal_path = self.write_person(
@@ -1473,6 +1723,34 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertEqual(updated.count("Assistant Controller"), 1)
         self.assertIn("[[Wheelabrator]]", updated)
 
+    def test_company_only_position_is_replaced_by_same_start_dated_titled_position(self):
+        registry_path = self.root / "organizations.json"
+        registry_path.write_text("[]", encoding="utf-8")
+        person_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Positions\n- [[Kindryl]], 2026-09 #current\n",
+        )
+        other_path = self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Positions\n- Vice President, [[Kyndryl]], 2026-09 #current\n",
+        )
+        args = self.arguments()
+        args.organizations_config = str(registry_path)
+        synchronizer = PersonSynchronizer(args)
+
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+
+        updated = person_path.read_text(encoding="utf-8")
+        self.assertIn("- Vice President, [[Kyndryl]], 2026-09 #current", updated)
+        self.assertNotIn("[[Kindryl]]", updated)
+        self.assertEqual(updated.count("2026-09"), 1)
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(person_path.read_text(encoding="utf-8"), updated)
+
     def test_undated_equivalent_education_positions_are_merged(self):
         personal_path = self.write_person(
             self.personal_root,
@@ -1490,6 +1768,56 @@ class SyncPersonFilesTests(unittest.TestCase):
         )
 
         self.assertEqual(personal_path.read_text(encoding="utf-8").count("B.Sc"), 1)
+
+    def test_plain_and_split_link_education_entries_are_merged_and_deduplicated(self):
+        plain = "- Master of Business Administration, Finance, SVKM's Narsee Monjee Institute of Management Studies (NMIMS)"
+        linked = "- Master of Business Administration, Finance, [SVKM](SVKM), [Narsee Monjee Institute of Management Studies](Narsee Monjee Institute of Management Studies)"
+        for index, personal_positions in enumerate((plain, f"{plain}\n{linked}")):
+            with self.subTest(personal_positions=personal_positions):
+                person_path = self.write_person(
+                    self.personal_root, f"person-{index}",
+                    f"---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n{personal_positions}\n",
+                )
+                other_path = self.write_person(
+                    self.other_root, f"person-{index}",
+                    f"---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n{linked}\n\n  > Finance studies.\n",
+                )
+                synchronizer = PersonSynchronizer(self.arguments())
+                synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+                updated = person_path.read_text(encoding="utf-8")
+                self.assertEqual(updated.count("Master of Business Administration"), 1)
+                self.assertIn("Finance studies.", updated)
+                synchronizer.normalize_positions([read_document(person_path)])
+                self.assertEqual(person_path.read_text(encoding="utf-8").count("Master of Business Administration"), 1)
+
+    def test_split_link_education_does_not_match_different_institution(self):
+        plain = "- Master of Business Administration, Finance, Other Institute of Management Studies"
+        linked = "- Master of Business Administration, Finance, [SVKM](SVKM), [Narsee Monjee Institute of Management Studies](Narsee Monjee Institute of Management Studies)"
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            f"---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n{plain}\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            f"---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n{linked}\n",
+        )
+        PersonSynchronizer(self.arguments()).merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(person_path.read_text(encoding="utf-8").count("Master of Business Administration"), 2)
+
+    def test_normalization_deduplicates_plain_and_split_link_mba_entries(self):
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n"
+            "- Master of Business Administration, Finance, SVKM's Narsee Monjee Institute of Management Studies (NMIMS)\n"
+            "- Master of Business Administration, Finance, [SVKM](SVKM), [Narsee Monjee Institute of Management Studies](Narsee Monjee Institute of Management Studies)\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.normalize_positions([read_document(person_path)])
+        updated = person_path.read_text(encoding="utf-8")
+        self.assertEqual(updated.count("Master of Business Administration"), 1)
+        self.assertIn("Narsee Monjee Institute of Management Studies", updated)
+        synchronizer.normalize_positions([read_document(person_path)])
+        self.assertEqual(person_path.read_text(encoding="utf-8"), updated)
 
     def test_deduplicates_concise_and_detailed_bachelor_entries_at_same_university(self):
         personal_path = self.write_person(
@@ -1618,7 +1946,7 @@ class SyncPersonFilesTests(unittest.TestCase):
         updated = (self.personal_root / "jane-doe" / "Jane Doe.md").read_text(encoding="utf-8")
         self.assertNotIn("## Interests", updated)
         self.assertNotIn("## Communications", updated)
-        self.assertIn("## Notes\nKeep this note.\n", updated)
+        self.assertIn("## Notes\n\nKeep this note.\n", updated)
 
     def test_other_only_person_retains_populated_deprecated_sections(self):
         self.write_person(
@@ -1632,7 +1960,7 @@ class SyncPersonFilesTests(unittest.TestCase):
         )
 
         updated = (self.personal_root / "jane-doe" / "Jane Doe.md").read_text(encoding="utf-8")
-        self.assertIn("## Interests\n- Reading\n", updated)
+        self.assertIn("## Interests\n\n- Reading\n", updated)
         self.assertNotIn("## Communications", updated)
 
     def test_other_only_person_removes_invalid_single_character_place_link(self):
