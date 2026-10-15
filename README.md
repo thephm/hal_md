@@ -120,6 +120,8 @@ Which results in this (a bit ugly as you see the regex):
 
 I've written some Python tools to convert the exports from various messaging apps to Markdown. 
 
+The reusable `hal_md.positions` module formats, orders, and merges source-neutral Person timelines. Source integrations remain responsible for extracting position data and can supply callbacks for organization links, title and city formatting, and source-specific filtering. `hal_md.summarization` provides shared Bio/About and position-description summarization; callers use `AI_SUMMARY_MAX_CHARS` (300 by default) to decide when to request a summary. LinkedIn crawling and LinkedIn-specific parsing remain in the separate crawler project.
+
 So far, I've created:
 
 - [linkedin_md](https://github.com/thephm/linkedin_md) for Linkedin chats

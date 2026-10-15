@@ -38,7 +38,7 @@ class BioSummaryTests(unittest.TestCase):
         summarizer = BioSummarizer("test-key", "https://example.test/chat", "test-model", 30)
         response = io.BytesIO(json.dumps({"choices": [{"message": {"content": "Technology professional."}}]}).encode())
         source = "Technology delivery and project management. " * 20
-        with patch("tools.bio_summary.urlopen", return_value=response) as request:
+        with patch("hal_md.summarization.urlopen", return_value=response) as request:
             self.assertEqual(summarizer.summarize(source), "Technology professional.")
         payload = json.loads(request.call_args.args[0].data)
         self.assertFalse(payload["store"])
@@ -63,7 +63,7 @@ class BioSummaryTests(unittest.TestCase):
             io.BytesIO(json.dumps({"choices": [{"message": {"content": "experience " * 101}}]}).encode()),
             io.BytesIO(json.dumps({"choices": [{"message": {"content": "> Technology professional."}}]}).encode()),
         ]
-        with patch("tools.bio_summary.urlopen", side_effect=responses) as request:
+        with patch("hal_md.summarization.urlopen", side_effect=responses) as request:
             self.assertEqual(summarizer.summarize(source), "Technology professional.")
         self.assertEqual(request.call_count, 2)
         retry_payload = json.loads(request.call_args.args[0].data)
@@ -73,14 +73,14 @@ class BioSummaryTests(unittest.TestCase):
         summarizer = BioSummarizer("test-key", "https://example.test/chat", "test-model", 30)
         data = {"choices": [{"message": {"content": "Original bio."}}]}
         responses = [io.BytesIO(json.dumps(data).encode()) for _ in range(2)]
-        with patch("tools.bio_summary.urlopen", side_effect=responses), self.assertRaisesRegex(
+        with patch("hal_md.summarization.urlopen", side_effect=responses), self.assertRaisesRegex(
             BioSummaryError, "13 characters for a 13-character source.*after one retry",
         ):
             summarizer.summarize("Original bio.")
 
     def test_provider_errors_and_invalid_outputs_are_not_silent_fallbacks(self):
         summarizer = BioSummarizer("test-key", "https://example.test/chat", "test-model", 30)
-        with patch("tools.bio_summary.urlopen", side_effect=URLError("Unavailable")), self.assertRaises(BioSummaryError):
+        with patch("hal_md.summarization.urlopen", side_effect=URLError("Unavailable")), self.assertRaises(BioSummaryError):
             summarizer.summarize("Source text")
         for data in (
             {}, {"choices": []},
@@ -90,5 +90,5 @@ class BioSummaryTests(unittest.TestCase):
         ):
             with self.subTest(data=data):
                 responses = [io.BytesIO(json.dumps(data).encode()) for _ in range(2)]
-                with patch("tools.bio_summary.urlopen", side_effect=responses), self.assertRaises(BioSummaryError):
+                with patch("hal_md.summarization.urlopen", side_effect=responses), self.assertRaises(BioSummaryError):
                     summarizer.summarize("Original bio.")
