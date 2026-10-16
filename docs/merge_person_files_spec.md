@@ -209,7 +209,7 @@ When a person from the other set has no match in the personal set after the full
 
 - Generate a `slug` using the same convention as the rest of hal_md (not just reused from the other file's own slug, since it may not follow your rules).
 - Create the standard **folder-per-person** structure under `--existing`: `<slug>/` containing the new `<First Last>.md` Person file (never named by slug) plus an empty `media/` subfolder, matching the layout of every other person in the vault.
-- Populate the new file from the other file's data as-is: frontmatter (`first_name`, `last_name`, `mobile`, `emails`, `linkedin_id`, `skills`, etc.), `## Bio`, and `## Positions` — there's no personal version to reconcile against, so no conflict logic applies here; it's a straight copy into the template structure.
+- Populate the new file from the other file's data: frontmatter (`first_name`, `last_name`, `mobile`, `emails`, `linkedin_id`, `skills`, etc.), `## Bio`, and `## Positions` — there's no personal version to reconcile against, so no conflict logic applies here; order known frontmatter fields as in `templates/Person.md`, keeping unrecognized fields after them in their original order.
 - Record the new person in `matches.json` immediately (personal slug ↔ other-file identity) so subsequent runs treat them as an existing matched pair, not a new creation.
 - List every newly created person in `changes_applied.csv` (e.g. `action: created_file`) so a first run against a large export from the other source doesn't silently add dozens of files without a clear record.
 

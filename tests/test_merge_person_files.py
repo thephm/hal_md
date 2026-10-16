@@ -598,6 +598,22 @@ class SyncPersonFilesTests(unittest.TestCase):
         created = read_document(self.personal_root / "amelia-cantwell" / "Amelia Cantwell.md")
         self.assertEqual(created.frontmatter["organizations"], ["acme"])
 
+    def test_created_person_orders_frontmatter_fields_by_template(self):
+        other_path = self.write_person(
+            self.other_root, "amelia-cantwell",
+            "---\ntags: [person]\nprivate_field: preserve\nlinkedin_id: amelia-cantwell\n"
+            "last_name: Cantwell\norganizations: [acme]\nfirst_name: Amelia\nslug: amelia-cantwell\n"
+            "skills: [Python]\n---\n",
+        )
+
+        PersonSynchronizer(self.arguments()).create_person(read_document(other_path), set())
+
+        created = read_document(self.personal_root / "amelia-cantwell" / "Amelia Cantwell.md")
+        fields = tuple(created.frontmatter)
+        template_fields = tuple(field for field in FRONTMATTER_FIELD_ORDER if field in created.frontmatter)
+        self.assertEqual(fields[:len(template_fields)], template_fields)
+        self.assertEqual(fields[len(template_fields):], ("private_field",))
+
     def test_merge_inserts_missing_fields_in_person_template_order(self):
         personal_path = self.write_person(
             self.personal_root,

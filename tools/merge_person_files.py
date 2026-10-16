@@ -335,6 +335,31 @@ def replace_field(document: PersonDocument, field: str, value: Any) -> str:
     return document.raw[:insert_at] + replacement + document.raw[insert_at:]
 
 
+def order_frontmatter_fields(raw: str) -> str:
+    match = re.match(r"\A(?:\ufeff)?---\r?\n(?P<yaml>.*?)(?P<end>^---\r?\n?)", raw, re.S | re.M)
+    if not match:
+        raise ValueError("raw document lost YAML frontmatter")
+
+    yaml_text = match.group("yaml")
+    field_starts = list(re.finditer(r"(?m)^([^\s#][^:\r\n]*):[ \t]*.*(?:\r?\n|$)", yaml_text))
+    if len(field_starts) < 2:
+        return raw
+
+    blocks = [
+        (
+            field.group(1).strip(),
+            index,
+            yaml_text[field.start():field_starts[index + 1].start() if index + 1 < len(field_starts) else len(yaml_text)],
+        )
+        for index, field in enumerate(field_starts)
+    ]
+    prefix = yaml_text[:field_starts[0].start()]
+    field_order = {field: index for index, field in enumerate(FRONTMATTER_FIELD_ORDER)}
+    blocks.sort(key=lambda block: (field_order.get(block[0], len(field_order)), block[1]))
+    ordered_yaml = prefix + "".join(block[2] for block in blocks)
+    return raw[:match.start("yaml")] + ordered_yaml + raw[match.end("yaml"):]
+
+
 def without_none_placeholders(value: Any) -> Any:
     if isinstance(value, str):
         return "" if value.strip() == "None" else value
@@ -1229,6 +1254,7 @@ class PersonSynchronizer:
             blocks = [normalize_position_description(block) for block in position_blocks(repair_malformed_positions(positions))]
             line_end = "\r\n" if "\r\n" in raw else "\n"
             raw = replace_section(raw, "## Positions", render_position_blocks(blocks, line_end), trailing_blank_line=True)
+        raw = order_frontmatter_fields(raw)
         raw = normalize_heading_spacing(raw)
         self.store.discard_adjacent_reviews({slug})
         if not self.args.dry_run:
