@@ -1,7 +1,0 @@
-Metadata-Version: 2.4
-Name: hal-md
-Version: 0.1.0
-Summary: Reusable Markdown person timeline and text summarization helpers
-Requires-Python: >=3.10
-License-File: LICENSE.md
-Dynamic: license-file
