@@ -28,5 +28,15 @@
     "Customer Relationship Management (CRM)",
     "CRM",
     "crm"
+  ],
+  "etl": [
+    "Extract, Transform, Load (ETL)",
+    "ETL",
+    "etl"
+  ],
+  "aws": [
+    "Amazon Web Services (AWS)",
+    "AWS",
+    "aws"
   ]
 }

@@ -14,7 +14,7 @@ from tools.markdown_cleanup import normalize_heading_spacing
 from tools.merge_person_files import (
     FRONTMATTER_FIELD_ORDER, PersonSynchronizer, SyncStore, build_parser,
     default_config_dir, default_dev_output_dir,
-    dates_overlap, discover_people, main, normalize_city, normalize_position_description, read_document, render_position_blocks, review_context, review_pending, source_hash,
+    dates_overlap, discover_people, main, normalize_city, normalize_position_description, read_document, render_position_blocks, review_context, review_pending, section_content, source_hash,
 )
 from text_encoding import repair_mojibake
 
@@ -457,6 +457,69 @@ class SyncPersonFilesTests(unittest.TestCase):
             updated,
         )
         self.assertNotIn("\n>\n>\n", updated)
+
+    def test_merge_removes_empty_quoted_bio_boundaries(self):
+        incoming_bio = "> - Resolve business problems using technology"
+        for summarize in (False, True):
+            for personal_bio in ("> ", ">\n>", "> \n>\n" + incoming_bio + "\n> "):
+                with self.subTest(summarize=summarize, personal_bio=personal_bio):
+                    personal_path = self.personal_root / "Jane Doe.md"
+                    other_path = self.other_root / "Jane Doe.md"
+                    header = "---\ntags: [person]\nslug: jane-doe\n---\n"
+                    personal_path.write_text(
+                        header + f"## Bio\n\n{personal_bio}\n\n## Notes\n\nKeep notes.\n",
+                        encoding="utf-8",
+                    )
+                    other_path.write_text(
+                        header + f"## Bio\n\n> \n{incoming_bio}\n>\n", encoding="utf-8",
+                    )
+                    original_incoming = other_path.read_bytes()
+                    args = self.arguments()
+                    args.summarize_bio = summarize
+                    synchronizer = PersonSynchronizer(args)
+                    with patch("tools.merge_person_files.BioSummarizer.from_settings") as provider:
+                        synchronizer.merge_pair(read_document(personal_path), read_document(other_path))
+                        updated = personal_path.read_text(encoding="utf-8")
+                        self.assertEqual(section_content(updated, "## Bio").strip(), incoming_bio)
+                        self.assertIn("## Notes\n\nKeep notes.\n", updated)
+                        synchronizer.merge_pair(read_document(personal_path), read_document(other_path))
+                        self.assertEqual(personal_path.read_text(encoding="utf-8"), updated)
+                        provider.assert_not_called()
+                    self.assertEqual(other_path.read_bytes(), original_incoming)
+
+    def test_merge_preserves_internal_quoted_bio_paragraph_breaks(self):
+        header = "---\ntags: [person]\nslug: jane-doe\n---\n"
+        personal_path = self.write_person(
+            self.personal_root, "jane-doe",
+            header + "## Bio\n\n> \n> First paragraph.\n>\n> Second paragraph.\n>\n",
+        )
+        other_path = self.write_person(self.other_root, "jane-doe", header)
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.merge_pair(read_document(personal_path), read_document(other_path))
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("## Bio\n\n> First paragraph.\n>\n> Second paragraph.\n", updated)
+        self.assertNotIn("> Second paragraph.\n>", updated)
+
+    def test_create_person_trims_quoted_bio_boundaries(self):
+        other_path = self.write_person(
+            self.other_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Bio\n\n> \n>\n> - Resolve business problems using technology\n>\n"
+            "\n## Notes\n\nKeep notes.\n",
+        )
+        original_incoming = other_path.read_bytes()
+        for summarize in (False, True):
+            with self.subTest(summarize=summarize):
+                args = self.arguments()
+                args.summarize_bio = summarize
+                PersonSynchronizer(args).create_person(read_document(other_path), set())
+                created = read_document(self.personal_root / "jane-doe" / "Jane Doe.md")
+                self.assertEqual(
+                    section_content(created.raw, "## Bio").strip(),
+                    "> - Resolve business problems using technology",
+                )
+                self.assertIn("## Notes\n\nKeep notes.\n", created.raw)
+                self.assertEqual(other_path.read_bytes(), original_incoming)
 
     def test_merge_updates_last_updated_only_when_content_changes(self):
         personal_path = self.write_person(
@@ -1039,10 +1102,56 @@ class SyncPersonFilesTests(unittest.TestCase):
                 self.assertEqual(normalized.count(existing_line), 1)
                 self.assertEqual(normalized.count(incoming_line), 1)
 
+    def test_shared_month_preserves_first_role_and_reviews_only_later_role_changes(self):
+        first = (
+            "- Technical Director, Enterprise Solution Architecture, [[BlackBerry]], "
+            "2007-07 to 2008-12"
+        )
+        second = (
+            "- Sr. Director, Enterprise Business Intelligence and Mobility, [[BlackBerry]], "
+            "Alpharetta, Georgia, 2008-12 to 2013-08"
+        )
+        for end in ("2013-08", "2013-09"):
+            with self.subTest(incoming_end=end):
+                person_path = self.write_person(
+                    self.personal_root, f"lori-miles-{end}",
+                    "---\ntags: [person]\nslug: lori-miles\n---\n## Positions\n"
+                    f"{first}\n\n  > First description.\n\n{second}\n",
+                )
+                incoming = second.replace("2013-08", end)
+                other_path = self.write_person(
+                    self.other_root, f"lori-miles-{end}",
+                    f"---\ntags: [person]\nslug: lori-miles\n---\n## Positions\n{incoming}\n",
+                )
+                synchronizer = PersonSynchronizer(self.arguments())
+                synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+                updated = person_path.read_text(encoding="utf-8")
+                self.assertEqual(updated.count(first), 1)
+                self.assertEqual(updated.count(second), 1)
+                self.assertIn("First description.", updated)
+                if end == "2013-08":
+                    self.assertEqual(synchronizer.reviews, [])
+                else:
+                    self.assertEqual(len(synchronizer.reviews), 1)
+                    item = synchronizer.reviews[0]
+                    self.assertEqual(item["type"], "position_date")
+                    self.assertEqual(item["existing_line"], second)
+                    self.assertEqual(item["incoming_line"], incoming)
+                    self.assertEqual(item["suggested_line"], incoming)
+                    synchronizer.write_reports([read_document(person_path)])
+                    with patch("tools.merge_person_files.read_review_command", return_value="s"):
+                        review_pending(self.arguments())
+                    updated = person_path.read_text(encoding="utf-8")
+                    self.assertEqual(updated.count(first), 1)
+                    self.assertIn("First description.", updated)
+                    self.assertEqual(updated.count(incoming), 1)
+                    self.assertNotIn(second, updated)
+
     def test_position_date_ranges_must_overlap_not_just_touch(self):
         for left, right, expected in (
             (["2018-12", "2019-05"], ["2019-05", "2020-11"], False),
             (["2020-11", "2022-02"], ["2022-02", "2026-04"], False),
+            (["2019-10-21", "2020-11-13"], ["2020-11-13", "2021-03"], False),
             (["2018-12", "2019-05"], ["2019-06", "2020-11"], False),
             (["2018-12", "2019-05"], ["2019-04", "2020-11"], True),
             (["2019-05", "2019-05"], ["2019-05", "2019-05"], True),
@@ -1051,6 +1160,206 @@ class SyncPersonFilesTests(unittest.TestCase):
             with self.subTest(left=left, right=right):
                 self.assertEqual(dates_overlap(left, right), expected)
                 self.assertEqual(dates_overlap(right, left), expected)
+
+    def test_exact_end_date_start_date_handoff_keeps_both_positions_without_review(self):
+        first = (
+            "- Technical Lead, Customer Prem, [[Cogeco Connexion]], Burlington, Ontario, "
+            "2019-10-21 to 2020-11-13, reported to [[Dominique Buslot]]"
+        )
+        second = (
+            "- Technical Lead, Customer Prem, [[Cogeco Connexion]], Burlington, Ontario, "
+            "2020-11-13 to 2021-03, reported to [[Gustavo Sanchez]]"
+        )
+        person_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n"
+            f"{first}\n",
+        )
+        other_path = self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n"
+            f"{second}\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+
+        updated = person_path.read_text(encoding="utf-8")
+        self.assertIn(first, updated)
+        self.assertIn(second, updated)
+        self.assertEqual(len([item for item in synchronizer.reviews if item["type"] == "position_adjacent"]), 0)
+
+    def test_existing_adjacent_positions_are_preserved_without_review(self):
+        lines = [
+            "- VP, Engineering, Executives, [[NewStep Networks]], Ottawa, Ontario, "
+            "2002 to 2008-01, reported to [[Neil Baimel]]",
+            "- VP, Engineering, Executives, [[NewStep Networks]], Toronto, "
+            "2008-01-18 to 2008-03, reported to [[Peter Vicars]]",
+            "- VP, Architectures and Founder, [[NewStep Networks]], Toronto, "
+            "2008-03 to 2008-06-17, reported to [[Peter Vicars]] #laid-off",
+        ]
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n"
+            + "\n".join(lines) + "\n\n## Notes\n\nKeep notes.\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "jane-doe", "---\ntags: [person]\nslug: jane-doe\n---\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(synchronizer.reviews, [])
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(synchronizer.store.pending, [])
+        synchronizer.write_reports([read_document(person_path)])
+        with patch("tools.merge_person_files.read_review_command") as read_command:
+            self.assertEqual(review_pending(self.arguments()), 0)
+        read_command.assert_not_called()
+        updated = person_path.read_text(encoding="utf-8")
+        for line in lines:
+            self.assertEqual(updated.count(line), 1)
+        self.assertIn("## Notes\n\nKeep notes.\n", updated)
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(synchronizer.store.pending, [])
+
+    def test_normalization_preserves_adjacent_positions_without_review(self):
+        first = "- Engineer, [[Acme]], 2002-01 to 2003-10"
+        second = "- Manager, [[Acme]], 2003-10-15 to 2005-01"
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            f"---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n{first}\n{second}\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.normalize_positions([read_document(person_path)])
+        self.assertEqual(synchronizer.reviews, [])
+        synchronizer.write_reports([read_document(person_path)])
+        with patch("tools.merge_person_files.read_review_command") as read_command:
+            review_pending(self.arguments())
+        read_command.assert_not_called()
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.normalize_positions([read_document(person_path)])
+        self.assertEqual(synchronizer.reviews, [])
+        self.assertEqual(synchronizer.store.pending, [])
+        self.assertIn(first, person_path.read_text(encoding="utf-8"))
+        self.assertIn(second, person_path.read_text(encoding="utf-8"))
+
+    def test_adjacent_positions_in_personal_only_and_created_notes_need_no_review(self):
+        content = (
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Positions\n- Engineer, [[Acme]], 2002-01 to 2003-10\n"
+            "- Manager, [[Acme]], 2003-10 to 2005-01\n"
+        )
+        personal_path = self.write_person(self.personal_root, "jane-doe", content)
+        synchronizer = PersonSynchronizer(self.arguments(dry_run=True))
+        synchronizer.match_and_sync([read_document(personal_path)], [])
+        self.assertEqual(synchronizer.reviews, [])
+        self.assertEqual(personal_path.read_text(encoding="utf-8"), content)
+        self.assertFalse(self.state_root.exists())
+        other_path = self.write_person(self.other_root, "jane-doe", content)
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.create_person(read_document(other_path), {"jane-doe"})
+        self.assertEqual(synchronizer.reviews, [])
+        created = (self.personal_root / "jane-doe-2" / "Jane Doe.md").read_text(encoding="utf-8")
+        self.assertIn("- Engineer, [[Acme]], 2002-01 to 2003-10", created)
+        self.assertIn("- Manager, [[Acme]], 2003-10 to 2005-01", created)
+
+    def test_separate_positions_do_not_require_review(self):
+        synchronizer = PersonSynchronizer(self.arguments())
+        person_path = self.write_person(
+            self.personal_root, "jane-doe", "---\ntags: [person]\nslug: jane-doe\n---\n",
+        )
+        person = read_document(person_path)
+        for index, (first, second) in enumerate((
+            ("- Engineer, [[Acme]], 2002-01 to 2003-10", "- Manager, [[Other]], 2003-10 to 2005-01"),
+            ("- Bachelor, [[Acme]], 2002-01 to 2003-10", "- Master, [[Acme]], 2003-10 to 2005-01"),
+            ("- Engineer, [[Acme]], 2002 to 2003", "- Manager, [[Acme]], 2003 to 2005"),
+            ("- Engineer, [[Acme]], 2002-01 to 2003-10", "- Manager, [[Acme]], 2003-11 to 2005-01"),
+        )):
+            with self.subTest(first=first, second=second):
+                raw = person.raw + "## Positions\n" + first + "\n" + second + "\n"
+                other = read_document(self.write_person(
+                    self.other_root, f"jane-doe-{index}", "---\ntags: [person]\nslug: jane-doe\n---\n",
+                ))
+                merged = synchronizer.merge_positions(person, other, raw)
+                self.assertIn(first, merged)
+                self.assertIn(second, merged)
+                self.assertEqual(synchronizer.reviews, [])
+
+    def test_legacy_adjacent_reviews_are_discarded_without_editing_positions(self):
+        first = "- Engineer, [[Acme]], 2002-01 to 2003-10"
+        second = "- Manager, [[Acme]], 2003-10 to 2005-01"
+        person_path = self.write_person(
+            self.personal_root, "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n"
+            f"{first}\n\n  > First description.\n\n{second}\n\n  > Second description.\n",
+        )
+        legacy_review = {
+            "slug": "jane-doe", "name": "Jane Doe", "path": str(person_path),
+            "field": "position:adjacent:old", "type": "position_adjacent",
+            "existing_line": first, "incoming_line": second, "suggested_line": second,
+            "first_block": first, "second_block": second, "other_hash": source_hash([first, second]),
+        }
+        unrelated = {**legacy_review, "slug": "someone-else"}
+        self.state_root.mkdir()
+        pending_path = self.state_root / "pending_review.json"
+        pending_path.write_text(json.dumps([legacy_review, unrelated]), encoding="utf-8")
+        original = person_path.read_bytes()
+        with patch("tools.merge_person_files.read_review_command") as read_command:
+            review_pending(self.arguments(), {"jane-doe"})
+        read_command.assert_not_called()
+        self.assertEqual(person_path.read_bytes(), original)
+        self.assertEqual(json.loads(pending_path.read_text(encoding="utf-8")), [unrelated])
+
+    def test_sync_and_normalization_discard_scoped_legacy_reviews_with_dry_run_safety(self):
+        content = (
+            "---\ntags: [person]\nslug: jane-doe\n---\n## Positions\n\n"
+            "- Engineer, [[Acme]], 2002-01 to 2003-10\n"
+            "- Manager, [[Acme]], 2003-10 to 2005-01\n"
+        )
+        person_path = self.write_person(self.personal_root, "jane-doe", content)
+        other_path = self.write_person(self.other_root, "jane-doe", content)
+        legacy = {
+            "slug": "jane-doe", "field": "position:adjacent:old",
+            "type": "position_adjacent", "other_hash": source_hash("old"),
+        }
+        unrelated = {**legacy, "slug": "someone-else"}
+        contact = {
+            "slug": "jane-doe", "field": "email", "type": "contact_info",
+            "other_hash": source_hash("email"),
+        }
+        self.state_root.mkdir()
+        pending_path = self.state_root / "pending_review.json"
+        decisions_path = self.state_root / "field_decisions.json"
+        decisions_path.write_text(json.dumps({"jane-doe:email": {"decision": "kept_personal"}}), encoding="utf-8")
+        original_decisions = decisions_path.read_bytes()
+        for operation in ("merge", "normalize", "personal_only"):
+            for dry_run in (True, False):
+                with self.subTest(operation=operation, dry_run=dry_run):
+                    pending_path.write_text(json.dumps([legacy, unrelated, contact]), encoding="utf-8")
+                    original_pending = pending_path.read_bytes()
+                    original_person = person_path.read_bytes()
+                    synchronizer = PersonSynchronizer(self.arguments(dry_run=dry_run))
+                    person = read_document(person_path)
+                    if operation == "merge":
+                        synchronizer.merge_pair(person, read_document(other_path))
+                    elif operation == "normalize":
+                        synchronizer.normalize_positions([person])
+                    else:
+                        synchronizer.match_and_sync([person], [])
+                    self.assertEqual(synchronizer.store.pending, [unrelated, contact])
+                    synchronizer.write_reports([read_document(person_path)])
+                    if dry_run:
+                        self.assertEqual(pending_path.read_bytes(), original_pending)
+                        self.assertEqual(person_path.read_bytes(), original_person)
+                    else:
+                        self.assertEqual(json.loads(pending_path.read_text(encoding="utf-8")), [unrelated, contact])
+                    self.assertEqual(decisions_path.read_bytes(), original_decisions)
+                    positions = section_content(person_path.read_text(encoding="utf-8"), "## Positions")
+                    self.assertIn("- Engineer, [[Acme]], 2002-01 to 2003-10", positions)
+                    self.assertIn("- Manager, [[Acme]], 2003-10 to 2005-01", positions)
 
     def test_sync_removes_invalid_stored_position_review_only_for_scoped_person(self):
         existing_line = "- Senior Software Engineer, [[Infor]], [[Victoria]], 2018-12 to 2019-05"
@@ -1091,10 +1400,9 @@ class SyncPersonFilesTests(unittest.TestCase):
                 "-e", str(self.personal_root), "-i", str(self.other_root),
                 "-t", str(self.state_root), "-p", "brad-barclay", "-m",
             ]), 0)
-        self.assertEqual(
-            json.loads((self.state_root / "pending_review.json").read_text(encoding="utf-8")),
-            [unrelated_review, contact_review],
-        )
+        pending = json.loads((self.state_root / "pending_review.json").read_text(encoding="utf-8"))
+        self.assertEqual(pending[:2], [unrelated_review, contact_review])
+        self.assertEqual(len(pending), 2)
         self.assertIn(existing_line, personal_path.read_text(encoding="utf-8"))
         self.assertIn(incoming_line, personal_path.read_text(encoding="utf-8"))
 
@@ -1748,6 +2056,30 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("- Vice President, [[Kyndryl]], 2026-09 #current", updated)
         self.assertNotIn("[[Kindryl]]", updated)
         self.assertEqual(updated.count("2026-09"), 1)
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+        self.assertEqual(person_path.read_text(encoding="utf-8"), updated)
+
+    def test_overlapping_company_only_current_position_is_replaced_by_titled_position(self):
+        person_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n"
+            "## Positions\n- [[Hitron]], 2023-02 #current\n",
+        )
+        other_path = self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\n---\n"
+            "## Positions\n- Product Innovation Manager, [[Hitron]], 2023-03 #current\n",
+        )
+        synchronizer = PersonSynchronizer(self.arguments())
+
+        synchronizer.merge_pair(read_document(person_path), read_document(other_path))
+
+        updated = person_path.read_text(encoding="utf-8")
+        self.assertIn("- Product Innovation Manager, [[Hitron]], 2023-03 #current", updated)
+        self.assertNotIn("- [[Hitron]], 2023-02 #current", updated)
+        self.assertEqual(updated.count("[[Hitron]]"), 1)
         synchronizer.merge_pair(read_document(person_path), read_document(other_path))
         self.assertEqual(person_path.read_text(encoding="utf-8"), updated)
 

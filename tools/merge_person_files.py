@@ -23,6 +23,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools.markdown_cleanup import normalize_heading_spacing
+from hal_md.organizations import normalize_organization_key, parse_organization_records
 from tools.extract_organizations import is_valid_organization_slug
 from tools.bio_summary import BioSummarizer, BioSummaryError
 from text_encoding import repair_mojibake
@@ -185,6 +186,16 @@ def section_span(raw: str, heading: str) -> tuple[int, int] | None:
 def section_content(raw: str, heading: str) -> str:
     span = section_span(raw, heading)
     return raw[span[0]:span[1]] if span else ""
+
+
+def trim_bio_boundaries(bio: str) -> str:
+    lines = bio.splitlines(keepends=True)
+    start, end = 0, len(lines)
+    while start < end and re.fullmatch(r"\s*>?\s*", lines[start]):
+        start += 1
+    while end > start and re.fullmatch(r"\s*>?\s*", lines[end - 1]):
+        end -= 1
+    return "".join(lines[start:end]).strip()
 
 
 def remove_empty_notes_bullets(raw: str) -> str:
@@ -484,7 +495,7 @@ def position_blocks(content: str) -> list[str]:
 
 
 def normalized_position_organization(value: str) -> str:
-    ascii_value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    ascii_value = unicodedata.normalize("NFKD", normalize_organization_key(value)).encode("ascii", "ignore").decode("ascii")
     return re.sub(r"[^a-z0-9]+", "", ascii_value.casefold())
 
 
@@ -503,17 +514,12 @@ def load_organization_aliases(path: Path) -> dict[str, str]:
         logging.warning("Ignoring organization aliases with unexpected structure: %s", path)
         return dict(DEFAULT_ORGANIZATION_ALIASES)
     aliases: dict[str, str] = dict(DEFAULT_ORGANIZATION_ALIASES)
-    for record in records:
-        if not isinstance(record, dict):
-            continue
-        canonical = str(record.get("name") or record.get("organization") or "").strip()
-        if not canonical:
-            continue
-        values = [record.get("name"), *(record.get("aliases") or [])]
+    for record in parse_organization_records(records):
+        values = (record.name, *record.aliases)
         for value in values:
-            key = normalized_position_organization(str(value or ""))
+            key = normalized_position_organization(value)
             if key:
-                aliases[key] = canonical
+                aliases[key] = record.name
     return aliases
 
 
@@ -686,7 +692,7 @@ def company_only_position_matches(left: str, right: str, aliases: dict[str, str]
         and organization == position_organization(right, aliases)
         and left_dates
         and right_dates
-        and shared_month(left_dates[0]) == shared_month(right_dates[0])
+        and dates_overlap(left_dates, right_dates)
     )
 
 
@@ -877,6 +883,19 @@ class SyncStore:
         self.pending.append(item)
         return True
 
+    def discard_adjacent_reviews(self, slugs: set[str] | None = None) -> None:
+        retained = [
+            item for item in self.pending
+            if not (
+                item.get("type") == "position_adjacent"
+                and (slugs is None or item["slug"] in slugs)
+            )
+        ]
+        removed = len(self.pending) - len(retained)
+        if removed:
+            logging.info("Removing %d obsolete adjacent-position reviews; preserving separate roles", removed)
+        self.pending = retained
+
 
 class PersonSynchronizer:
     def __init__(self, args: argparse.Namespace):
@@ -890,9 +909,12 @@ class PersonSynchronizer:
         self.bio_summarizer: BioSummarizer | None = None
 
     def summarize_bio(self, person: PersonDocument, raw: str, incoming_bio: str) -> str:
+        original_bio = section_content(raw, "## Bio").strip()
+        bio = trim_bio_boundaries(original_bio)
+        if bio != original_bio:
+            raw = replace_section(raw, "## Bio", bio, trailing_blank_line=True)
         if not getattr(self.args, "summarize_bio", True):
             return raw
-        bio = section_content(raw, "## Bio").strip()
         text = "\n".join(
             re.sub(r"^\s*>\s?", "", line).strip() for line in bio.splitlines()
         ).strip()
@@ -1006,6 +1028,7 @@ class PersonSynchronizer:
             self.reviews.append(item)
 
     def merge_positions(self, person: PersonDocument, other: PersonDocument, raw: str) -> str:
+        self.store.discard_adjacent_reviews({person.slug})
         for item in self.store.pending[:]:
             if (
                 item["slug"] == person.slug
@@ -1146,6 +1169,10 @@ class PersonSynchronizer:
             raw = replace_section(raw, "## References", references, trailing_blank_line=True)
             self.record_change(person, "References", original_references, references)
         personal_bio, other_bio = section_content(raw, "## Bio").strip(), section_content(other.raw, "## Bio").strip()
+        original_bio = personal_bio
+        personal_bio, other_bio = trim_bio_boundaries(personal_bio), trim_bio_boundaries(other_bio)
+        if personal_bio != original_bio:
+            raw = replace_section(raw, "## Bio", personal_bio, trailing_blank_line=True)
         cached_bio = self.store.bio_summaries.get(person.slug, {})
         reused_summary = (
             getattr(self.args, "summarize_bio", True)
@@ -1173,7 +1200,7 @@ class PersonSynchronizer:
                 raw = replace_section(raw, "## Bio", combined_bio, trailing_blank_line=True)
         if not reused_summary:
             raw = self.summarize_bio(person, raw, other_bio)
-        self.record_change(person, "Bio", personal_bio, section_content(raw, "## Bio").strip())
+        self.record_change(person, "Bio", original_bio, section_content(raw, "## Bio").strip())
         old_positions = section_content(raw, "## Positions")
         raw = self.merge_positions(person, other, raw)
         self.record_change(person, "Positions", old_positions, section_content(raw, "## Positions"))
@@ -1203,6 +1230,7 @@ class PersonSynchronizer:
             line_end = "\r\n" if "\r\n" in raw else "\n"
             raw = replace_section(raw, "## Positions", render_position_blocks(blocks, line_end), trailing_blank_line=True)
         raw = normalize_heading_spacing(raw)
+        self.store.discard_adjacent_reviews({slug})
         if not self.args.dry_run:
             folder.mkdir(parents=True, exist_ok=True)
             target.write_text(raw, encoding="utf-8", newline="")
@@ -1267,12 +1295,14 @@ class PersonSynchronizer:
         for person in personal:
             if person.slug not in matched_personal:
                 original = next(original for original in original_personal if original.path == person.path)
+                self.store.discard_adjacent_reviews({person.slug})
                 self.backup_and_write(original, person.raw)
                 self.matches.append({"slug": person.slug, "status": "personal_only"})
 
     def normalize_positions(self, people: list[PersonDocument]) -> None:
         pattern = re.compile(r"(?m)^(?P<bullet>[*-] [^\r\n]+\r?\n)(?P<blank>\r?\n)?[ \t]*```\r?\n(?P<body>.*?)[ \t]*```(?P<end>\r?\n|$)", re.S)
         for person in people:
+            self.store.discard_adjacent_reviews({person.slug})
             original = person
             person = document_from_raw(person.path, self.clean_none_in_person(person))
             def convert(match: re.Match[str]) -> str:
@@ -1439,13 +1469,15 @@ def read_review_value(prompt: str, default: str | None = None) -> str:
 
 def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> int:
     store = SyncStore(Path(args.state_dir), False)
+    store.discard_adjacent_reviews(slugs)
     pending = [item for item in store.pending if slugs is None or item["slug"] in slugs]
     untouched = [item for item in store.pending if slugs is not None and item["slug"] not in slugs]
     remaining: list[dict[str, Any]] = []
     for index, item in enumerate(pending, 1):
         print(f"\nReviewing {index} of {len(pending)} - {item['name']} ({item['slug']}) - {item['field']}")
         print(review_context(item))
-        command = read_review_command("e[x]isting  [i]ncoming  [s]uggested  [n]ew  [e]dit suggested  [q]uit: ")
+        prompt = "e[x]isting  [i]ncoming  [s]uggested  [n]ew  [e]dit suggested  [q]uit: "
+        command = read_review_command(prompt)
         if command == "q":
             remaining.extend(pending[index - 1:])
             break

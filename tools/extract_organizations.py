@@ -74,8 +74,14 @@ import sys
 import json
 import argparse
 import unicodedata
+from pathlib import Path
 
 import yaml
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from hal_md.organizations import normalize_organization_key, parse_aliases
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -481,7 +487,7 @@ def get_match_keys(name):
 
     keys = set()
     for value in (cleaned, stripped, slugify(cleaned), slugify(stripped)):
-        value = str(value).strip().lower()
+        value = normalize_organization_key(value)
         if value:
             keys.add(value)
     return keys
@@ -500,7 +506,8 @@ def normalize_existing_record(org, preferred_name=None):
     if 'organization' in org:
         org.pop('organization', None)
 
-    org.setdefault('aliases', [])
+    org['aliases'] = list(parse_aliases(org.get('aliases') or org.get('aliases:') or []))
+    org.pop('aliases:', None)
     if current_name and current_name.casefold() != canonical_name.casefold() and current_name not in org['aliases']:
         org['aliases'].append(current_name)
     for alias in CANONICAL_ORGANIZATION_ALIASES.get(canonical_name.casefold(), ()):
@@ -542,7 +549,7 @@ def find_existing(organizations, name):
             return org
         if str(org.get('slug', '')).strip().lower() in keys:
             return org
-        for alias in (org.get('aliases') or []):
+        for alias in parse_aliases(org.get('aliases') or org.get('aliases:') or []):
             if get_match_keys(str(alias)) & keys:
                 return org
     return None

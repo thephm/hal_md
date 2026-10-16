@@ -122,6 +122,21 @@ I've written some Python tools to convert the exports from various messaging app
 
 The reusable `hal_md.positions` module formats, orders, and merges source-neutral Person timelines. Source integrations remain responsible for extracting position data and can supply callbacks for organization links, title and city formatting, and source-specific filtering. `hal_md.summarization` provides shared Bio/About and position-description summarization; callers use `AI_SUMMARY_MAX_CHARS` (300 by default) to decide when to request a summary. LinkedIn crawling and LinkedIn-specific parsing remain in the separate crawler project.
 
+The reusable [hal_md.organizations](hal_md/organizations.py) module owns organization registry loading, alias matching, compound-name splitting, canonical slugs, and optional unknown-name prompting/persistence:
+
+```python
+from pathlib import Path
+from hal_md.organizations import OrganizationsConfig
+
+organizations = OrganizationsConfig.load_optional(Path(r"C:\data\config"))
+names = organizations.split("Universit\u00e9 Laval")
+slug = organizations.slug_for_name(names[0]) if names else ""
+```
+
+Matching normalizes Unicode to NFC, whitespace, and case, so composed and decomposed accents match without stripping accents or changing canonical display names. `slug_for_value` also accepts registered slugs and slugified names/aliases. `parse_organization_records`, `parse_aliases`, `build_alias_index`, and `normalize_organization_key` are available to other consumers. Legacy `organization` names, `aliases:` keys, and semicolon-separated alias strings are accepted. The extraction and merge tools share these helpers while retaining their existing broader legal-suffix/slug and punctuation-insensitive matching policies.
+
+`resolve_unknown` returns known canonical names without prompting or writing. Unknown names are saved only when explicitly passed to `resolve_unknown`; set `prompt_for_unknown = True` for interactive canonical-name selection (`-` skips). Bare-list registries preserve unrelated record fields when updated. Missing registries can be created; malformed or wrapped registries are not overwritten (wrapped registries remain usable for lookups). I/O errors are propagated to the caller.
+
 So far, I've created:
 
 - [linkedin_md](https://github.com/thephm/linkedin_md) for Linkedin chats

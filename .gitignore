@@ -1,5 +1,6 @@
 
 *.pyc
+*.egg-info/
 .vs/
 .vscode/
 .pytest_cache/

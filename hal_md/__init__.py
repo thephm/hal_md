@@ -1,2 +1,1 @@
-"""Reusable HAL Markdown formatting and text summarization helpers."""
-
+"""Reusable HAL organization registry, Markdown formatting, and summarization helpers."""
