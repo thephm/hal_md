@@ -38,5 +38,15 @@
     "Amazon Web Services (AWS)",
     "AWS",
     "aws"
+  ],
+  "pmo": [
+    "Project Management Office (PMO)",
+    "PMO",
+    "pmo"
+  ],
+  "ip": [
+    "Internet Protocol (IP)",
+    "IP",
+    "ip"
   ]
 }

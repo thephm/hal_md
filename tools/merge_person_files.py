@@ -246,10 +246,10 @@ def linkedin_profile_url(values: dict[str, Any]) -> str:
     return f"https://www.linkedin.com/in/{linkedin_id}" if linkedin_id else ""
 
 
-def incoming_organization_slugs(values: Iterable[str]) -> list[str]:
+def incoming_organization_slugs(values: Iterable[object]) -> list[str]:
     slugs: list[str] = []
     for value in values:
-        if is_valid_organization_slug(value):
+        if isinstance(value, str) and value.strip() and is_valid_organization_slug(value):
             slugs.append(value)
         else:
             logging.info("Ignoring invalid incoming organization slug: %s", value)
@@ -707,6 +707,22 @@ def positions_match(left: str, right: str, aliases: dict[str, str]) -> bool:
     )
 
 
+def position_title_conflicts(left: str, right: str, aliases: dict[str, str]) -> bool:
+    left_title, right_title = position_title(left), position_title(right)
+    organization = position_organization(left, aliases)
+    return bool(
+        left_title
+        and right_title
+        and left_title != right_title
+        and not is_education(left)
+        and not is_education(right)
+        and organization
+        and organization == position_organization(right, aliases)
+        and position_dates(left)
+        and position_dates(left) == position_dates(right)
+    )
+
+
 def company_only_position_matches(left: str, right: str, aliases: dict[str, str]) -> bool:
     left_title, right_title = position_title(left), position_title(right)
     left_dates, right_dates = position_dates(left), position_dates(right)
@@ -1085,6 +1101,39 @@ class PersonSynchronizer:
                 None,
             )
             if matched_index is None:
+                conflicting_index = next(
+                    (
+                        index for index, block in enumerate(personal_blocks)
+                        if index not in used
+                        and position_title_conflicts(block, other_block, self.organization_aliases)
+                    ),
+                    None,
+                )
+                if conflicting_index is not None:
+                    existing_block = personal_blocks[conflicting_index]
+                    existing_line = existing_block.splitlines()[0] if existing_block else ""
+                    incoming_line = other_block.splitlines()[0] if other_block else ""
+                    field = (
+                        f"position:{organization}:title:"
+                        f"{source_hash(existing_line)[:12]}"
+                    )
+                    if self.store.decision(person.slug, field, incoming_line):
+                        self.reused_decisions += 1
+                    else:
+                        self.conflict(
+                            person,
+                            field,
+                            existing_line,
+                            incoming_line,
+                            "position_title",
+                            {
+                                "existing_line": existing_line,
+                                "incoming_line": incoming_line,
+                                "existing_block": existing_block,
+                                "incoming_block": other_block,
+                            },
+                        )
+                    continue
                 personal_blocks.append(other_block)
                 continue
             used.add(matched_index)
@@ -1188,7 +1237,7 @@ class PersonSynchronizer:
             references = "".join(kept_lines).strip("\r\n")
         if profile_url and profile_url not in references:
             reference_number = max((int(value) for value in re.findall(r"(?m)^\s*(\d+)\.\s", references)), default=0) + 1
-            references = f"{references.rstrip()}\n\n" if references.strip() else ""
+            references = f"{references.rstrip()}\n" if references.strip() else ""
             references += f"{reference_number}. [LinkedIn]({profile_url})"
         if references != original_references:
             raw = replace_section(raw, "## References", references, trailing_blank_line=True)
@@ -1444,6 +1493,12 @@ def read_review_command(prompt: str) -> str:
 
 
 def review_context(item: dict[str, Any]) -> str:
+    if item.get("type") == "position_title":
+        return (
+            "Same organization and dates, different titles:\n"
+            f"Existing:  \033[38;5;214m{item['existing_line']}\033[0m\n"
+            f"Incoming:  \033[38;5;46m{item.get('incoming_line', '')}\033[0m"
+        )
     if not item.get("existing_line"):
         return f"\033[38;5;214m- {item.get('personal', '')}\033[0m\n\033[38;5;46m+ {item.get('other', '')}\033[0m"
     return (
@@ -1462,7 +1517,7 @@ def review_value(item: dict[str, Any], choice: str) -> str:
     return str(values[choice])
 
 
-def apply_review_value(item: dict[str, Any], value: str) -> bool:
+def apply_review_value(item: dict[str, Any], value: str, choice: str | None = None) -> bool:
     document = read_document(Path(item["path"]))
     if not document:
         return False
@@ -1471,12 +1526,27 @@ def apply_review_value(item: dict[str, Any], value: str) -> bool:
         existing_line = str(item["existing_line"])
         if existing_line not in positions:
             return False
-        updated = replace_section(
-            document.raw,
-            "## Positions",
-            positions.replace(existing_line, value, 1),
-            trailing_blank_line=True,
-        )
+        if item.get("type") == "position_title" and choice == "b":
+            line_end = "\r\n" if "\r\n" in positions else "\n"
+            blocks = position_blocks(positions)
+            incoming_block = str(item.get("incoming_block") or item.get("incoming_line", ""))
+            incoming_line = str(item.get("incoming_line", ""))
+            if not any(block.splitlines()[0] == incoming_line for block in blocks if block.splitlines()):
+                blocks.append(incoming_block)
+            replacement = render_position_blocks(sort_position_blocks(blocks), line_end)
+            updated = replace_section(
+                document.raw,
+                "## Positions",
+                replacement,
+                trailing_blank_line=True,
+            )
+        else:
+            updated = replace_section(
+                document.raw,
+                "## Positions",
+                positions.replace(existing_line, value, 1),
+                trailing_blank_line=True,
+            )
     else:
         updated = replace_field(document, item["field"], value)
     updated = normalize_heading_spacing(updated)
@@ -1502,12 +1572,23 @@ def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> i
     for index, item in enumerate(pending, 1):
         print(f"\nReviewing {index} of {len(pending)} - {item['name']} ({item['slug']}) - {item['field']}")
         print(review_context(item))
-        prompt = "e[x]isting  [i]ncoming  [s]uggested  [n]ew  [e]dit suggested  [q]uit: "
+        if item.get("type") == "position_title":
+            prompt = "keep e[x]isting  [i]ncoming  [b]oth  [q]uit: "
+        else:
+            prompt = "e[x]isting  [i]ncoming  [s]uggested  [n]ew  [e]dit suggested  [q]uit: "
         command = read_review_command(prompt)
         if command == "q":
             remaining.extend(pending[index - 1:])
             break
-        if command in ("x", "i", "s"):
+        if item.get("type") == "position_title":
+            if command in ("x", "i"):
+                value = review_value(item, command)
+            elif command == "b":
+                value = "both"
+            else:
+                remaining.append(item)
+                continue
+        elif command in ("x", "i", "s"):
             value = review_value(item, command)
         elif command == "n":
             value = read_review_value("New value")
@@ -1516,7 +1597,7 @@ def review_pending(args: argparse.Namespace, slugs: set[str] | None = None) -> i
         else:
             remaining.append(item)
             continue
-        if value and apply_review_value(item, value):
+        if value and apply_review_value(item, value, command):
             store.decisions[f"{item['slug']}:{item['field']}"] = {"decision": "resolved", "selected_value": value, "other_hash": item["other_hash"], "timestamp": dt.datetime.now().isoformat()}
             store.save("field_decisions.json", store.decisions)
         else:

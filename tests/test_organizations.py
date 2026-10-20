@@ -13,6 +13,44 @@ from hal_md.organizations import (
 
 
 class OrganizationsConfigTests(unittest.TestCase):
+    def test_link_person_updates_existing_and_new_records_without_duplicates(self):
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "organizations.json"
+            path.write_text(json.dumps([
+                {"name": "Existing", "slug": "custom", "aliases": ["Alias"],
+                 "people": ["z-person"], "extra": "keep"},
+                {"organization": "Legacy"},
+                {"name": "Unrelated"},
+            ]), encoding="utf-8")
+            config = OrganizationsConfig.load_optional(path.parent)
+            config.resolve_unknown("New Organization")
+
+            self.assertTrue(config.link_person(
+                "a-person", ["custom", "Alias", "Legacy", "new-organization", "Unknown"]
+            ))
+            saved = path.read_text(encoding="utf-8")
+            data = json.loads(saved)
+            self.assertEqual(data[0]["people"], ["a-person", "z-person"])
+            self.assertEqual(data[0]["extra"], "keep")
+            self.assertEqual(data[1]["people"], ["a-person"])
+            self.assertEqual(data[2], {"name": "Unrelated"})
+            self.assertEqual(data[3]["people"], ["a-person"])
+            with patch.object(config, "save", side_effect=AssertionError("unexpected write")):
+                self.assertFalse(config.link_person("a-person", ["Alias", "Legacy", "new-organization"]))
+                self.assertFalse(config.link_person("a-person", ["Unknown"]))
+            self.assertEqual(path.read_text(encoding="utf-8"), saved)
+
+    def test_link_person_rejects_invalid_people_without_partial_changes(self):
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "organizations.json"
+            original = json.dumps([{"name": "First"}, {"name": "Second", "people": "invalid"}])
+            path.write_text(original, encoding="utf-8")
+            config = OrganizationsConfig.load_optional(path.parent)
+            with self.assertRaisesRegex(ValueError, "invalid people"):
+                config.link_person("person", ["First", "Second"])
+            self.assertEqual(config.raw_data, json.loads(original))
+            self.assertEqual(path.read_text(encoding="utf-8"), original)
+
     def test_unicode_keys_preserve_accents_but_normalize_composition_and_whitespace(self):
         self.assertEqual(
             normalize_organization_key("  UNIVERSITE\u0301\u00a0 Laval "),
@@ -312,8 +350,60 @@ class OrganizationsConfigTests(unittest.TestCase):
 
             self.assertEqual(config.resolve_unknown("New Organization"), "New Organization")
             data = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(config.slug_for_name("New Organization"), "new-organization")
+            self.assertEqual(config.slug_for_value("new-organization"), "new-organization")
 
-        self.assertEqual(data, [{"name": "New Organization"}])
+        self.assertEqual(data, [{
+            "name": "New Organization", "slug": "new-organization", "people": [],
+        }])
+
+    def test_new_organization_slug_does_not_collide_with_existing_slugs(self):
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "organizations.json"
+            existing = [
+                {"name": "First", "slug": "a-b", "people": ["someone"]},
+                {"name": "Second", "slug": "a-b-2"},
+            ]
+            path.write_text(json.dumps(existing), encoding="utf-8")
+            config = OrganizationsConfig.load_optional(path.parent)
+
+            config.resolve_unknown("A & B")
+            config.resolve_unknown("A & B")
+            data = json.loads(path.read_text(encoding="utf-8"))
+
+            self.assertEqual(data[:2], existing)
+            self.assertEqual(data[2:], [{"name": "A & B", "slug": "a-b-3", "people": []}])
+            self.assertEqual(config.slug_for_name("A & B"), "a-b-3")
+
+    def test_new_prompted_canonical_name_gets_slug_people_and_alias(self):
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "organizations.json"
+            config = OrganizationsConfig.load_optional(path.parent)
+            config.prompt_for_unknown = True
+
+            with patch("builtins.input", return_value="Canonical Organization"):
+                config.resolve_unknown("LinkedIn Organization Name")
+            data = json.loads(path.read_text(encoding="utf-8"))
+
+            self.assertEqual(data, [{
+                "name": "Canonical Organization",
+                "slug": "canonical-organization",
+                "people": [],
+                "aliases": ["LinkedIn Organization Name"],
+            }])
+            self.assertEqual(config.slug_for_name("LinkedIn Organization Name"), "canonical-organization")
+
+    def test_new_organization_without_slug_characters_is_not_saved(self):
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "organizations.json"
+            path.write_text("[]", encoding="utf-8")
+            config = OrganizationsConfig.load_optional(path.parent)
+
+            with self.assertRaisesRegex(ValueError, "slug"):
+                config.resolve_unknown("&")
+
+            self.assertEqual(config.raw_data, [])
+            self.assertEqual(path.read_text(encoding="utf-8"), "[]")
 
     def test_resolve_unknown_adds_shown_name_as_alias_of_entered_canonical_organization(self):
         with TemporaryDirectory() as temp_dir:

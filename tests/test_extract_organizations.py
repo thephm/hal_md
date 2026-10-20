@@ -6,6 +6,15 @@ from tools import extract_organizations as eo
 
 
 class ExtractOrganizationsTests(unittest.TestCase):
+    def test_new_organization_has_slug_and_empty_people(self):
+        organizations = []
+
+        record = eo.ensure_organization(organizations, "New Organization")
+
+        self.assertEqual(record["slug"], "new-organization")
+        self.assertEqual(record["people"], [])
+        self.assertEqual(organizations, [record])
+
     def test_organization_slug_length_limit_is_inclusive(self):
         self.assertTrue(eo.is_valid_organization_slug("a" * 64))
         self.assertFalse(eo.is_valid_organization_slug("a" * 65))

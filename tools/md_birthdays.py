@@ -7,8 +7,9 @@ import calendar
 from pathlib import Path
 
 import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-sys.path.insert(1, '../hal/')
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPOSITORY_ROOT))
+sys.path.insert(1, str(REPOSITORY_ROOT.parent / "hal"))
 import person
 import identity
 import life_events

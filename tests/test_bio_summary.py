@@ -37,13 +37,20 @@ class BioSummaryTests(unittest.TestCase):
     def test_request_and_response_are_validated_without_network(self):
         summarizer = BioSummarizer("test-key", "https://example.test/chat", "test-model", 30)
         response = io.BytesIO(json.dumps({"choices": [{"message": {"content": "Technology professional."}}]}).encode())
-        source = "Technology delivery and project management. " * 20
+        source = (
+            "Responsable d'une équipe de Directeurs(trices), Services Conseils ayant à coeur "
+            "l'expérience de ses clients en consultation et recrutement TI | Responsible for a "
+            "team of Account Managers committed to the best customer experience in IT Contingent "
+            "Workforce Management & Staffing. "
+        ) * 4
         with patch("hal_md.summarization.urlopen", return_value=response) as request:
             self.assertEqual(summarizer.summarize(source), "Technology professional.")
         payload = json.loads(request.call_args.args[0].data)
         self.assertFalse(payload["store"])
         self.assertEqual(payload["model"], "test-model")
         self.assertIn(source, payload["messages"][1]["content"])
+        self.assertIn("Write the summary in English", payload["messages"][0]["content"])
+        self.assertIn("Translate non-English source content into English", payload["messages"][0]["content"])
         self.assertEqual(request.call_args.kwargs["timeout"], 30)
 
     def test_missing_key_and_invalid_settings_fail_explicitly(self):

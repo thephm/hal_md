@@ -598,6 +598,36 @@ class SyncPersonFilesTests(unittest.TestCase):
         created = read_document(self.personal_root / "amelia-cantwell" / "Amelia Cantwell.md")
         self.assertEqual(created.frontmatter["organizations"], ["acme"])
 
+    def test_merge_ignores_blank_and_non_string_organization_items(self):
+        person_path = self.write_person(
+            self.personal_root, "mark-marusic",
+            "---\ntags: [person]\nslug: mark-marusic\norganizations: [existing]\n---\n",
+        )
+        other_path = self.write_person(
+            self.other_root, "mark-marusic",
+            "---\ntags: [person]\nslug: mark-marusic\norganizations:\n"
+            "  -\n  - ''\n  - '  '\n  - 123\n  - true\n  - {name: acme}\n  - acme\n---\n",
+        )
+        with self.assertLogs(level="INFO") as logs:
+            PersonSynchronizer(self.arguments()).merge_pair(
+                read_document(person_path), read_document(other_path)
+            )
+        self.assertTrue(any("Ignoring invalid incoming organization slug" in line for line in logs.output))
+        self.assertEqual(read_document(person_path).frontmatter["organizations"], ["existing", "acme"])
+
+    def test_created_person_ignores_blank_organization_placeholder(self):
+        other_path = self.write_person(
+            self.other_root, "mark-marusic",
+            "---\ntags: [person]\nslug: mark-marusic\nfirst_name: Mark\nlast_name: Marusic\n"
+            "organizations:\n  -\n---\n",
+        )
+        with self.assertLogs(level="INFO"):
+            PersonSynchronizer(self.arguments()).create_person(read_document(other_path), set())
+        created = read_document(self.personal_root / "mark-marusic" / "Mark Marusic.md")
+        self.assertIsNone(created.frontmatter["organizations"])
+        self.assertIn("organizations:\n", created.raw)
+        self.assertNotIn("organizations:\n  -", created.raw)
+
     def test_created_person_orders_frontmatter_fields_by_template(self):
         other_path = self.write_person(
             self.other_root, "amelia-cantwell",
@@ -1082,6 +1112,84 @@ class SyncPersonFilesTests(unittest.TestCase):
         self.assertIn("Existing:", prompt)
         self.assertIn("Incoming:", prompt)
         self.assertIn("Suggested:", prompt)
+
+    def test_position_title_difference_with_same_organization_and_dates_needs_review(self):
+        personal_path = self.write_person(
+            self.personal_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Positions\n- Technical Recruiter, [Procom](Procom), 2005-11 to 2007-03\n",
+        )
+        other_path = self.write_person(
+            self.other_root,
+            "jane-doe",
+            "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+            "## Positions\n- Recruteur technique, [Procom](Procom), 2005-11 to 2007-03\n",
+        )
+
+        synchronizer = PersonSynchronizer(self.arguments())
+        synchronizer.merge_pair(read_document(personal_path), read_document(other_path))
+
+        updated = personal_path.read_text(encoding="utf-8")
+        self.assertIn("- Technical Recruiter, [[Procom]], 2005-11 to 2007-03", updated)
+        self.assertNotIn("- Recruteur technique, [[Procom]], 2005-11 to 2007-03", updated)
+        self.assertEqual(len(synchronizer.reviews), 1)
+        review = synchronizer.reviews[0]
+        self.assertEqual(review["type"], "position_title")
+        self.assertEqual(review["existing_line"], "- Technical Recruiter, [[Procom]], 2005-11 to 2007-03")
+        self.assertEqual(review["incoming_line"], "- Recruteur technique, [[Procom]], 2005-11 to 2007-03")
+
+    def test_position_title_review_can_keep_existing_incoming_or_both(self):
+        for choice in ("x", "i", "b"):
+            with self.subTest(choice=choice):
+                slug = f"jane-doe-{choice}"
+                personal_root = self.personal_root / choice
+                other_root = self.other_root / choice
+                personal_root.mkdir()
+                other_root.mkdir()
+                state_root = self.state_root / choice
+                existing_line = "- Technical Recruiter, [[Procom]], 2005-11 to 2007-03"
+                incoming_line = "- Recruteur technique, [[Procom]], 2005-11 to 2007-03"
+                personal_path = self.write_person(
+                    personal_root,
+                    slug,
+                    "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+                    f"## Positions\n{existing_line.replace('[[Procom]]', '[Procom](Procom)')}\n\n  > Personal details.\n",
+                )
+                other_path = self.write_person(
+                    other_root,
+                    slug,
+                    "---\ntags: [person]\nslug: jane-doe\nfirst_name: Jane\nlast_name: Doe\n---\n"
+                    f"## Positions\n{incoming_line.replace('[[Procom]]', '[Procom](Procom)')}\n\n  > Incoming details.\n",
+                )
+                args = self.arguments()
+                args.state_dir = str(state_root)
+                synchronizer = PersonSynchronizer(args)
+                synchronizer.merge_pair(read_document(personal_path), read_document(other_path))
+                state_root.mkdir(exist_ok=True)
+                (state_root / "pending_review.json").write_text(
+                    json.dumps(synchronizer.reviews),
+                    encoding="utf-8",
+                )
+
+                with patch("tools.merge_person_files.read_review_command", return_value=choice):
+                    review_pending(args)
+
+                updated = personal_path.read_text(encoding="utf-8")
+                if choice == "x":
+                    self.assertIn(existing_line, updated)
+                    self.assertNotIn(incoming_line, updated)
+                elif choice == "i":
+                    self.assertNotIn(existing_line, updated)
+                    self.assertIn(incoming_line, updated)
+                else:
+                    self.assertIn(existing_line, updated)
+                    self.assertIn(incoming_line, updated)
+                    self.assertIn("Personal details.", updated)
+                    self.assertIn("Incoming details.", updated)
+                next_sync = PersonSynchronizer(args)
+                next_sync.merge_pair(read_document(personal_path), read_document(other_path))
+                self.assertEqual(next_sync.reviews, [])
 
     def test_distinct_roles_at_same_organization_are_not_merged(self):
         senior_line = "- Senior Software Engineer, [[Infor]], [[Victoria]], 2018-12 to 2019-05"
@@ -1605,7 +1713,7 @@ class SyncPersonFilesTests(unittest.TestCase):
         PersonSynchronizer(self.arguments()).merge_pair(read_document(person_path), read_document(other_path))
         updated = person_path.read_text(encoding="utf-8")
         self.assertIn(
-            "1. [Website](https://example.com)\n   Keep this annotation.\n\n"
+            "1. [Website](https://example.com)\n   Keep this annotation.\n"
             "2. [LinkedIn](https://www.linkedin.com/in/jane-doe-123)",
             updated,
         )
@@ -1681,7 +1789,15 @@ class SyncPersonFilesTests(unittest.TestCase):
         )
 
         updated = personal_path.read_text(encoding="utf-8")
-        self.assertIn("2. [LinkedIn](https://www.linkedin.com/in/jane-doe-123)", updated)
+        self.assertIn(
+            "1. [Website](https://example.com)\n"
+            "2. [LinkedIn](https://www.linkedin.com/in/jane-doe-123)\n\n## Positions",
+            updated,
+        )
+        PersonSynchronizer(self.arguments()).match_and_sync(
+            discover_people(self.personal_root), discover_people(self.other_root)
+        )
+        self.assertEqual(personal_path.read_text(encoding="utf-8"), updated)
 
     def test_sync_repairs_mojibake_in_existing_and_incoming_content(self):
         personal_path = self.write_person(

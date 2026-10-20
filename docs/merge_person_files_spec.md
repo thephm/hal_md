@@ -70,7 +70,7 @@ When a merge adds a missing frontmatter field, insert it according to the ordere
 
 | Section | Rule |
 |---|---|
-| `## Bio` | **Summarize after merging, enabled by default.** Combine personal and incoming content without discarding either source, then summarize when the unquoted text exceeds the character threshold. Request one neutral paragraph without repetition, based only on the supplied facts; write generated prose without a blockquote. Short bios retain merged text. With `--do-not-summarize`, preserve the previous similarity rule: at ≥ 70%, replace with incoming; otherwise append distinct incoming content as a quoted paragraph. |
+| `## Bio` | **Summarize after merging, enabled by default.** Combine personal and incoming content without discarding either source, then summarize when the unquoted text exceeds the character threshold. Request one neutral English paragraph without repetition, translating non-English source content as needed and using only the supplied facts; write generated prose without a blockquote. Short bios retain merged text. With `--do-not-summarize`, preserve the previous similarity rule: at ≥ 70%, replace with incoming; otherwise append distinct incoming content as a quoted paragraph. |
 
 Treat Bio sections containing only blank or empty blockquote lines (`>`) as empty, not as paragraphs to append. Trim these lines at Bio boundaries before merging and when creating notes, including with `--do-not-summarize`. This also repairs boundary lines left by earlier merges while preserving internal quoted paragraph separators.
 
@@ -80,7 +80,7 @@ Strip response list/quote markers and normalize whitespace before validation. An
 
 The `## Positions` and `## Notes`/`## People` rules are detailed just below, since Positions needs more than a one-line rule.
 
-- **`## Positions`**: Match job entries by (organization + normalized title + overlapping date range). Different titles represent separate roles, even at the same organization. A company-only entry with no title is a placeholder: when it has the same organization and an overlapping date range with a titled entry, keep the titled entry. `Kindryl` is an alias for `Kyndryl`. Date ranges that only share an end/start month are adjacent positions, not overlapping; entries with the same start month can still match. Use these rules for both merging and deduplication. On re-sync, remove saved date reviews for the processed person when their existing/incoming lines describe separate positions under this rule; leave unrelated reviews and decisions untouched. Equivalent education entries retain their qualification-based matching.
+- **`## Positions`**: Match job entries by (organization + normalized title + overlapping date range). Different titles normally represent separate roles, even at the same organization. When the organization and complete date values are identical but the titles differ, queue a review instead of silently adding or replacing either entry; the review lets you keep the existing title, use the incoming title, or keep both. A company-only entry with no title is a placeholder: when it has the same organization and an overlapping date range with a titled entry, keep the titled entry. `Kindryl` is an alias for `Kyndryl`. Date ranges that only share an end/start month are adjacent positions, not overlapping; entries with the same start month can still match. Use these rules for both merging and deduplication. On re-sync, remove saved date reviews for the processed person when their existing/incoming lines describe separate positions under this rule; leave unrelated reviews and decisions untouched. Equivalent education entries retain their qualification-based matching.
   - **Preserve adjacent roles.** A shared end/start month (including an exact shared day) is a role handoff, not a reason to offer deletion of the earlier entry. Keep both roles without an adjacent-role review during sync, creation, and position normalization. Only review disagreements between existing and incoming versions of the same matching role; identical versions need no choice. Discard legacy `position_adjacent` pending items for processed people during sync/normalization and for the selected scope before interactive review, without changing their positions or unrelated reviews/decisions. Dry runs discard obsolete items only in memory.
   - **Dates**: same precision rule as `birthday`. The other source typically only provides `YYYY-MM`; your personal entries often have `YYYY-MM-DD`. Whichever side has the finer-grained (more precise) date wins for that start/end date — in practice this usually means personal wins since it's more often `YYYY-MM-DD`, but if personal only has `YYYY-MM` (or is missing a date) and the other file has more precision, take that one. Compare at shared precision to detect disagreement; if the values conflict beyond just precision (e.g. different months, not just missing days), flag it in `manual_review.csv` rather than silently picking one.
   - Keep the personal entry's `reports to [[Name]]` line if present — the other file never has this.
@@ -93,7 +93,9 @@ The `## Positions` and `## Notes`/`## People` rules are detailed just below, sin
   - **After merging, re-order the full `## Positions` list oldest to newest** by start date, so the final section always reads chronologically regardless of what order entries originally appeared in either source file. Entries with only a `YYYY-MM` start date sort using that month; ties (or missing dates) keep their relative original order.
 - **`## Notes`, `## People`, etc.**: personal-only sections, never touched by this tool.
 
-When merging References, remove empty template list markers and renumber surviving numbered entries only when placeholders were removed, including when the LinkedIn link is already present. Positions merging and normalization omit empty placeholder-only bullets but preserve real entries and descriptions. Notes cleanup removes only empty top-level unordered list markers outside fenced code; populated links, image-name text, nested list items, and all other Notes content remain in place. Placeholder bullets in other sections are left untouched.
+Incoming organization lists ignore blank or non-string items (including YAML null placeholders), logging rejected values before slug validation. This applies both to merges and new-person creation; valid incoming slugs and existing personal organizations are preserved.
+
+When merging References, remove empty template list markers and renumber surviving numbered entries only when placeholders were removed, including when the LinkedIn link is already present. Append a new LinkedIn reference on the line immediately after the existing reference content, without inserting a blank line; preserve existing entries and continuation lines. Positions merging and normalization omit empty placeholder-only bullets but preserve real entries and descriptions. Notes cleanup removes only empty top-level unordered list markers outside fenced code; populated links, image-name text, nested list items, and all other Notes content remain in place. Placeholder bullets in other sections are left untouched.
 
 Normalize final output to exactly one blank line before and after every ATX Markdown heading (`#` through `######`), including empty sections. Apply after section replacement and before writing merged, normalized, created, or review-edited files. Frontmatter and fenced code content are excluded.
 
@@ -110,7 +112,7 @@ Remove literal `None` string placeholders from all Person frontmatter fields: om
 ## Reporting (every run, including dry-run)
 
 - `match_report.csv` — match status for everyone processed this run
-- `manual_review.csv` — new conflicts needing a one-time decision (bio below threshold, contact-info differences, ambiguous name matches, birthday mismatches for awareness)
+- `manual_review.csv` — new conflicts needing a one-time decision (bio below threshold, contact-info differences, same-organization/same-date position title differences, ambiguous name matches, birthday mismatches for awareness)
 - `changes_applied.csv` — for a real (non-dry-run) run: exactly which fields were changed on which personal files, and from what value to what value
 - Console summary: people processed, auto-merged fields, new decisions needed, decisions reused from prior runs
 
@@ -124,6 +126,7 @@ Manual review happens as an interactive terminal session — a colorized, git/Gi
 
 **Per-item display**:
 - Header line: person name/slug and field name (e.g. `Jane Doe — mobile`, `Jane Doe — Position: Acme Corp, Senior Engineer`).
+- Same-organization/same-date position title conflicts offer `[x]` existing, `[i]` incoming, or `[b]` both.
 - Git-style diff:
   - Short single-value fields (mobile, emails, birthday): `- <old value>` in red, `+ <new value>` in green.
   - Longer text (Position descriptions, or anything else needing a closer look): word-level diff, unchanged words in default color, removed words in red, added words in green — like `git diff --word-diff`, rendered directly with ANSI colors.

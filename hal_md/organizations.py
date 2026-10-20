@@ -114,7 +114,16 @@ class OrganizationsConfig:
         if existing_name:
             canonical_name = existing_name
         else:
-            self.raw_data.append({"name": canonical_name})
+            base_slug = _slug_key(canonical_name)
+            if not base_slug:
+                raise ValueError(f"Cannot generate an organization slug from {canonical_name!r}")
+            existing_slugs = {record.slug for record in self.records}
+            slug = base_slug
+            suffix = 2
+            while slug in existing_slugs:
+                slug = f"{base_slug}-{suffix}"
+                suffix += 1
+            self.raw_data.append({"name": canonical_name, "slug": slug, "people": []})
 
         if normalize_organization_key(canonical_name) != key:
             self._append_alias(canonical_name, raw_name)
@@ -122,6 +131,42 @@ class OrganizationsConfig:
         self.save()
         self._resolved_unknowns[key] = canonical_name
         return canonical_name
+
+    def link_person(self, person_slug: str, organizations: list[str]) -> bool:
+        """Persist a person's membership in known organizations without creating records."""
+        if not person_slug.strip():
+            raise ValueError("A person slug is required to link organizations")
+        if not self.writable or self.path is None:
+            raise ValueError("Cannot link a person without a writable organization registry")
+
+        canonical_names = {
+            self.alias_to_name.get(normalize_organization_key(value))
+            for value in organizations
+        }
+        canonical_names.discard(None)
+        slugs = {self.slug_for_value(value) for value in organizations}
+        slugs.discard("")
+        matches = [
+            item for item in self.raw_data
+            if isinstance(item, dict) and (
+                (item.get("slug") and item.get("slug") in slugs)
+                or (item.get("name") or item.get("organization")) in canonical_names
+            )
+        ]
+        for item in matches:
+            if not isinstance(item.get("people", []), list):
+                raise ValueError(f"Organization {item.get('name')!r} has an invalid people list")
+
+        changed = False
+        for item in matches:
+            people = item.setdefault("people", [])
+            if person_slug not in people:
+                people.append(person_slug)
+                people.sort(key=lambda value: str(value).lower())
+                changed = True
+        if changed:
+            self.save()
+        return changed
 
     def _append_alias(self, canonical_name: str, alias: str) -> None:
         canonical_key = normalize_organization_key(canonical_name)

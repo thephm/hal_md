@@ -135,7 +135,9 @@ slug = organizations.slug_for_name(names[0]) if names else ""
 
 Matching normalizes Unicode to NFC, whitespace, and case, so composed and decomposed accents match without stripping accents or changing canonical display names. `slug_for_value` also accepts registered slugs and slugified names/aliases. `parse_organization_records`, `parse_aliases`, `build_alias_index`, and `normalize_organization_key` are available to other consumers. Legacy `organization` names, `aliases:` keys, and semicolon-separated alias strings are accepted. The extraction and merge tools share these helpers while retaining their existing broader legal-suffix/slug and punctuation-insensitive matching policies.
 
-`resolve_unknown` returns known canonical names without prompting or writing. Unknown names are saved only when explicitly passed to `resolve_unknown`; set `prompt_for_unknown = True` for interactive canonical-name selection (`-` skips). Bare-list registries preserve unrelated record fields when updated. Missing registries can be created; malformed or wrapped registries are not overwritten (wrapped registries remain usable for lookups). I/O errors are propagated to the caller.
+`resolve_unknown` returns known canonical names without prompting or writing. Unknown names are saved only when explicitly passed to `resolve_unknown`; set `prompt_for_unknown = True` for interactive canonical-name selection (`-` skips). New records include a lowercase, hyphen-separated `slug` derived from the canonical name and an empty `people` list. Slug collisions receive numeric suffixes starting at `-2`; names that cannot produce a slug raise `ValueError` without adding a record. This also applies to callers such as `linkedin_crawler` using the shared registry. Existing records are not backfilled, and bare-list registries preserve unrelated record fields when updated. Missing registries can be created; malformed or wrapped registries are not overwritten (wrapped registries remain usable for lookups). I/O errors are propagated to the caller.
+
+`OrganizationsConfig.link_person(person_slug, organizations)` adds a person slug to known organizations matched by canonical name, alias, or slug, preserving existing people and metadata. It saves only when a link is new and never creates unknown organizations. The LinkedIn crawler calls this after writing each Person file, covering profile organizations, positions, and education. A writable registry path is required.
 
 So far, I've created:
 
@@ -223,6 +225,18 @@ The script will update `Spongebob Squarepants.md` to include:
 - `-f` or `--folder` - The folder where each Person has a subfolder named with their slug
 - `-d` or `--debug` - Print extra info as files are processed
 - `-x` or `--max` - Maximum number of people to process
+
+### Birthday calendar
+
+The [birthday calendar tool](tools/md_birthdays.py) prints a Markdown calendar from Person profiles:
+
+```sh
+python md_birthdays.py --folder /path/to/People
+```
+
+Run this command from `tools`, or invoke the script by its path from another directory. Keep the separate `hal` repository alongside `hal_md` (both under the same parent folder); the script locates its HAL modules relative to its own location, not the working directory.
+
+Use `--upcoming N` to list birthdays in the next N days, or `--max N` to limit the number of people processed.
 
 ### Most contacted
 
