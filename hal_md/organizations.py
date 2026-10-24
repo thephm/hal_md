@@ -102,12 +102,18 @@ class OrganizationsConfig:
 
         canonical_name = raw_name
         if self.prompt_for_unknown:
-            entered_name = input(f"Unknown organization '{raw_name}'. Canonical name (Enter to use shown, '-' to skip): ").strip()
-            if entered_name == "-":
-                self._resolved_unknowns[key] = raw_name
-                return raw_name
-            if entered_name:
-                canonical_name = entered_name
+            while True:
+                entered_name = input(f"Unknown organization '{raw_name}'. Canonical name (Enter to use shown, '-' to skip): ").strip()
+                if entered_name == "-":
+                    self._resolved_unknowns[key] = raw_name
+                    return raw_name
+                canonical_name = entered_name or raw_name
+                if normalize_organization_key(canonical_name) in self.alias_to_name or _slug_key(canonical_name):
+                    break
+                logging.getLogger(__name__).warning(
+                    "Cannot generate an organization slug from %r. Enter a different name or '-' to skip.",
+                    canonical_name,
+                )
 
         canonical_key = normalize_organization_key(canonical_name)
         existing_name = self.alias_to_name.get(canonical_key)

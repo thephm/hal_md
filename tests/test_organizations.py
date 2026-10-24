@@ -405,6 +405,55 @@ class OrganizationsConfigTests(unittest.TestCase):
             self.assertEqual(config.raw_data, [])
             self.assertEqual(path.read_text(encoding="utf-8"), "[]")
 
+    def test_invalid_prompted_name_retries_before_saving(self):
+        for invalid_name, replacement in (("'", "Intralinks"), ("!!!", ""), ("&", "Canonical Organization")):
+            with self.subTest(invalid_name=invalid_name, replacement=replacement), TemporaryDirectory() as temp_dir:
+                path = Path(temp_dir) / "organizations.json"
+                path.write_text("[]", encoding="utf-8")
+                config = OrganizationsConfig.load_optional(path.parent)
+                config.prompt_for_unknown = True
+                responses = iter([invalid_name, "'", replacement])
+
+                def respond(prompt):
+                    self.assertEqual(config.raw_data, [])
+                    self.assertEqual(config._resolved_unknowns, {})
+                    self.assertEqual(path.read_text(encoding="utf-8"), "[]")
+                    return next(responses)
+
+                with patch("builtins.input", side_effect=respond) as prompt:
+                    with self.assertLogs("hal_md.organizations", level="WARNING") as logs:
+                        result = config.resolve_unknown("IntraLinks")
+
+                canonical_name = replacement or "IntraLinks"
+                self.assertEqual(result, canonical_name)
+                self.assertEqual(prompt.call_count, 3)
+                self.assertEqual(len(logs.output), 2)
+                self.assertIn("Enter a different name or '-' to skip", logs.output[0])
+                data = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(len(data), 1)
+                self.assertEqual(data[0]["name"], canonical_name)
+                self.assertEqual(data[0]["people"], [])
+                self.assertTrue(data[0]["slug"])
+                with patch("builtins.input", side_effect=AssertionError("unexpected prompt")):
+                    self.assertEqual(config.resolve_unknown("IntraLinks"), canonical_name)
+
+    def test_invalid_prompted_name_can_be_skipped_without_saving(self):
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "organizations.json"
+            path.write_text("[]", encoding="utf-8")
+            config = OrganizationsConfig.load_optional(path.parent)
+            config.prompt_for_unknown = True
+
+            with patch("builtins.input", side_effect=["'", "-"]) as prompt:
+                with self.assertLogs("hal_md.organizations", level="WARNING"):
+                    self.assertEqual(config.resolve_unknown("IntraLinks"), "IntraLinks")
+
+            self.assertEqual(prompt.call_count, 2)
+            self.assertEqual(config.raw_data, [])
+            self.assertEqual(path.read_text(encoding="utf-8"), "[]")
+            with patch("builtins.input", side_effect=AssertionError("unexpected prompt")):
+                self.assertEqual(config.resolve_unknown("IntraLinks"), "IntraLinks")
+
     def test_resolve_unknown_adds_shown_name_as_alias_of_entered_canonical_organization(self):
         with TemporaryDirectory() as temp_dir:
             config_folder = Path(temp_dir)
