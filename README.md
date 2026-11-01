@@ -223,8 +223,18 @@ The script will update `Spongebob Squarepants.md` to include:
 #### Command line options
 
 - `-f` or `--folder` - The folder where each Person has a subfolder named with their slug
+- `-s` or `--slug` - Only process the specified person slug(s), without scanning all contacts
 - `-d` or `--debug` - Print extra info as files are processed
 - `-x` or `--max` - Maximum number of people to process
+
+Without `--slug`, all people are processed as before. To update one person or several:
+
+```sh
+python tools/embed_notes.py --folder People --slug spongebob-squarepants
+python tools/embed_notes.py --folder People --slug spongebob-squarepants patrick-star
+```
+
+The option can also be repeated. Duplicate slugs are processed only once, missing person folders are reported and skipped, and `--max` limits the number of selected people processed.
 
 ### Birthday calendar
 

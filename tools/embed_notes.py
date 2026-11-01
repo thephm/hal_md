@@ -4,7 +4,7 @@ under `## Notes` so you can see the entire communication history with them.
 """
     
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError
 import datetime
 from pathlib import Path
 
@@ -32,6 +32,11 @@ MD_EMBED = "!"
 MD_SUFFIX = ".md"
 EMBEDDED_WIKILINK = MD_EMBED + WIKILINK_OPEN
 
+def person_slug(value):
+    if not value or value.startswith(".") or any(char in value for char in "/\\:*?[]"):
+        raise ArgumentTypeError("A slug must be a single, non-hidden folder name without wildcards")
+    return value
+
 def get_arguments():
     """
     Parse the command line arguments.
@@ -40,6 +45,9 @@ def get_arguments():
 
     parser.add_argument("-f", "--folder", dest="folder", default=".",
                         help="The folder where each Person has a subfolder named with their slug")
+
+    parser.add_argument("-s", "--slug", type=person_slug, nargs="+", action="extend",
+                        help="Only process these person slugs (one or more folder names)")
 
     parser.add_argument("-d", "--debug", dest="debug", action="store_true", default=False,
                         help="Print extra info as the files processed")
@@ -166,10 +174,14 @@ def update_interactions(folder):
     notes_section = md_person.SECTION_NOTES
 
     # get list of people `slug`s from the folder names
-    slugs = md_person.get_slugs(folder)
+    slugs = list(dict.fromkeys(args.slug)) if args.slug else md_person.get_slugs(folder)
 
     # for each person, find the most recent communication
     for slug in slugs:
+
+        if args.slug and not os.path.isdir(os.path.join(folder, slug)):
+            print('The person folder "' + os.path.join(folder, slug) + '" could not be found.')
+            continue
 
         the_interactions = []
         top = ""
