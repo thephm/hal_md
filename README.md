@@ -152,6 +152,7 @@ So far, I've created:
 - 2024-09-29: [embed_notes](tools/embed_notes.py) to embed dated interaction files into Person profiles
 - [merge_person_files](tools/merge_person_files.py) merges selected frontmatter fields, bios, and positions from another Person-file collection into a personal vault. It modifies matched personal files in place; begin with `--dry-run` and keep the external `--state-dir` (including its backups and review decisions) backed up.
 - [dedup_media](tools/dedup_media.py) interactively removes byte-identical files from every `media` folder in a vault and updates their Markdown references.
+- [clean_syncthing_conflicts](tools/clean_syncthing_conflicts.py) recursively restores missing originals and removes byte-identical Syncthing conflict copies; previews changes by default.
 
 The organization, interest, and skill tools use `C:\data\config` on Windows or `/mnt/c/data/config` on WSL for their registry files by default. Set `HAL_MD_CONFIG_DIR` to override this folder, or pass the tool's explicit config/output option. [merge_person_files](tools/merge_person_files.py) also reads its default organization registry from this folder. Generated reports, media deduplication indexes, and merge decision state remain under `C:\data\dev-output` (or `/mnt/c/data/dev-output` on WSL); they are not config files.
 
@@ -160,6 +161,42 @@ The organization, interest, and skill tools use `C:\data\config` on Windows or `
 [merge_person_files](tools/merge_person_files.py) summarizes merged/new bios over 300 characters by default using `AI_SUMMARY_API_KEY` and the optional `AI_SUMMARY_API_BASE`, `AI_SUMMARY_MODEL`, `AI_SUMMARY_MAX_CHARS`, and `AI_SUMMARY_TIMEOUT` environment settings. Use `--do-not-summarize` to retain merged text without provider calls. Summary results are cached under `--state-dir` to keep repeated syncs stable. Even `--dry-run` may send Bio text to the configured provider; requests include `store=false`, but provider retention policies still apply. This does not summarize position descriptions.
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
+
+### Clean Syncthing conflicts
+
+Scan one or more folders, including all subfolders:
+
+```powershell
+python tools\clean_syncthing_conflicts.py "D:\Photos" "D:\Documents"
+python tools\clean_syncthing_conflicts.py "D:\Photos" "D:\Documents" --apply
+```
+
+The first command is a dry run (`--dry-run` is also accepted). Pause Syncthing
+and other programs writing to these folders before using `--apply`, and keep a
+backup: deletions are permanent, not sent to the Recycle Bin.
+
+Conflicts are grouped only by their original filename in the same directory.
+For example, `photo.sync-conflict-20261107-221752-QRX7PZB.jpg` belongs to
+`photo.jpg`. Different original names or directories are never deduplicated.
+
+- If the original exists and all copies are byte-identical, remove the conflicts.
+- If the original is missing and all conflicts are byte-identical, restore the
+  first conflict in filename order and remove the others. A single conflict is
+  also restored.
+- If any contents differ, leave the entire group untouched and report it as
+  unresolved. Matching sizes alone never justify deletion.
+
+All file types, including empty files and extensionless files, are supported.
+Overlapping input folders are scanned without processing a conflict twice.
+Symlinked directories are not traversed; symlinked files in conflict groups and
+filesystem errors are reported with a nonzero exit status. Unresolved groups are
+reported separately in the summary. No Markdown links are rewritten.
+
+Restoration uses a hard link followed by removal of the conflict name to preserve
+file contents and modification time without overwriting an existing original.
+If the filesystem does not support hard links, restoration reports an error and
+leaves the conflict in place. Do not run while files are being modified: immediate
+byte comparisons are repeated before deletion but cannot lock out other writers.
 
 ### Comms
 
