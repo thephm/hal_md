@@ -162,6 +162,55 @@ The organization, interest, and skill tools use `C:\data\config` on Windows or `
 
 Why? So I can get **my** conversations with people in **my** network into **my** own files that **I** can control and use directly with **my** social network data. Each of those tools rely on [message_md](https://github.com/thephm/message_md).
 
+### Convert document-type tags to OKF frontmatter
+
+[okf_convert](tools/okf_convert.py) finds the first tag anywhere in a note's
+frontmatter tag list that matches a known document type, inserts `type` as the
+first property, and removes that tag. The exception is `tool`: it maps to
+`App` and remains in `tags`, including when `--map` overrides its type.
+Single tags such as `tags: technology`,
+multiline lists, and inline lists such as `tags: [chat, project-x]` are supported.
+Modified lists use multiline style, retaining other tags; an empty list becomes
+`tags:` followed by a blank `  - ` item. When `tool` is the matched tag, the
+original tag field is preserved. Other frontmatter fields, the Markdown body,
+line endings, and UTF-8 BOMs are preserved.
+
+```powershell
+py tools\okf_convert.py
+py tools\okf_convert.py --apply
+```
+
+For WSL, specify paths in Linux form:
+
+```bash
+python tools/okf_convert.py --root /mnt/c/notes --templates /mnt/c/notes/Templates
+```
+
+In dry-run mode, skipped files are listed with their reasons except files
+without frontmatter or a tags field, which are counted only. A summary shows
+counts; convertible files are counted but not listed. Already-typed files are
+included among the listed skips. Errors are printed to standard error. With
+`--apply`, converted files are listed; add `--verbose` to also list files
+skipped for unknown types or invalid UTF-8. Files without frontmatter or a tags
+field are counted but not listed in either mode.
+
+The default is a dry run over `C:\notes`, excluding `.obsidian`, `.trash`, `.git`,
+and `Templates`. Types come from `C:\notes\Templates` plus the built-in mappings.
+Built-in mappings include `note=Note`, `technology=Technology`, `service=Service`,
+`resource=Resource`, `app=App`, `tool=App`, and `meetings=Meeting` (as well as
+`meeting=Meeting`). A `service:` property is not a tag and is left unchanged.
+Use `--root`, `--templates`, or repeated `--map tag=Type` options to override.
+Already-typed notes and notes without a matching type tag are skipped.
+Malformed inline lists, unsupported scalar tags, or non-string tag values other
+than empty/null items are reported as errors with a nonzero exit status, without
+changing those files.
+The PyYAML dependency is included in `requirements.txt`.
+
+Back up the vault and pause Syncthing and other writers before `--apply`.
+Coordinate the vault conversion with the producer/consumer changes tracked in
+[#56](https://github.com/thephm/hal_md/issues/56); supporting both tag formats alone
+does not complete that cross-repository cutover.
+
 ### Clean Syncthing conflicts
 
 Scan one or more folders, including all subfolders:
